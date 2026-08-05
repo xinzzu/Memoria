@@ -17,9 +17,9 @@ jobs:
           - os: windows-latest
             artifact: "*.exe"
           - os: ubuntu-latest
-            artifact: "*.AppImage;*.deb"
+            artifact: "*.AppImage"
           - os: macos-latest
-            artifact: "*.dmg;*.zip"
+            artifact: "*.dmg"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +32,16 @@ jobs:
       - run: npm run build
       - name: Build installer
         run: npx electron-builder --publish never
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: memoria-${{ matrix.os }}
-          path: dist-installer/${{ matrix.artifact }}
+          path: |
+            dist-installer/*.exe
+            dist-installer/*.AppImage
+            dist-installer/*.deb
+            dist-installer/*.dmg
+            dist-installer/*.zip
           if-no-files-found: error
 
   release:

@@ -5,13 +5,18 @@
   "main": "dist/electron/main.js",
   "type": "commonjs",
   "desktopName": "Memoria",
-  "homepage": "https://github.com/memoria-ai/memoria",
+  "homepage": "https://github.com/xinzzu/Memoria",
+  "author": {
+    "name": "xinzzu",
+    "email": "xinzzui@gmail.com",
+    "url": "https://github.com/xinzzu"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.engine.json",
     "dev": "tsc -p tsconfig.engine.json --watch",
-    "scan": "node dist/cli/index.js scan",
-    "recall": "node dist/cli/index.js recall",
-    "status": "node dist/cli/index.js status",
+    "scan": "node dist/engine/index.js scan",
+    "recall": "node dist/engine/index.js recall",
+    "status": "node dist/engine/index.js status",
     "mcp": "node dist/engine/index.js mcp",
     "start": "electron .",
     "dist": "npm run build && electron-builder --win",
