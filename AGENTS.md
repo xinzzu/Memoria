@@ -1,0 +1,15 @@
+<!-- memoria:start -->
+# Handoff Proyek: d ngoding personal project pecut ai memory
+> Dibuat oleh Memoria — 2026-08-05T16:30
+
+## Memori (3)
+- **Rename brand → "Memoria" + logo tunggal `logo.png`**: name/productName/appId di package.json, semua referensi source/web/README/AGENTS diubah; `win.icon` → `logo.png` (electronics-builder auto-konversi), `createIcon()` di `src/electron/main.ts` baca `../..\logo.png` (fallback kotak biru), `logo.png` masuk `build.files`, favicon di index/palette/quick.html. Installer `dist-installer\Memoria Setup 0.1.0.exe` dibangun ulang.
+- **Tier 1 selesai**: `vscdb.ts` (scan state.vscdb VS Code/Cursor/Windsurf), palette global, entity extraction (`memory_entities`), auto-topic k-means+TF-IDF (`memory_tags`), fuzzy search, ekspor Obsidian (`POST /api/export/obsidian`).
+- **Ringkasan mingguan otomatis**: modul `src/engine/summary/weekly.ts` — `generateWeeklyDigest()`/`nextWeeklyDigestDue()`, tulis `weekly-digest.md` di dataDir + simpan teks di setting; `/api/digest` (GET) & `/api/digest/generate` (POST); auto di `dailyMaintenance` via toggle `weeklyDigest`; UI toggle + card `btnDigest`/`#digestBox` di settings; README roadmap update.
+- **Dukungan Linux & macOS**: `config.ts` kini per-OS — `appdata` (win: APPDATA, mac: `~/Library/Application Support`, linux: XDG_CONFIG_HOME), `localShare` (win: LOCALAPPDATA, mac: App Support, linux: XDG_DATA_HOME); Ollama path (win: `ollama.exe`, mac: `/Applications/Ollama.app/Contents/Resources/ollama`, linux: `ollama` via PATH); paths tool (antigravity/vscode/cursor/windsurf) pakai appdata per-OS; opencode db per-OS. electron-builder: blok `linux` (AppImage+deb, icon build/icon.png 512px, category Utility, desktopName Memoria) + `mac` (dmg+zip, productivity); `homepage` di package.json (wajib untuk deb); scripts `dist:linux`/`dist:mac`; `.github/workflows/build.yml` matrix 3 OS. Build AppImage & deb gagal dari Windows (symlink EPERM & fpm ENOENT) — harus runner Linux/macOS/CI; `linux-unpacked/` tetap dihasilkan. Windows installer OK 91.8MB, smoke test server OK.
+- **Fix window tidak terbuka saat start**: `main.ts` hanya memanggil `showWindow()` bila `PECUT_SHOW_ON_START=1` (env tes) — app jadi diam di tray saat dibuka pertama kali. Kini: `if (PECUT_SHOW_ON_START) showWindow(); else if (!app.getLoginItemSettings().wasOpenedAtLogin) showWindow();` — launch normal langsung buka dashboard, auto-start login tetap di tray. Verifikasi: screenshot terhasil tanpa env, 0 PAGE-ERR. Installer rebuild.
+- **Binaries**: installer `dist-installer\Memoria Setup 0.1.0.exe` (91.8MB). Server tes `node dist/engine/index.js server` port 48210; UI check via `PECUT_SHOT`/`PECUT_SHOT_CHECK` env (log ada di build\e-out.log, cari `[PAGE-ERR]`).
+
+## Next
+- Webhook & notifikasi (Slack/Discord/Telegram) — toggle + POST global pada digest/scan.
+<!-- memoria:end -->

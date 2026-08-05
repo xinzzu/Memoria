@@ -1,0 +1,85 @@
+{
+  "name": "memoria",
+  "version": "0.1.0",
+  "description": "Second brain offline untuk semua AI coding tools - capture session dari Claude, Codex, Gemini, Copilot, Antigravity, opencode, VS Code, Cursor & Windsurf",
+  "main": "dist/electron/main.js",
+  "type": "commonjs",
+  "desktopName": "Memoria",
+  "homepage": "https://github.com/memoria-ai/memoria",
+  "scripts": {
+    "build": "tsc -p tsconfig.engine.json",
+    "dev": "tsc -p tsconfig.engine.json --watch",
+    "scan": "node dist/cli/index.js scan",
+    "recall": "node dist/cli/index.js recall",
+    "status": "node dist/cli/index.js status",
+    "mcp": "node dist/engine/index.js mcp",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:mac": "npm run build && electron-builder --mac"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "chokidar": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "com.memoria.app",
+    "productName": "Memoria",
+    "files": [
+      "dist/**/*",
+      "web/**/*",
+      "logo.png",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "dist/engine/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "output": "dist-installer"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "logo.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "synopsis": "Second brain offline untuk AI coding tools",
+      "maintainer": "Memoria <memoria@localhost>",
+      "desktop": {
+        "entry": {
+          "Name": "Memoria"
+        }
+      }
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

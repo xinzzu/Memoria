@@ -1,0 +1,35 @@
+# Dependensi
+node_modules/
+
+# Build output
+dist/
+dist-installer/
+build/*.log
+build/packaged-*
+build/shot-*
+build/q-*
+build/e-*
+
+# Screenshot pengembangan
+*.shot.png
+
+# Env & lokal
+.env
+.env.local
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.code-workspace
+
+# Log
+*.log
