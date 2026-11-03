@@ -45,21 +45,23 @@ Setiap fitur baru wajib menjawab: *"Apakah ini mempercepat momen pindah tool itu
 
 ---
 
-## 2. Fase 0 — Fondasi (P0, 2–3 hari)
+## 2. Fase 0 — Fondasi (P0, 2–3 hari) — ✅ SELESAI 2026-11-03
 
 Semua fase lain bergantung pada ini. Target: tidak ada bug yang membuat fitur
 unggulan terlihat bodoh, dan tidak ada celah keamanan.
+**Status: 8/8 item dikerjakan di branch `feat/f0-foundation` (lihat `CHANGELOG.md`
+bagian Unreleased — smoke test keamanan/pagination/static lolos 10/10).**
 
-| # | Tugas | Lokasi | Catatan |
-|---|-------|--------|---------|
-| 0.1 | **Keamanan API**: bind `127.0.0.1`, validasi `Origin`/`Host`, token opsional | `http.ts:18,324` | Saat ini bind semua interface + CORS `*` → siapa pun di LAN bisa baca/hapus memori & POST `/api/handoff` menyuntik `AGENTS.md` (drive-by). Methods di CORS-preflight hanya `GET,POST` → DELETE/PUT blokir dari browser, tapi POST tetap bocor |
-| 0.2 | **Perbaiki `GET /api/memories`**: hormati param `status`, pagination keyset | `http.ts:89-101` | Saat ini selalu `allMemories().slice(0, 8)`; tab Memori hanya menampilkan 8 item. Arahkan UI ke `/api/memories/list` + pagination |
-| 0.3 | **MCP `recall` embed query** sebelum search | `mcp/server.ts:95-96` | Saat ini recall MCP keyword-only (bobot semantik 30% mati). Hapus pola global `queryEmbeddingCache` (`search.ts:80,162`) → terima embedding sebagai parameter |
-| 0.4 | **Audit identitas proyek lintas tool**: satu realpath = satu ID | `ingest/claude.ts`, `codex.ts`, `opencode.ts`, `db.ts:179` | Kalau slug Claude vs Codex vs opencode berbeda untuk proyek fisik yang sama, konteks TIDAK AKAN pernah menemu-kan — silent failure, fatal untuk F1A. Normalisasi via `fs.realpathSync` |
-| 0.5 | Fuzzy-match proyek di MCP `project_context`/`remember` | `mcp/server.ts:111,150` | Agent passing path sedikit beda → "Belum ada memori" |
-| 0.6 | UX aman: konfirmasi delete, `Ctrl/Cmd+Enter` untuk multiline, label scan benar | `app.js:265,1193,972` | Delete tanpa konfirmasi = kehilangan data 1 klik |
-| 0.7 | Cleanup: hapus harness `PECUT_SHOT`, toggle auto-start, `lastScan` nilai nyata, port dibaca dari config (bukan hardcoded 3 file) | `main.ts:54-85,179`, `manager.ts:111`, `app.js:1` | |
-| 0.8 | Shortcut yang gagal registrasi diberi tahu ke user; shortcut bisa diubah | `main.ts:166-171` | `globalShortcut.register` return `false`, tidak throw — try/catch sekarang mati |
+| # | Tugas | Lokasi | Status |
+|---|-------|--------|--------|
+| 0.1 | **Keamanan API**: bind `127.0.0.1`, validasi `Origin`/`Host`, token opsional | `http.ts` | ✅ |
+| 0.2 | **Perbaiki `GET /api/memories`**: hormati param `status`, pagination | `http.ts`, `app.js` | ✅ |
+| 0.3 | **MCP `recall` embed query** sebelum search; hapus global cache | `mcp/server.ts`, `search.ts` | ✅ |
+| 0.4 | **Identitas proyek lintas tool**: satu path kanonik = satu ID | `db.ts`, `ingest/util.ts` | ✅ |
+| 0.5 | Fuzzy-match proyek di MCP `project_context`/`remember` | `mcp/server.ts` | ✅ |
+| 0.6 | UX aman: konfirmasi delete, `Ctrl/Cmd+Enter` untuk multiline, label scan benar | `app.js`, `index.html` | ✅ |
+| 0.7 | Cleanup: hapus `PECUT_SHOT`, toggle auto-start, `lastScan` nyata, port dari config (static serve same-origin) | `main.ts`, `http.ts`, `manager.ts`, `web/*` | ✅ |
+| 0.8 | Shortcut configurable + feedback kegagalan registrasi | `main.ts`, `http.ts`, `index.html`, `app.js` | ✅ |
 
 **Definition of Done F0**: semua item di atas terverifikasi di Windows + macOS;
 `recall` MCP mengembalikan hasil semantik; tab Memori menampilkan seluruh pustaka
