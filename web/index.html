@@ -734,7 +734,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-mark" src="/logo.png" alt="Memoria" />
+        <img class="brand-mark" src="../logo.png" alt="Memoria" />
         <div class="brand-txt">
           <div class="brand-name">Memoria</div>
           <div class="brand-tag" data-i18n="second brain">second brain</div>
@@ -945,7 +945,7 @@
           <div class="graph-wrap">
             <div class="graph-canvas-box">
               <canvas id="graphCanvas"></canvas>
-              <div class="graph-hint">Seret untuk geser · klik node untuk detail · scroll untuk zoom</div>
+              <div class="graph-hint"><span data-i18n="Drag to pan · click a node for details · scroll to zoom">Drag to pan · click a node for details · scroll to zoom</span></div>
             </div>
             <div class="graph-side" id="graphSide"></div>
           </div>
@@ -981,7 +981,7 @@
           <div class="settings-group" data-stab="engine">
 <div class="card">
               <h4 data-i18n="Intelligence engine">Intelligence engine</h4>
-              <div class="card-desc">Ekstraksi & embedding memori. Mode <b>auto</b> memakai Ollama bila menyala; tanpa model pun Memoria tetap bekerja (heuristik → hasil masuk antrian tinjau). Perubahan langsung aktif tanpa restart.</div>
+              <div class="card-desc" data-i18n-html="Memory extraction &amp; embedding. <b>Auto</b> mode uses Ollama when it is running; with no model at all, Memoria still works (heuristics → review queue). Changes apply instantly, no restart.">Memory extraction &amp; embedding. <b>Auto</b> mode uses Ollama when it is running; with no model at all, Memoria still works (heuristics → review queue). Changes apply instantly, no restart.</div>
               <div style="margin-top:10px">
                 <label class="t-label" for="setExtractEngine" data-i18n="Extraction engine">Extraction engine</label>
                 <select id="setExtractEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
@@ -1181,7 +1181,7 @@
         </select>
       </div>
       <div class="field">
-        <label>Proyek <span class="muted">(opsional)</span></label>
+        <label data-i18n="Project">Project</label> <span class="muted" data-i18n="(optional)">(optional)</span>
         <input type="text" id="addProject" placeholder="Project name or path (optional)" data-i18n-ph="Project name or path (optional)" />
       </div>
       <div class="field">
