@@ -234,6 +234,36 @@ export async function generateHandoff(slug: string, opts: HandoffOptions = {}): 
   return lines.join("\n");
 }
 
+/* ---------- Multi-file injection ----------
+ * Tiap tool membaca file konteks berbeda: Codex/opencode -> AGENTS.md,
+ * Claude Code -> CLAUDE.md, Gemini CLI -> GEMINI.md. Blok ber-marker yang sama
+ * diinjeksi ke tiap file target. Duplikasi blok (bukan symlink) dipilih agar
+ * aman di Windows tanpa privilege khusus. Tiap target bisa dimatikan lewat
+ * setting `injectFile:<nama-file>`.
+ * ------------------------------------------- */
+
+export const INJECTION_FILES = ["AGENTS.md", "CLAUDE.md", "GEMINI.md"] as const;
+
+export function injectionTargets(): string[] {
+  return INJECTION_FILES.filter((f) => getBoolSetting(`injectFile:${f}`, true));
+}
+
+export async function injectHandoffAll(slug: string, opts: HandoffOptions = {}): Promise<Array<{ file: string; ok: boolean }>> {
+  const results: Array<{ file: string; ok: boolean }> = [];
+  for (const file of injectionTargets()) {
+    const r = await injectHandoff(slug, file, opts);
+    results.push({ file: r.file, ok: r.ok });
+  }
+  return results;
+}
+
+export function removeInjectAll(slug: string): Array<{ file: string; ok: boolean }> {
+  return injectionTargets().map((file) => {
+    const r = removeInject(slug, file);
+    return { file: r.file, ok: r.ok };
+  });
+}
+
 const MARK_START = "<!-- memoria:start -->";
 const MARK_END = "<!-- memoria:end -->";
 const MARK_RE = /<!-- (?:pecut-memory|memoria):start -->[\s\S]*?<!-- (?:pecut-memory|memoria):end -->\n?/;
@@ -279,8 +309,8 @@ export async function autoInjectContext(): Promise<string[]> {
         .get(p.id) as { m: number };
       const lastInject = Number(getSetting(`proj:${p.slug}:handoff_at`, "0"));
       if (lastTs.m > lastInject) {
-        const r = await injectHandoff(p.slug, "AGENTS.md", { slim: true });
-        if (r.ok) {
+        const rs = await injectHandoffAll(p.slug, { slim: true });
+        if (rs.some((r) => r.ok)) {
           setSetting(`proj:${p.slug}:handoff_at`, String(Date.now()));
           injected.push(p.slug);
         }

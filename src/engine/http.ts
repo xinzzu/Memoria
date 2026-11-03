@@ -8,7 +8,7 @@ import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory,
 import { embed, ollamaAvailable } from "./extract/ollama";
 import { extractQueue } from "./extract/extractor";
 import { addMemoryWithDedupe } from "./extract/dedupe";
-import { generateHandoff, injectHandoff, removeInject } from "./handoff";
+import { generateHandoff, injectHandoff, injectHandoffAll, removeInjectAll } from "./handoff";
 import { backupDb, pruneArchivedBackups, listBackups, restoreBackup } from "./store/backup";
 import { registerIntegration, integrationStatus } from "./integrate";
 import { runGitLog } from "./git";
@@ -282,6 +282,9 @@ export function startHttpServer(): Promise<void> {
             autoStartLogin: getSetting("autoStartLogin", "1"),
             shortcutQuick: getSetting("shortcutQuick", "CommandOrControl+Shift+M"),
             shortcutPalette: getSetting("shortcutPalette", "CommandOrControl+Shift+Space"),
+            "injectFile:AGENTS.md": getSetting("injectFile:AGENTS.md", "1"),
+            "injectFile:CLAUDE.md": getSetting("injectFile:CLAUDE.md", "1"),
+            "injectFile:GEMINI.md": getSetting("injectFile:GEMINI.md", "1"),
             extractThreshold: getSetting("extractThreshold", "0.3"),
             sources: Object.fromEntries(
               cfg.sources.map((s) => [s.tool, getSetting(`source:${s.tool}:enabled`, s.enabled ? "1" : "0")])
@@ -308,12 +311,19 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, 200, { text });
       } else if (url.pathname === "/api/handoff" && req.method === "POST") {
         const body = await readBody(req);
-        const res2 = await injectHandoff(String(body.slug || ""), String(body.file || "AGENTS.md"));
-        sendJson(res, res2.ok ? 200 : 400, res2);
+        if (body.file) {
+          // Mode lama: satu file eksplisit (kompatibel dengan pemanggil lama).
+          const res2 = await injectHandoff(String(body.slug || ""), String(body.file));
+          sendJson(res, res2.ok ? 200 : 400, res2);
+        } else {
+          // Default: suntik ke semua target konvensi tool (AGENTS/CLAUDE/GEMINI).
+          const results = await injectHandoffAll(String(body.slug || ""));
+          sendJson(res, results.some((r) => r.ok) ? 200 : 400, { ok: results.some((r) => r.ok), results });
+        }
       } else if (url.pathname === "/api/handoff/remove" && req.method === "POST") {
         const body = await readBody(req);
-        const res2 = removeInject(String(body.slug || ""), String(body.file || "AGENTS.md"));
-        sendJson(res, res2.ok ? 200 : 400, res2);
+        const results = removeInjectAll(String(body.slug || ""));
+        sendJson(res, results.some((r) => r.ok) ? 200 : 400, { ok: results.some((r) => r.ok), results });
       } else if (url.pathname === "/api/backup" && req.method === "POST") {
         pruneArchivedBackups();
         const p = backupDb();
