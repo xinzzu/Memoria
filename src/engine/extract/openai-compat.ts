@@ -19,7 +19,9 @@ export interface OpenAIConfig {
 
 export function openaiConfig(): OpenAIConfig {
   return {
-    baseUrl: (getSetting("openaiBaseUrl", "http://localhost:1234/v1") || "").replace(/\/+$/, ""),
+    // Default KOSONG: tier cloud/openai hanya aktif jika user eksplisit mengisi
+    // URL — mode auto TIDAK PERNAH memilih tier ini (privasi).
+    baseUrl: (getSetting("openaiBaseUrl", "") || "").replace(/\/+$/, ""),
     apiKey: getSetting("openaiApiKey", ""),
     extractModel: getSetting("openaiExtractModel", "gpt-4o-mini"),
     embedModel: getSetting("openaiEmbedModel", "text-embedding-3-small"),

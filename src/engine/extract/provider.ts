@@ -92,7 +92,7 @@ export const openaiProvider: MemoryProvider = {
   },
   describe() {
     const c = openaiConfig();
-    return `OpenAI-compat (${c.extractModel} @ ${c.baseUrl})`;
+    return `OpenAI-compat @ ${c.baseUrl || "(belum dikonfigurasi)"}`;
   },
   async extract(projectName, conversation) {
     if (openaiBreaker.open || !openaiConfigured()) return null;
@@ -138,9 +138,16 @@ async function resolvePreferred(pref: string, available: () => Promise<MemoryPro
 /** Provider ekstraksi sesuai setting `extractEngine` (auto = Ollama → heuristik). */
 export async function getExtractProvider(): Promise<MemoryProvider> {
   const pref = getSetting("extractEngine", "auto");
+  // PRINSIP PRIVASI: mode auto TIDAK PERNAH memilih tier openai/cloud —
+  // tier itu hanya jalan jika user memilihnya eksplisit.
+  if (pref === "openai") {
+    if (openaiConfigured()) return openaiProvider;
+    console.warn("[memoria] extractEngine=openai tapi openaiBaseUrl kosong — jatuh ke heuristik");
+    return heuristicProvider;
+  }
   return resolvePreferred(
     pref,
-    async () => ((await ollamaAvailable()) ? ollamaProvider : openaiConfigured() ? openaiProvider : null),
+    async () => ((await ollamaAvailable()) ? ollamaProvider : null),
     heuristicProvider
   );
 }
@@ -148,9 +155,14 @@ export async function getExtractProvider(): Promise<MemoryProvider> {
 /** Provider embedding sesuai setting `embedEngine` (auto = Ollama → hash). */
 export async function getEmbedProvider(): Promise<MemoryProvider> {
   const pref = getSetting("embedEngine", "auto");
+  if (pref === "openai") {
+    if (openaiConfigured()) return openaiProvider;
+    console.warn("[memoria] embedEngine=openai tapi openaiBaseUrl kosong — jatuh ke hash lokal");
+    return heuristicProvider;
+  }
   return resolvePreferred(
     pref,
-    async () => ((await ollamaAvailable()) ? ollamaProvider : openaiConfigured() ? openaiProvider : null),
+    async () => ((await ollamaAvailable()) ? ollamaProvider : null),
     heuristicProvider // embed via hashEmbed, dialect HASH_MODEL
   );
 }
