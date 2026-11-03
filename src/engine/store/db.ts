@@ -305,7 +305,11 @@ export function insertMemory(m: Memory): void {
     m.embedding ? JSON.stringify(m.embedding) : null,
     m.status || "active"
   );
-  const id = Number(d.prepare("SELECT last_insert_rowid() AS id").get() as { id: number });
+  // node:sqlite mengembalikan objek ber-prototype null — ambil properti .id-nya.
+  // Number(row) di atas objek null-prototype melempar "Cannot convert object to
+  // primitive value" (bug lama: memori tersimpan tapi API membalas 500).
+  const idRow = d.prepare("SELECT last_insert_rowid() AS id").get() as { id: number };
+  const id = Number(idRow.id);
   try {
     reindexEntities(id, m.content);
   } catch {

@@ -432,6 +432,7 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, 404, { error: "not found" });
       }
     } catch (e) {
+      console.error("[memoria] API error:", url.pathname, e);
       sendJson(res, 500, { error: String(e) });
     }
   });
