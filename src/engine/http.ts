@@ -2,7 +2,7 @@ import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext, setQueryEmbedding } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, entitiesForMemory, tagsForMemory, allTags, memoriesByTag } from "./store/db";
+import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag } from "./store/db";
 import { embed, ollamaAvailable } from "./extract/ollama";
 import { extractQueue } from "./extract/extractor";
 import { addMemoryWithDedupe } from "./extract/dedupe";
@@ -129,17 +129,36 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/projects" && req.method === "GET") {
         sendJson(res, 200, { projects: recentProjects(20) });
       } else if (url.pathname === "/api/memories" && req.method === "GET") {
+        // Pustaka lengkap dengan pagination — param `status` kini benar-benar dihormati.
         const status = url.searchParams.get("status") || "active";
-        const recent = allMemories()
-          .slice(0, 8)
+        const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
+        const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
+        let mems: import("./store/db").Memory[];
+        let total: number;
+        if (status === "draft") {
+          mems = listDraft();
+          total = countDraft();
+        } else if (status === "archived") {
+          mems = listArchived();
+          total = countArchived();
+        } else {
+          mems = allMemories();
+          total = countMemories();
+        }
+        const page = mems
+          .slice(offset, offset + limit)
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, status: m.status, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
         sendJson(res, 200, {
-          memories: recent,
+          memories: page,
+          total,
+          offset,
+          limit,
+          hasMore: offset + page.length < total,
           counts: {
             active: countMemories(),
             draft: countDraft(),
-            archived: listArchived().length,
+            archived: countArchived(),
           },
         });
       } else if (url.pathname === "/api/memories/list" && req.method === "GET") {

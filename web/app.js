@@ -220,35 +220,76 @@ function projectRow(p) {
   </div>`;
 }
 
-async function renderMemories() {
+let memPagination = null; // { offset, hasMore } untuk tab aktif tanpa filter
+
+async function renderMemories(append = false) {
   const q = state.search.trim();
   const box = $("#memoriesList");
-  if (state.filterTag && state.memTab === "active") {
-    const d = await api("/api/memories/tag?tag=" + encodeURIComponent(state.filterTag));
-    renderMemoryList(box, (d.memories || []).map((m) => ({ ...m, score: 1 })));
-    return;
+  try {
+    if (state.filterTag && state.memTab === "active") {
+      memPagination = null;
+      const d = await api("/api/memories/tag?tag=" + encodeURIComponent(state.filterTag));
+      renderMemoryList(box, (d.memories || []).map((m) => ({ ...m, score: 1 })));
+      return;
+    }
+    if (state.memTab !== "active") {
+      memPagination = null;
+      const d = await api("/api/memories/list?status=" + state.memTab);
+      let items = d.memories || [];
+      if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
+      if (state.filterProject) items = items.filter((m) => m.projectSlug === state.filterProject);
+      if (q) items = items.filter((m) => m.content.toLowerCase().includes(q.toLowerCase()));
+      renderMemoryList(box, items.map((m) => ({ ...m, score: 1 })));
+      return;
+    }
+    const params = new URLSearchParams({ limit: "50" });
+    if (state.filterKind) params.set("kind", state.filterKind);
+    if (state.filterProject) params.set("project", state.filterProject);
+    if (!q && !state.filterKind && !state.filterProject) {
+      const offset = append && memPagination ? memPagination.offset : 0;
+      const d = await api(`/api/memories?status=${state.memTab}&limit=50&offset=${offset}`);
+      const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
+      memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
+      if (append) appendMemoryList(box, items);
+      else renderMemoryList(box, items);
+      renderLoadMore(box);
+      return;
+    }
+    memPagination = null;
+    if (!q) { renderMemoryList(box, []); return; }
+    params.set("q", q);
+    const d = await api("/api/search?" + params.toString());
+    renderMemoryList(box, d.hits);
+  } catch (e) {
+    box.innerHTML = emptyState("Gagal memuat memori", esc(e.message) + " — pastikan engine Memoria berjalan, lalu coba lagi.");
   }
-  if (state.memTab !== "active") {
-    const d = await api("/api/memories/list?status=" + state.memTab);
-    let items = d.memories || [];
-    if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
-    if (state.filterProject) items = items.filter((m) => m.projectSlug === state.filterProject);
-    if (q) items = items.filter((m) => m.content.toLowerCase().includes(q.toLowerCase()));
-    renderMemoryList(box, items.map((m) => ({ ...m, score: 1 })));
-    return;
+}
+
+function appendMemoryList(box, items) {
+  state.lastMemories = [...(state.lastMemories || []), ...items];
+  let list = box.querySelector(".list");
+  if (!list) {
+    box.innerHTML = '<div class="list"></div>';
+    list = box.querySelector(".list");
   }
-  const params = new URLSearchParams({ limit: "50" });
-  if (state.filterKind) params.set("kind", state.filterKind);
-  if (state.filterProject) params.set("project", state.filterProject);
-  if (!q && !state.filterKind && !state.filterProject) {
-    const d = await api("/api/memories");
-    renderMemoryList(box, d.memories.map((m) => ({ ...m, score: 1 })));
-    return;
-  }
-  if (!q) { renderMemoryList(box, []); return; }
-  params.set("q", q);
-  const d = await api("/api/search?" + params.toString());
-  renderMemoryList(box, d.hits);
+  list.insertAdjacentHTML("beforeend", items.map(memoRowRenderer()).join(""));
+  bindRowActions(box);
+}
+
+function renderLoadMore(box) {
+  box.querySelector("#memLoadMore")?.remove();
+  if (!memPagination || !memPagination.hasMore) return;
+  const btn = document.createElement("button");
+  btn.id = "memLoadMore";
+  btn.className = "btn";
+  btn.style.cssText = "margin:14px auto; display:block";
+  btn.textContent = "Muat selengkapnya";
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    btn.textContent = "Memuat…";
+    renderMemories(true);
+  });
+  box.appendChild(btn);
 }
 
 function renderMemoryList(box, items) {
