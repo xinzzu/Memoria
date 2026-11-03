@@ -699,6 +699,34 @@
       transition: background .12s, border-color .12s; font-family: inherit;
     }
     .sp-btn:hover { background: rgba(255,255,255,.09); border-color: #3a4152; }
+
+    /* ===== POLISH: komponen lintas fitur ===== */
+    .seg { padding: 6px 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel);
+      color: var(--muted); font-size: 12.5px; cursor: pointer; transition: all .13s; font-family: inherit; }
+    .seg:hover { color: var(--text); border-color: #3a4152; }
+    .seg.active { background: rgba(110,141,255,.14); border-color: rgba(110,141,255,.45); color: #cdd6ff; }
+    select { font-family: inherit; }
+    .toolbar select, .filters select { appearance: none; -webkit-appearance: none;
+      background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238d95a6' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+      border: 1px solid var(--border); border-radius: 10px; padding: 7px 30px 7px 12px;
+      color: var(--text); font-size: 12.5px; cursor: pointer; transition: border-color .13s; }
+    .toolbar select:hover, .filters select:hover { border-color: #3a4152; }
+    .toolbar select:focus, .filters select:focus { outline: none; border-color: rgba(110,141,255,.5); }
+    .filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+
+    .err-box { border: 1px solid rgba(229,104,107,.3); background: rgba(229,104,107,.06);
+      border-radius: 14px; padding: 26px; text-align: center; }
+    .err-box h4 { color: #ff9d9f; margin-bottom: 4px; }
+    .err-box p { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+
+    .intg-icon { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted) !important;
+      font-weight: 650; font-size: 12px; letter-spacing: .04em; }
+
+    .tl-day { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
+      margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; }
+    .tl-day::after { content: ""; flex: 1; height: 1px; background: var(--border-soft); }
+    .pre { background: var(--panel); border: 1px solid var(--border-soft); border-radius: 14px; }
+
   </style>
 </head>
 <body>
@@ -852,11 +880,11 @@
         <!-- Memories -->
         <div class="view" id="view-memories">
           <div class="section-head" style="margin-bottom:14px">
-            <h3>Pustaka memori</h3>
+            <h3 data-i18n="Memory library">Memory library</h3>
           </div>
           <div class="mem-tabs" style="display:flex; gap:6px; margin-bottom:12px">
             <button class="seg active" data-memtab="active" data-i18n="Active">Active</button>
-            <button class="seg" data-memtab="draft">Menunggu persetujuan</button>
+            <button class="seg" data-memtab="draft" data-i18n="Pending approval">Pending approval</button>
             <button class="seg" data-memtab="archived" data-i18n="Archive">Archive</button>
           </div>
           <div class="filter-bar" style="display:flex; gap:8px; margin-bottom:16px">
@@ -888,7 +916,7 @@
         <!-- Timeline -->
         <div class="view" id="view-timeline">
           <div class="toolbar">
-            <select id="tlProject"><option value="">Memilih proyek…</option></select>
+            <select id="tlProject"><option value="" data-i18n="Pick a project…">Pick a project…</option></select>
             <button class="btn" id="tlGitBtn" data-i18n="Git activity">Git activity</button>
           </div>
           <div id="timelineBox"></div>
@@ -897,7 +925,7 @@
         <!-- Handoff -->
         <div class="view" id="view-handoff">
           <div class="toolbar">
-            <select id="hfProject"><option value="">Memilih proyek…</option></select>
+            <select id="hfProject"><option value="" data-i18n="Pick a project…">Pick a project…</option></select>
             <button class="btn primary" id="hfGen" data-i18n="Generate handoff">Generate handoff</button>
             <button class="btn" id="hfResume" data-i18n="Copy resume prompt">Copy resume prompt</button>
             <button class="btn" id="hfCopy" data-i18n="Copy handoff">Copy handoff</button>
@@ -926,7 +954,7 @@
         <!-- Integrations -->
         <div class="view" id="view-integrations">
           <div class="card" style="margin-bottom:16px">
-            <h4>Daftarkan MCP server</h4>
+            <h4 data-i18n="Register MCP server">Register MCP server</h4>
             <div class="card-desc">Sekali klik, Memoria terdaftar sebagai MCP server (stdio) di tool AI Anda. Tiap sesi baru otomatis memuat konteks proyek dan menyimpan memori baru.</div>
           </div>
           <div id="integrationsBox"></div>
