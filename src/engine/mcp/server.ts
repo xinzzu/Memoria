@@ -6,7 +6,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { ensureDb } from "../ingest/manager";
 import { searchMemories, projectContext } from "../retrieve/search";
-import { ensureProject, memoryById, effectiveStatus } from "../store/db";
+import { ensureProject, memoryById, effectiveStatus, getDb, projectRecord } from "../store/db";
+import { canonicalPath, projectSlugFromCwd } from "../ingest/util";
 import { embed } from "../extract/ollama";
 import { relatedMemories } from "../graph";
 import { addMemoryWithDedupe } from "../extract/dedupe";
@@ -20,6 +21,40 @@ Cara pakai yang benar:
 2. Sebelum mengubah kode, recall konteks proyek: decision, task_pending, error_fixed, preference.
 3. Setelah tugas selesai, panggil remember untuk menyimpan memori baru.
 `;
+
+/**
+ * Resolve input proyek dari agent (bisa path, slug, atau nama) ke record proyek.
+ * Urutan: slug persis -> slug hasil slugify path -> path kanonik -> LIKE nama/slug.
+ * Tanpa ini, agent yang mem-passing path dengan format sedikit berbeda selalu
+ * mendapat "Belum ada memori" padahal datanya ada.
+ */
+export function resolveProject(input: string): { id: number; slug: string } | null {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const db = getDb();
+
+  for (const cand of [raw.toLowerCase(), projectSlugFromCwd(raw)]) {
+    const bySlug = db.prepare("SELECT id, slug FROM projects WHERE slug = ?").get(cand) as
+      | { id: number; slug: string }
+      | undefined;
+    if (bySlug) return bySlug;
+  }
+
+  const canon = canonicalPath(raw);
+  if (canon) {
+    const rows = db.prepare("SELECT id, slug, path FROM projects WHERE path IS NOT NULL AND path != ''").all() as
+      Array<{ id: number; slug: string; path: string }>;
+    for (const r of rows) {
+      if (canonicalPath(r.path) === canon) return { id: r.id, slug: r.slug };
+    }
+  }
+
+  const like = `%${raw.toLowerCase()}%`;
+  const byLike = db
+    .prepare("SELECT id, slug FROM projects WHERE lower(name) LIKE ? OR lower(slug) LIKE ? ORDER BY last_seen DESC LIMIT 1")
+    .get(like, like) as { id: number; slug: string } | undefined;
+  return byLike ?? null;
+}
 
 export function createMcpServer(): Server {
   ensureDb();
@@ -111,8 +146,8 @@ export function createMcpServer(): Server {
         return { content: [{ type: "text", text }] };
       }
       case "project_context": {
-        const slug = String(a.project || "").replace(/[\\/:]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
-        const results = projectContext(slug, Number(a.limit || 10));
+        const proj = resolveProject(String(a.project || ""));
+        const results = proj ? projectContext(proj.slug, Number(a.limit || 10)) : [];
         if (!results.length) {
           return { content: [{ type: "text", text: `Belum ada memori tersimpan untuk proyek "${a.project}".` }] };
         }
@@ -149,8 +184,13 @@ export function createMcpServer(): Server {
         if (!content) {
           return { content: [{ type: "text", text: "content kosong." }] };
         }
-        const project = String(a.project || "").replace(/[\\/:]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
-        const projectId = project && project !== "_unknown" ? ensureProject(project) : null;
+        const project = String(a.project || "");
+        const resolved = resolveProject(project);
+        const projectId = resolved
+          ? resolved.id
+          : project && project !== "_unknown"
+            ? ensureProject(projectSlugFromCwd(project), project)
+            : null;
         const embedding = await embed(content);
         addMemoryWithDedupe({
           projectId,
