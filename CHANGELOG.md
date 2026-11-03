@@ -4,6 +4,43 @@ Semua perubahan penting pada Memoria didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/);
 versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [Unreleased] — Fase 1B: Tiered Intelligence (Ollama opsional)
+
+**User tanpa Ollama/API key kini mendapatkan memori sejak menit pertama** —
+dan yang punya Ollama tidak merasakan perubahan.
+
+### Added
+- **Lapisan `MemoryProvider` dengan 3 tier mesin** (`extract/provider.ts`):
+  - **Tier 0 Heuristik** (baru, default fallback): ekstraksi berbasis aturan
+    (klasifikasi kalimat ID/EN — keputusan, task, error-fix, preferensi, fakta
+    ber-entity) + embedding hashing TF-IDF 256-dim (FNV-1a + bigram) sehingga
+    dedupe & similarity graph tetap bekerja tanpa model. Hasil heuristik
+    **selalu masuk antrian tinjau (draft)** dengan badge asal — inbox kurasi,
+    bukan noise tersembunyi.
+  - **Tier 1 Ollama**: perilaku lama, tidak berubah.
+  - **Tier 2 OpenAI-compatible** (baru, opt-in eksplisit): satu protokol untuk
+    LM Studio / llama.cpp / vLLM / OpenRouter / cloud via setting
+    `openaiBaseUrl` + `openaiApiKey` + model. Kartu Pengaturan baru
+    "Mesin kecerdasan" dengan peringatan privasi (cloud = konten keluar mesin).
+- **Seleksi mesin**: setting `extractEngine` / `embedEngine`
+  (auto/ollama/openai/heuristic|hash). Mode `auto` = Ollama bila menyala,
+  else heuristik/hash — dan **tidak pernah** memilih tier cloud secara diam.
+  Perubahan berlaku langsung tanpa restart.
+- **Circuit breaker**: 3 kegagalan provider beruntun = istirahat 60 detik —
+  Ollama setengah mati tidak lagi menggantung `remember`/MCP sampai 60 detik.
+- **`origin` & `embed_model` di tiap memori** + guard dialek di seluruh jalur
+  cosine (search, dedupe, index LSH per-dialek): vektor dari model berbeda
+  tidak akan pernah dibandingkan silang. Dedupe tanpa embedding kini memakai
+  Jaccard token (dulu: langsung insert tanpa cek → duplikat menumpuk).
+- Chip topbar kini menampilkan **mesin yang sedang bekerja** (mis. "🧠
+  Heuristik") — bukan lagi hanya status Ollama.
+
+### Fixed
+- **Auto-pull model Ollama diam-diam dihapus** — dulu bisa mendownload ~GB
+  tanpa izin; kini hanya peringatan + fallback ke tier lain.
+- Search sebelum approve: draft memang tidak ikut pencarian (by design) —
+  tidak ada perubahan perilaku; dicatat agar tidak salah paham saat menguji.
+
 ## [Unreleased] — Fase 1A: Resume Engine (limit-hopping)
 
 Fitur inti untuk skenario **limit-hopping**: pindah tool AI di tengah tugas tanpa

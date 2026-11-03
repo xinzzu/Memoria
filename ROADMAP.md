@@ -122,7 +122,15 @@ di proyek sama → cek file target berisi blok LANJUTAN dengan task list benar.
 
 ---
 
-## 4. Fase 1B — Tiered Intelligence: Ollama Opsional (P1, 5–7 hari)
+## 4. Fase 1B — Tiered Intelligence: Ollama Opsional (P1, 5–7 hari) — ✅ SELESAI 2026-11-04
+
+**Status: dikerjakan di branch `feat/f1b-tiered-providers`, smoke test 6/6
+(tanpa Ollama sama sekali): heuristik menghasilkan 3 draft terklasifikasi benar
+(decision/error_fixed/task_pending), origin+dialek hash tercatat, search keyword
+& semantik-hash jalan, approve→aktif, dedupe hash menggabungkan duplikat.**
+Smoke test menangkap & memperbaiki bug privasi: mode auto sempat jatuh ke tier
+OpenAI hanya karena URL default — kini auto tidak pernah memilih cloud.
+(Wizard first-run & penyimpanan key via safeStorage = sisa item 4.4, masuk F2.)
 
 ### 4.1 Interface `MemoryProvider`
 ```
