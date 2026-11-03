@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { allMemories, getDb, projectRecord, getBoolSetting, getSetting, setSetting } from "./store/db";
-import { runGitLog, isGitRepo } from "./git";
+import { runGitLog, isGitRepo, runGitStatus, GitStatus } from "./git";
 
 const KIND_LABEL: Record<string, string> = {
   fact: "Fakta / Arsitektur",
@@ -18,6 +18,148 @@ export interface HandoffOptions {
   topKinds?: string[];
 }
 
+/* ---------- Resume Engine: blok "LANJUTAN SESI" ----------
+ * Menjawab skenario limit-hopping: user pindah tool di tengah tugas,
+ * tool baru harus langsung tahu apa yang sedang dikerjakan.
+ * Semua bahan diambil TANPA LLM (murah & cepat):
+ *   1. Sesi transkrip terakhir (tool + waktu + pesan penutup)
+ *   2. task_pending yang belum selesai (tasklife)
+ *   3. decision terbaru (keputusan "terkunci")
+ *   4. git status: branch + file yang sedang berubah
+ * --------------------------------------------------------- */
+
+interface ResumeData {
+  lastTool: string | null;
+  lastTs: number;
+  tasks: Array<{ content: string; importance: number }>;
+  decisions: Array<{ content: string; importance: number }>;
+  git: GitStatus | null;
+  lastMessages: Array<{ role: string; content: string }>;
+}
+
+export async function collectResumeData(slug: string, opts: { slim?: boolean } = {}): Promise<ResumeData | null> {
+  const proj = projectRecord(slug);
+  if (!proj) return null;
+  const db = getDb();
+  const maxTasks = opts.slim ? 3 : 5;
+  const maxDecisions = opts.slim ? 2 : 3;
+  const maxMsgs = opts.slim ? 1 : 3;
+
+  const lastSession = db
+    .prepare(
+      `SELECT session_id AS sid, tool, MAX(ts) AS m FROM transcripts
+       WHERE project_id = ? GROUP BY session_id ORDER BY m DESC LIMIT 1`
+    )
+    .get(proj.id) as { sid: string; tool: string; m: number } | undefined;
+
+  const tasks = db
+    .prepare(
+      `SELECT content, importance FROM memories
+       WHERE project_id = ? AND kind = 'task_pending' AND archived = 0 AND status = 'active'
+         AND COALESCE(resolved_at, 0) = 0
+       ORDER BY created_at DESC LIMIT ${maxTasks}`
+    )
+    .all(proj.id) as Array<{ content: string; importance: number }>;
+
+  const decisions = db
+    .prepare(
+      `SELECT content, importance FROM memories
+       WHERE project_id = ? AND kind = 'decision' AND archived = 0 AND status = 'active'
+       ORDER BY created_at DESC LIMIT ${maxDecisions}`
+    )
+    .all(proj.id) as Array<{ content: string; importance: number }>;
+
+  const lastMessages = lastSession
+    ? (
+        db
+          .prepare(
+            `SELECT role, content FROM transcripts
+             WHERE project_id = ? AND session_id = ?
+             ORDER BY ts DESC, seq DESC LIMIT ${maxMsgs}`
+          )
+          .all(proj.id, lastSession.sid) as Array<{ role: string; content: string }>
+      ).reverse()
+    : [];
+
+  const git = proj.path && fs.existsSync(proj.path) ? await runGitStatus(proj.path) : null;
+
+  return {
+    lastTool: lastSession?.tool ?? null,
+    lastTs: lastSession?.m ?? 0,
+    tasks,
+    decisions,
+    git,
+    lastMessages,
+  };
+}
+
+function hhmm(ts: number): string {
+  return new Date(ts).toTimeString().slice(0, 5);
+}
+
+function shortText(s: string, max = 140): string {
+  return s.replace(/\s+/g, " ").trim().slice(0, max) + (s.length > max ? "…" : "");
+}
+
+/** Baris-baris section "⏸️ LANJUTAN SESI" — kosong bila tidak ada data sama sekali. */
+export function resumeSectionLines(d: ResumeData): string[] {
+  const hasAny = d.lastTool || d.tasks.length || d.decisions.length || (d.git?.dirty.length ?? 0);
+  if (!hasAny) return [];
+  const lines: string[] = [];
+  const head = [
+    "## ⏸️ LANJUTAN SESI",
+    `> ${d.lastTool ?? "tool tidak diketahui"}${d.lastTs ? ` · ${hhmm(d.lastTs)}` : ""}${
+      d.git?.branch ? ` · branch: ${d.git.branch}` : ""
+    }`,
+  ];
+  lines.push(...head);
+  if (d.tasks.length) {
+    lines.push("", "**Task terbuka:**");
+    for (const t of d.tasks) lines.push(`- [ ] ${shortText(t.content, 160)}`);
+  }
+  if (d.decisions.length) {
+    lines.push("", "**Keputusan terkunci (jangan diulang):**");
+    for (const c of d.decisions) lines.push(`- ${shortText(c.content, 160)}`);
+  }
+  if (d.git?.dirty.length) {
+    const extra = Math.max(0, d.git.dirty.length - 8);
+    lines.push("", `**File sedang berubah (git):** ${d.git.dirty.slice(0, 8).join(", ")}${extra > 0 ? ` (+${extra} lainnya)` : ""}`);
+  }
+  if (d.lastMessages.length) {
+    lines.push("", "**Pesan terakhir sesi:**");
+    for (const m of d.lastMessages) lines.push(`- (${m.role}) ${shortText(m.content, 180)}`);
+  }
+  lines.push("", "_Lanjutkan pekerjaan di atas — jangan ulangi keputusan yang sudah terkunci._");
+  return lines;
+}
+
+/** Prompt ringkas siap-paste ke tool mana pun — plan B bila injeksi file tidak terbaca. */
+export async function generateResumePrompt(slug: string): Promise<string> {
+  const d = await collectResumeData(slug, { slim: true });
+  if (!d) return `(Tidak ada data proyek "${slug}")`;
+  const lines: string[] = [];
+  lines.push(
+    `Lanjutkan pekerjaan sebelumnya di proyek ini. Konteks dari Memoria (sesi terakhir: ${
+      d.lastTool ?? "?"
+    }${d.lastTs ? `, ${hhmm(d.lastTs)}` : ""}):`
+  );
+  if (d.git?.branch) {
+    lines.push(`- Branch: ${d.git.branch}${d.git.dirty.length ? ` — file berubah: ${d.git.dirty.slice(0, 5).join(", ")}` : ""}`);
+  }
+  if (d.tasks.length) {
+    lines.push("- Task terbuka:");
+    d.tasks.forEach((t, i) => lines.push(`  ${i + 1}) ${shortText(t.content, 130)}`));
+  }
+  if (d.decisions.length) {
+    lines.push(`- Keputusan terkunci: ${d.decisions.map((c) => shortText(c.content, 80)).join("; ")}`);
+  }
+  if (d.lastMessages.length) {
+    lines.push(`- Pesan terakhir: (${d.lastMessages[0].role}) ${shortText(d.lastMessages[0].content, 120)}`);
+  }
+  lines.push("Lanjutkan dari situ. Jangan ulangi keputusan di atas.");
+  return lines.join("\n");
+}
+
 export async function generateHandoff(slug: string, opts: HandoffOptions = {}): Promise<string> {
   const proj = projectRecord(slug);
   if (!proj) return `# Handoff — ${slug}\n\n(Tidak ada data proyek)`;
@@ -25,6 +167,15 @@ export async function generateHandoff(slug: string, opts: HandoffOptions = {}): 
   const lines: string[] = [];
   lines.push(`# Handoff Proyek: ${proj.name || slug}`);
   lines.push(`> Dibuat oleh Memoria — ${new Date().toISOString().slice(0, 16)}`);
+
+  // Blok resume di PALING ATAS: bagian pertama yang dibaca agent saat sesi baru dibuka.
+  try {
+    const resume = await collectResumeData(slug, { slim: !!opts.slim });
+    const resumeLines = resume ? resumeSectionLines(resume) : [];
+    if (resumeLines.length) lines.push("", ...resumeLines);
+  } catch {
+    // resume section best-effort — jangan blokir handoff utama
+  }
 
   const memories = allMemories().filter((m) => m.projectId === proj.id);
   lines.push("", `## Memori (${memories.length})`);

@@ -301,6 +301,11 @@ export function startHttpServer(): Promise<void> {
         const slug = url.searchParams.get("slug") || "";
         const md = await generateHandoff(slug);
         sendJson(res, 200, { text: md });
+      } else if (url.pathname === "/api/resume" && req.method === "GET") {
+        // Prompt lanjutan ringkas siap-paste — plan B bila injeksi file tidak terbaca tool.
+        const { generateResumePrompt } = await import("./handoff");
+        const text = await generateResumePrompt(url.searchParams.get("slug") || "");
+        sendJson(res, 200, { text });
       } else if (url.pathname === "/api/handoff" && req.method === "POST") {
         const body = await readBody(req);
         const res2 = await injectHandoff(String(body.slug || ""), String(body.file || "AGENTS.md"));
