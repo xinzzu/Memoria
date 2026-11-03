@@ -104,8 +104,42 @@ export function stats(): {
   archived: number;
   lastScan: string;
   perTool: Array<{ tool: string; count: number }>;
+  week: Array<{ day: string; count: number }>;
+  resumeReady: Array<{ slug: string; name: string; at: number }>;
 } {
   ensureDb();
+  const db = getDb();
+
+  // Aktivitas 7 hari (jumlah pesan per hari) — bahan grafik Overview.
+  const DAY = 86400000;
+  const today = Math.floor(Date.now() / DAY);
+  // CAST wajib: node:sqlite mem-bind angka JS sebagai REAL, jadi tanpa CAST
+  // pembagian menghasilkan float (20760.72) yang tak pernah cocok dgn bucket harian.
+  const rows = db
+    .prepare("SELECT CAST(ts / ? AS INTEGER) AS d, COUNT(*) AS c FROM transcripts WHERE ts >= ? GROUP BY d")
+    .all(DAY, Date.now() - 7 * DAY) as Array<{ d: number; c: number }>;
+  const byDay = new Map(rows.map((r) => [Number(r.d), r.c]));
+  const week: Array<{ day: string; count: number }> = [];
+  for (let i = 6; i >= 0; i--) {
+    const dd = today - i;
+    week.push({ day: new Date(dd * DAY).toISOString().slice(5, 10), count: byDay.get(dd) || 0 });
+  }
+
+  // Proyek dengan konteks resume yang baru diinjeksi (48 jam terakhir).
+  const cutoff = Date.now() - 48 * 3600_000;
+  const injects = db
+    .prepare("SELECT key, value FROM settings WHERE key LIKE 'proj:%:handoff_at'")
+    .all() as Array<{ key: string; value: string }>;
+  const resumeReady: Array<{ slug: string; name: string; at: number }> = [];
+  for (const r of injects) {
+    const at = Number(r.value) || 0;
+    if (at < cutoff) continue;
+    const slug = r.key.slice("proj:".length, -":handoff_at".length);
+    const proj = db.prepare("SELECT name FROM projects WHERE slug = ?").get(slug) as { name: string } | undefined;
+    resumeReady.push({ slug, name: proj?.name || slug, at });
+  }
+  resumeReady.sort((a, b) => b.at - a.at);
+
   return {
     transcripts: countTranscripts(),
     memories: countMemories(),
@@ -114,5 +148,7 @@ export function stats(): {
     archived: countArchived(),
     lastScan: lastScanFinishedAt ? new Date(lastScanFinishedAt).toISOString() : "",
     perTool: perToolCounts(),
+    week,
+    resumeReady: resumeReady.slice(0, 6),
   };
 }

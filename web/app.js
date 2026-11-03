@@ -1,10 +1,9 @@
 // Same-origin: dashboard dilayani oleh HTTP engine itu sendiri — port tidak perlu di-hardcode.
 const API = "";
 const $ = (sel) => document.querySelector(sel);
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const KIND_LABEL = {
-  fact: "Fakta", decision: "Keputusan", task_done: "Selesai", task_pending: "Pending",
-  error_fixed: "Error Fixed", preference: "Preferensi", context: "Konteks",
+  fact: t("Fact"), decision: t("Decision"), task_done: t("Done"), task_pending: t(t("Pending")),
+  error_fixed: t(t("Error Fixed")), preference: t("Preference"), context: t("Context"),
 };
 const TOOL_LABEL = {
   claude: "Claude Code", codex: "Codex CLI", opencode: "OpenCode",
@@ -35,18 +34,18 @@ async function api(path, opts = {}) {
 
 function fmtDate(ts) {
   const d = new Date(ts);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate()} ${I18N.months()[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function fmtRel(ts) {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "baru saja";
-  if (m < 60) return `${m} mnt lalu`;
+  if (m < 1) return t("just now");
+  if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} jam lalu`;
+  if (h < 24) return `${h}h ago`;
   const days = Math.floor(h / 24);
-  if (days < 7) return `${days} hari lalu`;
+  if (days < 7) return `${days}d ago`;
   return fmtDate(ts);
 }
 
@@ -72,7 +71,7 @@ function memoRowRenderer(renderId) {
       <div class="mem-rail"><span class="kind-dot kind-${h.kind}"></span></div>
       <div class="mem-body">
         <div class="mem-meta">
-          <span class="mem-kind kind-${h.kind}">${KIND_LABEL[h.kind] || h.kind}</span>
+          <span class="mem-kind kind-${h.kind}">${t(KIND_LABEL[h.kind] || h.kind)}</span>
           ${h.status === "draft" ? '<span class="mem-kind" style="opacity:.7">Draft</span>' : ""}
           <span class="sep">·</span>
           <span>${esc(h.projectSlug || "global")}</span>
@@ -86,18 +85,18 @@ function memoRowRenderer(renderId) {
         ${h.tags && h.tags.length ? `<div class="mem-chips">${h.tags.map((t) => `<span class="chip tag" data-tag="${esc(t)}">#${esc(t)}</span>`).join("")}</div>` : ""}
       </div>
       <div class="mem-actions">
-        ${isDraft ? `<button class="mem-approve" title="Setujui memori" data-appr="${h.id}">Setujui ✓</button>` : ""}
-        ${isArchived ? `<button class="mem-approve" title="Kembalikan memori" data-rs="${h.id}">Pulihkan</button>` : ""}
-        <button class="icon-btn" title="Lihat hubungan" data-rel="${h.id}">
+        ${isDraft ? `<button class="mem-approve" title="Setujui memori" data-appr="${h.id}">Approve ✓</button>` : ""}
+        ${isArchived ? `<button class="mem-approve" title=t("Restore memory") data-rs="${h.id}">Restore</button>` : ""}
+        <button class="icon-btn" title=t("View connections") data-rel="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="4" r="1.6"/><circle cx="12.5" cy="3" r="1.6"/><circle cx="10" cy="11" r="1.6"/><path d="M5 4.8l5.8-1.2M3.7 5.6l1 4.3M9.2 10l1-7.4"/></svg>
         </button>
-        ${isArchived ? "" : `<button class="icon-btn" title="Arsipkan" data-arch="${h.id}">
+        ${isArchived ? "" : `<button class="icon-btn" title=t("Archive") data-arch="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5h12M4 4.5V14h8V4.5M5.5 8h5"/><path d="M2 2.5h12"/></svg>
         </button>`}
-        <button class="icon-btn" title="Edit" data-edit="${h.id}">
+        <button class="icon-btn" title=t(t("Edit")) data-edit="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.5l2.5 2.5L6 12.5l-3 .5.5-3L11 2.5z"/></svg>
         </button>
-        <button class="icon-btn danger" title="Hapus" data-del="${h.id}">
+        <button class="icon-btn danger" title=t("Delete") data-del="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M6 4V3h4v1M5.5 4l.6 9h3.8l.6-9"/></svg>
         </button>
       </div>
@@ -126,14 +125,14 @@ function setView(name) {
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   $("#view-" + name).classList.add("active");
   const meta = {
-    overview: ["Overview", "Ringkasan memori lintas semua AI tools"],
-    memories: ["Memori", "Cari dan kelola memori tersimpan"],
-    projects: ["Proyek", "Aktivitas berdasarkan proyek"],
-    timeline: ["Timeline", "Jejak aktivitas per proyek"],
-    handoff: ["Handoff", "Ringkasan konteks untuk sesi AI berikutnya"],
-    graph: ["Graph", "Peta koneksi antar memori"],
-    integrations: ["Integrasi", "Daftarkan Memoria ke tool AI"],
-    settings: ["Pengaturan", "Sumber data dan integrasi"],
+    overview: ["Overview", t("Memory summary across all AI tools")],
+    memories: [t("Memorieseses"), t("Search and manage stored memories")],
+    projects: [t("Projects"), t("Activity by project")],
+    timeline: ["Timeline", t("Per-project activity trail")],
+    handoff: [t(t("Handoff")), t("Context summary for the next AI session")],
+    graph: ["Graph", t("Map of connections between memories")],
+    integrations: [t("Integrations"), t("Register Memoriesesa with your AI tools")],
+    settings: [t("Settings"), t("Data sources and integrations")],
   }[name];
   $("#pageTitle").textContent = meta[0];
   $("#pageSub").textContent = meta[1];
@@ -144,7 +143,7 @@ async function loadStats() {
   try {
     state.stats = await api("/api/stats");
     $("#sTranscripts").textContent = state.stats.transcripts.toLocaleString("id-ID");
-    $("#sMemories").textContent = state.stats.memories.toLocaleString("id-ID");
+    $("#sMemorieseses").textContent = state.stats.memories.toLocaleString("id-ID");
     $("#sPending").textContent = state.stats.pending.toLocaleString("id-ID");
     $("#navMemCount").textContent = state.stats.memories > 0 ? state.stats.memories.toLocaleString("id-ID") : "";
     const ollama = state.stats.ollamaOnline;
@@ -152,13 +151,13 @@ async function loadStats() {
     $("#ollamaDot").className = "dot " + (ollama || engine ? "on" : "off");
     // Chip topbar kini menampilkan mesin aktif (bukan cuma status Ollama) —
     // user tanpa Ollama tetap melihat bahwa heuristik yang bekerja.
-    $("#ollamaText").textContent = engine ? "🧠 " + engine.extract : (ollama ? "Ollama: online" : "Ollama: offline");
+    $("#ollamaText").textContent = engine ? "🧠 " + engine.extract : (ollama ? t(t("Ollama: online")) : t(t("Ollama: offline")));
     $("#sOllama").textContent = "Ollama: " + (ollama ? "online" : "offline");
     if (state.view === "overview") renderOverview();
     if (state.view === "settings") renderSettings();
   } catch (e) {
     $("#ollamaDot").className = "dot off";
-    $("#ollamaText").textContent = "API tidak terhubung";
+    $("#ollamaText").textContent = t("API unreachable");
   }
 }
 
@@ -167,13 +166,13 @@ async function loadProjects() {
     const d = await api("/api/projects");
     state.projects = d.projects || [];
     const sel = $("#filterProject");
-    sel.innerHTML = '<option value="">Semua proyek</option>';
+    sel.innerHTML = '<option value="">All projects</option>';
     const hf = $("#hfProject");
-    hf.innerHTML = '<option value="">Pilih proyek…</option>';
+    hf.innerHTML = '<option value="">Pick a project…</option>';
     const tl = $("#tlProject");
-    tl.innerHTML = '<option value="">Pilih proyek…</option>';
+    tl.innerHTML = '<option value="">Pick a project…</option>';
     const gr = $("#grProject");
-    gr.innerHTML = '<option value="">Semua proyek</option>';
+    gr.innerHTML = '<option value="">All projects</option>';
     for (const p of state.projects) {
       const o = document.createElement("option");
       o.value = p.slug;
@@ -193,7 +192,7 @@ function renderOverview() {
   const recent = (state.stats && state.stats.recent) || [];
   const rl = $("#recentList");
   if (!recent.length) {
-    rl.innerHTML = emptyState("Belum ada memori", "Scan sedang berjalan atau belum ada aktivitas AI tools yang terekam.", `<button class="btn primary" id="emptyScan">Scan sekarang</button>`);
+    rl.innerHTML = emptyState(t("No memories yet"), t("A scan is running, or no AI tool activity has been captured yet."), `<button class="btn primary" id="emptyScan">Scan now</button>`);
     const b = rl.querySelector("#emptyScan");
     if (b) b.addEventListener("click", doScan);
   } else {
@@ -204,21 +203,63 @@ function renderOverview() {
   const pl = $("#recentProjects");
   const projs = state.projects.slice(0, 6);
   if (!projs.length) {
-    pl.innerHTML = emptyState("Belum ada proyek", "Proyek muncul otomatis saat ada transkrip baru.");
+    pl.innerHTML = emptyState(t("No projects yet"), t("Projects appear automatically as new transcripts arrive."));
   } else {
-    pl.innerHTML = projs.map(projectRow).join("");
+    pl.innerHTML = projs.map((p) => projectRow(p, true)).join("");
+    pl.querySelectorAll("[data-open-project]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const slug = el.dataset.openProject;
+        setView("timeline");
+        const sel = $("#tlProject");
+        if (sel) sel.value = slug;
+        tlMode = "text";
+        renderTimeline();
+      });
+    });
+  }
+
+  // Grafik aktivitas 7 hari
+  const bars = $("#weekBars");
+  if (bars) {
+    const week = (state.stats && state.stats.week) || [];
+    const max = Math.max(1, ...week.map((w) => w.count));
+    bars.innerHTML = week.map((w) => {
+      const h = Math.round((w.count / max) * 100);
+      return `<div class="bar-col" title="${w.day}: ${w.count}">
+        <div class="bar-count">${w.count || ""}</div>
+        <div class="bar ${w.count ? "" : "zero"}" style="height:${Math.max(4, h)}%"></div>
+        <div class="bar-day">${w.day.slice(3)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  // Kartu resume siap
+  const rsl = $("#resumeList");
+  if (rsl) {
+    const ready = (state.stats && state.stats.resumeReady) || [];
+    if (!ready.length) {
+      rsl.innerHTML = `<div class="card-desc">${t("No context injected yet — it happens automatically when a session goes idle, or use the Handoff tab.")}</div>`;
+    } else {
+      rsl.innerHTML = ready.map((r) => `
+        <div class="resume-item"><span class="resume-dot"></span><span>${esc(r.name)}</span>
+          <span class="spacer"></span><span style="font-size:11px;color:var(--faint)">${fmtRel(r.at)}</span>
+        </div>`).join("") +
+        `<button class="btn" id="goHandoff" style="margin-top:10px">${t("Open Handoff")}</button>`;
+      const g = rsl.querySelector("#goHandoff");
+      if (g) g.addEventListener("click", () => setView("handoff"));
+    }
   }
 }
 
-function projectRow(p) {
-  return `<div class="project-row">
+function projectRow(p, clickable) {
+  return `<div class="project-row${clickable ? " clickable" : ""}"${clickable ? ` data-open-project="${esc(p.slug)}"` : ""}>
     <div class="project-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6-3 6 3M2 5l6 3 6-3M2 5v6l6 3 6-3V5"/><path d="M8 8v6"/></svg></div>
     <div>
       <div class="project-name">${esc(p.name)}</div>
       <div class="project-slug">${esc(p.slug)}</div>
     </div>
     <div class="project-meta">
-      <div>${(p.transcripts || 0).toLocaleString("id-ID")} transkrip</div>
+      <div>${(p.transcripts || 0).toLocaleString("id-ID")} transcripts</div>
       <div class="sub">${fmtRel(p.last_seen)}</div>
     </div>
   </div>`;
@@ -226,7 +267,7 @@ function projectRow(p) {
 
 let memPagination = null; // { offset, hasMore } untuk tab aktif tanpa filter
 
-async function renderMemories(append = false) {
+async function renderMemorieseses(append = false) {
   const q = state.search.trim();
   const box = $("#memoriesList");
   try {
@@ -265,12 +306,12 @@ async function renderMemories(append = false) {
     const d = await api("/api/search?" + params.toString());
     renderMemoryList(box, d.hits);
   } catch (e) {
-    box.innerHTML = emptyState("Gagal memuat memori", esc(e.message) + " — pastikan engine Memoria berjalan, lalu coba lagi.");
+    box.innerHTML = emptyState(t("Failed to load memories"), esc(e.message) + t(" — make sure the Memoriesesa engine is running, then retry."));
   }
 }
 
 function appendMemoryList(box, items) {
-  state.lastMemories = [...(state.lastMemories || []), ...items];
+  state.lastMemorieseses = [...(state.lastMemorieseses || []), ...items];
   let list = box.querySelector(".list");
   if (!list) {
     box.innerHTML = '<div class="list"></div>';
@@ -287,19 +328,19 @@ function renderLoadMore(box) {
   btn.id = "memLoadMore";
   btn.className = "btn";
   btn.style.cssText = "margin:14px auto; display:block";
-  btn.textContent = "Muat selengkapnya";
+  btn.textContent = t("Load more");
   btn.addEventListener("click", () => {
     btn.disabled = true;
-    btn.textContent = "Memuat…";
-    renderMemories(true);
+    btn.textContent = t("Loading…");
+    renderMemorieseses(true);
   });
   box.appendChild(btn);
 }
 
 function renderMemoryList(box, items) {
-  state.lastMemories = items || [];
+  state.lastMemorieseses = items || [];
   if (!items || !items.length) {
-    box.innerHTML = emptyState("Tidak ada memori yang cocok", "Coba kata kunci lain, atau tambahkan memori secara manual.");
+    box.innerHTML = emptyState(t("No matching memories"), t("Try different keywords, or add a memory manually."));
     return;
   }
   box.innerHTML = `<div class="list">${items.map(memoRowRenderer()).join("")}</div>`;
@@ -311,15 +352,15 @@ function bindRowActions(root) {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const id = btn.dataset.del;
-      if (!confirm("Hapus memori ini? Tindakan ini tidak bisa dibatalkan.")) return;
+      if (!confirm(t("Delete this memory? This cannot be undone."))) return;
       try {
         await api("/api/memories?id=" + id, { method: "DELETE" });
-        toast("Memori dihapus");
+        toast(t("Memory deleted"));
         const row = btn.closest(".mem");
         if (row) row.remove();
         loadStats();
       } catch (err) {
-        toast("Gagal menghapus: " + err.message, "err");
+        toast(t("Failed to delete: ") + err.message, "err");
       }
     });
   });
@@ -333,13 +374,13 @@ function bindRowActions(root) {
       if (panel) { panel.remove(); return; }
       panel = document.createElement("div");
       panel.className = "rel-panel";
-      panel.innerHTML = '<div class="rel-title">Memuat hubungan…</div>';
+      panel.innerHTML = '<div class="rel-title">Loading connections…</div>';
       row.appendChild(panel);
       try {
         const d = await api("/api/related?id=" + id);
         const rel = d.related || [];
-        if (!rel.length) { panel.innerHTML = '<div class="rel-title">Tidak ada koneksi terkait</div>'; return; }
-        panel.innerHTML = '<div class="rel-title">Terhubung dengan (' + rel.length + ')</div>' + rel.map((r) => `
+        if (!rel.length) { panel.innerHTML = '<div class="rel-title">No related connections</div>'; return; }
+        panel.innerHTML = '<div class="rel-title">Connected to (' + rel.length + ')</div>' + rel.map((r) => `
           <div class="rel-item" data-goto="${r.id}">
             <span class="rel-k">${r.linkKind}</span>
             <span class="rel-t">${esc(r.content)}</span>
@@ -351,7 +392,7 @@ function bindRowActions(root) {
           });
         });
       } catch (err) {
-        panel.innerHTML = '<div class="rel-title">Gagal: ' + esc(err.message) + '</div>';
+        panel.innerHTML = '<div class="rel-title">Failed: ' + esc(err.message) + '</div>';
       }
     });
   });
@@ -363,7 +404,7 @@ function bindRowActions(root) {
       state.filterTag = "";
       state.search = chip.dataset.ent;
       $("#search").value = chip.dataset.ent;
-      renderMemories();
+      renderMemorieseses();
     });
   });
   root.querySelectorAll("[data-tag]").forEach((chip) => {
@@ -371,7 +412,7 @@ function bindRowActions(root) {
       e.stopPropagation();
       state.filterTag = chip.dataset.tag;
       $("#filterTag").value = chip.dataset.tag;
-      renderMemories();
+      renderMemorieseses();
     });
   });
   root.querySelectorAll("[data-appr]").forEach((btn) => {
@@ -380,12 +421,12 @@ function bindRowActions(root) {
       const id = Number(btn.dataset.appr);
       try {
         await api("/api/memories/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-        toast("Memori disetujui");
+        toast(t("Memory approved"));
         const row = btn.closest(".mem");
         if (row) row.remove();
         loadStats();
       } catch (err) {
-        toast("Gagal menyetujui: " + err.message, "err");
+        toast(t("Failed to approve: ") + err.message, "err");
       }
     });
   });
@@ -395,12 +436,12 @@ function bindRowActions(root) {
       const id = Number(btn.dataset.rs);
       try {
         await api("/api/memories/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, archived: false }) });
-        toast("Memori dipulihkan");
+        toast(t("Memory restored"));
         const row = btn.closest(".mem");
         if (row) row.remove();
         loadStats();
       } catch (err) {
-        toast("Gagal memulihkan: " + err.message, "err");
+        toast(t("Failed to restore: ") + err.message, "err");
       }
     });
   });
@@ -410,12 +451,12 @@ function bindRowActions(root) {
       const id = btn.dataset.arch;
       try {
         await api("/api/memories/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(id), archived: true }) });
-        toast("Memori diarsipkan");
+        toast(t("Memory archived"));
         const row = btn.closest(".mem");
         if (row) row.remove();
         loadStats();
       } catch (err) {
-        toast("Gagal arsip: " + err.message, "err");
+        toast(t("Failed to archive: ") + err.message, "err");
       }
     });
   });
@@ -436,7 +477,7 @@ function bindRowActions(root) {
 function renderProjects() {
   const box = $("#projectsList");
   if (!state.projects.length) {
-    box.innerHTML = emptyState("Belum ada proyek", "Proyek akan muncul otomatis saat AI tools mencatat aktivitas.");
+    box.innerHTML = emptyState(t("No projects yet"), "Projects akan muncul otomatis saat AI tools mencatat aktivitas.");
     return;
   }
   box.innerHTML = state.projects.map(projectRow).join("");
@@ -447,7 +488,7 @@ async function loadTags() {
     const d = await api("/api/tags");
     const sel = $("#filterTag");
     const cur = state.filterTag;
-    sel.innerHTML = '<option value="">Semua topik</option>';
+    sel.innerHTML = '<option value="">All topics</option>';
     for (const t of d.tags || []) {
       const o = document.createElement("option");
       o.value = t.tag;
@@ -467,13 +508,13 @@ function renderSettings() {
       const t = tools.find((x) => x.tool === key);
       return `<div class="tool-row">
         <span class="dot ${t ? "on" : "off"}"></span>
-        <span class="tool-name">${label}</span>
-        <span class="tool-count">${t ? t.count.toLocaleString("id-ID") + " transkrip" : "belum terdeteksi"}</span>
+        <span class="tool-name">${t(label)}</span>
+        <span class="tool-count">${t ? t.count.toLocaleString("id-ID") + " transcripts" : t("not detected yet")}</span>
         <span class="tool-status">${t ? "sync" : "–"}</span>
       </div>`;
     })
     .join("") + (tools.filter((t) => !known.some(([k]) => k === t.tool)).map((t) => `
-      <div class="tool-row"><span class="dot on"></span><span class="tool-name">${esc(t.tool)}</span><span class="tool-count">${t.count} transkrip</span></div>`).join(""));
+      <div class="tool-row"><span class="dot on"></span><span class="tool-name">${esc(t.tool)}</span><span class="tool-count">${t.count} transcripts</span></div>`).join(""));
 
   const cfg = state.stats && state.stats.config;
   if (cfg) {
@@ -496,7 +537,7 @@ function renderSettings() {
         return `<div class="src-toggle">
           <span class="dot ${on ? "on" : "off"}"></span>
           <span class="st-name">${esc(label)}</span>
-          <span class="st-count">${count != null ? count.toLocaleString("id-ID") + " transkrip" : ""}</span>
+          <span class="st-count">${count != null ? count.toLocaleString("id-ID") + " transcripts" : ""}</span>
           <div class="spacer"></div>
           <div class="switch ${on ? "on" : ""}" data-src="${key}"></div>
         </div>`;
@@ -509,7 +550,7 @@ function renderSettings() {
         sw.classList.toggle("on", on);
         api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "source:" + sw.dataset.src + ":enabled", value: on ? "1" : "0" }) })
           .then(() => toast((sw.dataset.src || "") + (on ? " aktif" : " nonaktif")))
-          .catch((err) => toast("Gagal: " + err.message, "err"));
+          .catch((err) => toast(t("Failed: ") + err.message, "err"));
       });
     });
   }).catch(() => {});
@@ -525,11 +566,11 @@ function renderSettings() {
 
   const cpBtn = document.createElement("button");
   cpBtn.className = "copy";
-  cpBtn.title = "Salin perintah";
+  cpBtn.title = t("Copy command");
   cpBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1H5"/></svg>';
   cpBtn.addEventListener("click", () => {
     navigator.clipboard.writeText(cmd).catch(() => {});
-    toast("Contoh perintah disalin");
+    toast(t("Example command copied"));
   });
   $("#mcpCode").appendChild(cpBtn);
 }
@@ -541,20 +582,20 @@ let tlMode = "text";
 async function renderTimeline() {
   const slug = $("#tlProject").value;
   const box = $("#timelineBox");
-  if (!slug) { box.innerHTML = emptyState("Pilih proyek", "Pilih proyek di atas untuk melihat jejak aktivitasnya."); return; }
-  box.innerHTML = "<p class='muted' style='padding:20px'>Memuat…</p>";
+  if (!slug) { box.innerHTML = emptyState(t("Pick a project"), t("Pick a project above to see its activity trail.")); return; }
+  box.innerHTML = "<p class='muted' style='padding:20px'>Loading…</p>";
   try {
     if (tlMode === "git") {
       const d = await api("/api/git?slug=" + encodeURIComponent(slug));
       const log = d.log || [];
-      if (!log.length) { box.innerHTML = emptyState("Tidak ada riwayat git", "Proyek ini belum memiliki commit terdeteksi."); return; }
+      if (!log.length) { box.innerHTML = emptyState(t("No git history"), t("No commits detected for this project yet.")); return; }
       box.innerHTML = `<div class="list">${log.map((g) => `<div class="tl-item"><div class="tl-badge">${esc(g.date)}</div><div class="tl-text">${esc(g.message)}<div class="tl-tool">git commit</div></div></div>`).join("")}</div>`;
       return;
     }
     const d = await api("/api/timeline?slug=" + encodeURIComponent(slug) + "&limit=60");
     const items = d.timeline || [];
     const mems = d.memories || [];
-    if (!items.length) { box.innerHTML = emptyState("Belum ada aktivitas", "Proyek ini belum memiliki transkrip tersimpan."); return; }
+    if (!items.length) { box.innerHTML = emptyState(t("No activity yet"), t("This project has no stored transcripts yet.")); return; }
     const byDay = {};
     for (const it of items) {
       const day = fmtDate(it.ts);
@@ -562,8 +603,8 @@ async function renderTimeline() {
     }
     let html = "";
     if (mems.length) {
-      html += `<div class="tl-day">Memori proyek (${mems.length})</div>` + mems
-        .map((m) => `<div class="tl-item"><div class="tl-badge" style="width:auto; text-align:left"><span class="mem-kind kind-${m.kind}">${KIND_LABEL[m.kind] || m.kind}</span></div><div class="tl-text">${esc(m.content)}<div class="tl-tool">memori · ${(m.importance * 100).toFixed(0)}</div></div></div>`)
+      html += `<div class="tl-day">Project memories (${mems.length})</div>` + mems
+        .map((m) => `<div class="tl-item"><div class="tl-badge" style="width:auto; text-align:left"><span class="mem-kind kind-${m.kind}">${t(KIND_LABEL[m.kind] || m.kind)}</span></div><div class="tl-text">${esc(m.content)}<div class="tl-tool">memory · ${(m.importance * 100).toFixed(0)}</div></div></div>`)
         .join("");
     }
     for (const [day, arr] of Object.entries(byDay)) {
@@ -576,7 +617,7 @@ async function renderTimeline() {
     }
     box.innerHTML = html;
   } catch (e) {
-    box.innerHTML = emptyState("Gagal memuat", esc(e.message));
+    box.innerHTML = emptyState(t("Failed to load"), esc(e.message));
   }
 }
 
@@ -587,15 +628,15 @@ let handoffText = "";
 async function renderHandoff() {
   const slug = $("#hfProject").value;
   const box = $("#handoffBox");
-  if (!slug) { box.textContent = "Pilih proyek lalu klik \"Buat Handoff\"."; return; }
-  box.textContent = "Membuat handoff…";
+  if (!slug) { box.textContent = "Pick a project lalu klik \"Generate handoff\"."; return; }
+  box.textContent = t("Generating handoff…");
   try {
     const d = await api("/api/handoff?slug=" + encodeURIComponent(slug));
     handoffText = d.text || "";
     box.textContent = handoffText;
-    toast("Handoff siap");
+    toast(t("Handoff ready"));
   } catch (e) {
-    box.textContent = "Gagal membuat handoff: " + e.message;
+    box.textContent = t("Failed to generate handoff: ") + e.message;
   }
 }
 
@@ -616,7 +657,7 @@ async function renderGraph() {
   const project = $("#grProject").value || undefined;
   const params = new URLSearchParams({ limit: "250" });
   if (project) params.set("project", project);
-  $("#graphSide").innerHTML = '<div class="gs-empty">Memuat graph…</div>';
+  $("#graphSide").innerHTML = '<div class="gs-empty">Loading graph…</div>';
   try {
     const d = await api("/api/graph?" + params.toString());
     graph.nodes = d.nodes || [];
@@ -626,23 +667,23 @@ async function renderGraph() {
     graph.vel = graph.nodes.map(() => ({ x: 0, y: 0 }));
     graph.selected = null;
     graph.alpha = 1;
-    $("#grCount").textContent = graph.nodes.length + " node · " + graph.edges.length + " koneksi";
+    $("#grCount").textContent = graph.nodes.length + t(" nodes · ") + graph.edges.length + t(" connections");
     if (!graph.nodes.length) {
-      $("#graphSide").innerHTML = '<div class="gs-empty">Belum ada memori untuk ditampilkan. Jalankan scan + ekstraksi dulu, atau tambahkan memori manual.</div>';
+      $("#graphSide").innerHTML = '<div class="gs-empty">No memories to show yet. Run a scan + extraction first, or add memories manually.</div>';
     } else {
-      $("#graphSide").innerHTML = '<div class="gs-title">Detail</div><div class="gs-empty">Klik salah satu node di canvas untuk melihat detail dan koneksinya.</div>';
+      $("#graphSide").innerHTML = '<div class="gs-title">Detailss</div><div class="gs-empty">Click a node on the canvas to see its details and connections.</div>';
     }
     renderGraphLegend();
     startGraphLoop();
   } catch (e) {
-    $("#graphSide").innerHTML = '<div class="gs-empty">Gagal memuat graph: ' + esc(e.message) + "</div>";
+    $("#graphSide").innerHTML = '<div class="gs-empty">Failed to load graph: ' + esc(e.message) + "</div>";
   }
 }
 
 function renderGraphLegend() {
   const legend = $("#grLegend");
   legend.innerHTML = Object.entries(KIND_LABEL).map(([k, label]) =>
-    `<span class="lg"><span class="sw" style="background:${KIND_COLOR[k]}"></span>${label}</span>`
+    `<span class="lg"><span class="sw" style="background:${KIND_COLOR[k]}"></span>${t(label)}</span>`
   ).join("");
 }
 
@@ -782,16 +823,16 @@ function renderGraphSide() {
     .slice(0, 10);
   side.innerHTML = `
     <div class="gs-node">
-      <div class="gs-kind" style="color:${KIND_COLOR[n.kind] || "#8b93a2"}">${KIND_LABEL[n.kind] || n.kind} · kepentingan ${(n.importance * 100).toFixed(0)}</div>
+      <div class="gs-kind" style="color:${KIND_COLOR[n.kind] || "#8b93a2"}">${t(KIND_LABEL[n.kind] || n.kind)} · importance ${(n.importance * 100).toFixed(0)}</div>
       <div class="gs-content">${esc(n.content)}</div>
       <div class="gs-meta">${esc(n.projectSlug || "global")} · ${esc(TOOL_LABEL[n.sourceTool] || n.sourceTool)} · ${fmtRel(n.createdAt)}</div>
     </div>
-    <div class="gs-title" style="margin-top:4px">Koneksi (${rels.length})</div>
+    <div class="gs-title" style="margin-top:4px">Connections (${rels.length})</div>
     ${rels.length ? rels.map((r) => `
       <div class="gs-link-row" data-goto="${r.otherId}">
         <span class="gs-lk">${r.kind}</span>
         <span class="gs-lt">${esc(r.other.content)}</span>
-      </div>`).join("") : '<div class="gs-empty">Tidak ada koneksi pada node ini.</div>'}`;
+      </div>`).join("") : '<div class="gs-empty">This node has no connections.</div>'}`;
   side.querySelectorAll("[data-goto]").forEach((el) => {
     el.addEventListener("click", () => {
       graph.selected = Number(el.dataset.goto);
@@ -839,12 +880,12 @@ function wireGraphCanvas() {
 /* ---------- Integrations ---------- */
 
 const INTEGRATIONS = [
-  ["claude", "Claude Code", "MCP stdio — kloning konteks tiap sesi `/memory`"],
-  ["codex", "Codex CLI", "Terdaftar di ~/.codex/config.toml"],
-  ["opencode", "opencode", "Terdaftar di ~/.config/opencode/opencode.json"],
-  ["gemini", "Gemini CLI", "Terdaftar di ~/.gemini/settings.json"],
-  ["copilot", "Copilot", "Terdaftar di ~/.copilot/mcp-config.json"],
-  ["antigravity", "Antigravity", "Terdaftar di ~/.gemini/config/mcp_config.json"],
+  ["claude", "Claude Code", t("MCP stdio — mirrors context into every `/memory` session")],
+  ["codex", "Codex CLI", "Registered di ~/.codex/config.toml"],
+  ["opencode", "opencode", "Registered di ~/.config/opencode/opencode.json"],
+  ["gemini", "Gemini CLI", "Registered di ~/.gemini/settings.json"],
+  ["copilot", "Copilot", "Registered di ~/.copilot/mcp-config.json"],
+  ["antigravity", "Antigravity", "Registered di ~/.gemini/config/mcp_config.json"],
 ];
 
 async function renderIntegrations() {
@@ -859,27 +900,27 @@ async function renderIntegrations() {
         <div class="intg-icon">${esc(name.slice(0, 2).toUpperCase())}</div>
         <div><div class="intg-name">${esc(name)}</div><div class="intg-desc">${esc(desc)}</div></div>
         <div class="spacer"></div>
-        <span class="badge ${configured ? "ok" : "no"}">${configured ? "Terdaftar" : "Belum"}</span>
-        <button class="btn primary" data-intg="${key}" ${configured ? "style='opacity:0.55'" : ""}>${configured ? "Daftarkan lagi" : "Daftarkan"}</button>
+        <span class="badge ${configured ? "ok" : "no"}">${configured ? t("Registered") : t("Not yet")}</span>
+        <button class="btn primary" data-intg="${key}" ${configured ? "style='opacity:0.55'" : ""}>${configured ? t("Register again") : t("Register")}</button>
       </div>`;
     }).join("");
     box.querySelectorAll("[data-intg]").forEach((b) => {
       b.addEventListener("click", async () => {
         b.disabled = true;
-        b.textContent = "Proses…";
+        b.textContent = t("Working…");
         try {
           const r = await api("/api/integrate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool: b.dataset.intg }) });
-          if (r.ok) toast(b.dataset.intg + " terdaftar");
-          else toast("Gagal: " + r.message, "err");
+          if (r.ok) toast(b.dataset.intg + t(" registered"));
+          else toast(t("Failed: ") + r.message, "err");
         } catch (e) {
-          toast("Gagal: " + e.message, "err");
+          toast(t("Failed: ") + e.message, "err");
         }
         b.disabled = false;
         renderIntegrations();
       });
     });
   } catch (e) {
-    box.innerHTML = emptyState("Gagal memuat", esc(e.message));
+    box.innerHTML = emptyState(t("Failed to load"), esc(e.message));
   }
 }
 
@@ -898,7 +939,7 @@ async function loadSettingsToggles() {
     const sp = $("#setShortcutPalette");
     if (sq) sq.value = s.shortcutQuick || "";
     if (sp) sp.value = s.shortcutPalette || "";
-    // Mesin kecerdasan
+    // Intelligence engine
     const ee = $("#setExtractEngine"), de = $("#setEmbedEngine");
     if (ee) ee.value = s.extractEngine || "auto";
     if (de) de.value = s.embedEngine || "auto";
@@ -907,7 +948,7 @@ async function loadSettingsToggles() {
     if (om1) om1.value = s.openaiExtractModel || "";
     if (om2) om2.value = s.openaiEmbedModel || "";
     if (ok) ok.value = ""; // key tidak dikirim balik ke UI — hanya indikator
-    if (ok) ok.placeholder = s.openaiHasKey === "1" ? "API key tersimpan — isi ulang untuk mengganti" : "API key (opsional untuk LM Studio lokal)";
+    if (ok) ok.placeholder = s.openaiHasKey === "1" ? t("API key stored — refill to replace") : t("API key (optional for local LM Studio)");
     try {
       const dg = await api("/api/digest");
       const box = $("#digestBox");
@@ -919,9 +960,9 @@ async function loadSettingsToggles() {
 async function saveSettings(key, on) {
   try {
     await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, value: on ? "1" : "0" }) });
-    toast(key + (on ? " diaktifkan" : " dimatikan"));
+    toast(key + (on ? " — " + t("enabled") : " — " + t("disabled")));
   } catch (e) {
-    toast("Gagal simpan pengaturan: " + e.message, "err");
+    toast(t("Failed to save setting: ") + e.message, "err");
   }
 }
 
@@ -932,10 +973,10 @@ async function loadBackups() {
     const d = await api("/api/backups");
     const b = d.backups || [];
     if (!b.length) {
-      box.innerHTML = '<div class="card-desc" style="margin-top:6px">Belum ada cadangan. Klik "Cadangkan sekarang" untuk membuat yang pertama.</div>';
+      box.innerHTML = '<div class="card-desc" style="margin-top:6px">Not yet ada cadangan. Klik t("Back up now") untuk membuat yang pertama.</div>';
       return;
     }
-    box.innerHTML = '<div class="card-desc" style="margin-top:2px">Cadangan tersimpan:</div>' +
+    box.innerHTML = '<div class="card-desc" style="margin-top:2px">Stored backups:</div>' +
       b.map((x) => `
         <div class="bup-row">
           <div>
@@ -943,26 +984,26 @@ async function loadBackups() {
             <div class="bup-meta">${(x.size / 1024 / 1024).toFixed(1)} MB · ${fmtDate(x.createdAt)}</div>
           </div>
           <div class="spacer"></div>
-          <button class="btn" data-restore="${esc(x.path)}">Pulihkan</button>
+          <button class="btn" data-restore="${esc(x.path)}">Restore</button>
         </div>`).join("");
     box.querySelectorAll("[data-restore]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Pulihkan cadangan ini? Seluruh memori & konfigurasi saat ini akan diganti dari cadangan.")) return;
+        if (!confirm(t("Restore this backup? Current memories & settings will be replaced from the backup."))) return;
         btn.disabled = true;
-        btn.textContent = "Memulihkan…";
+        btn.textContent = t("Restoring…");
         try {
           const r = await api("/api/backup/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: btn.dataset.restore }) });
-          toast(r.ok ? "Cadangan dipulihkan" : "Gagal: " + (r.error || ""), r.ok ? "ok" : "err");
+          toast(r.ok ? t("Backup restored") : t("Failed: ") + (r.error || ""), r.ok ? "ok" : "err");
           if (r.ok) { await Promise.all([loadStats(), loadProjects(), loadBackups()]); }
         } catch (e) {
-          toast("Gagal memulihkan: " + e.message, "err");
+          toast(t("Failed to restore: ") + e.message, "err");
         }
         btn.disabled = false;
-        btn.textContent = "Pulihkan";
+        btn.textContent = t("Restore");
       });
     });
   } catch (e) {
-    box.innerHTML = '<div class="card-desc" style="margin-top:6px">Gagal memuat cadangan: ' + esc(e.message) + "</div>";
+    box.innerHTML = '<div class="card-desc" style="margin-top:6px">Failed to load backups: ' + esc(e.message) + "</div>";
   }
 }
 
@@ -993,7 +1034,7 @@ function wireSettingsToggles() {
 let editingId = null;
 
 function openEditModal(id) {
-  const items = (state.lastMemories || []).filter((m) => m.id === id);
+  const items = (state.lastMemorieseses || []).filter((m) => m.id === id);
   renderEditModal(items[0], id);
 }
 
@@ -1003,15 +1044,15 @@ async function renderEditModal(m, id) {
       const d = await api("/api/memories");
       m = (d.memories || []).find((x) => x.id === id);
     } catch {}
-    if (!m) { toast("Memori tidak ditemukan", "err"); return; }
+    if (!m) { toast(t("Memory not found"), "err"); return; }
   }
   editingId = id;
-  $("#overlay h3").textContent = "Edit memori";
-  $("#overlay .modal-desc").textContent = "Perbarui isi, jenis, atau tingkat kepentingan.";
+  $("#overlay h3").textContent = t("Edit memory");
+  $("#overlay .modal-desc").textContent = t("Update the content, kind, or importance.");
   $("#addKind").value = m.kind || "context";
   $("#addProject").value = m.projectSlug || "";
   $("#addContent").value = m.content || "";
-  $("#btnSave").textContent = "Simpan perubahan";
+  $("#btnSave").textContent = t("Save changes");
   openModal();
 }
 
@@ -1034,12 +1075,12 @@ async function doScan() {
   try {
     const d = await api("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" } });
     const props = d.results.filter((r) => r.ok && r.count > 0);
-    if (props.length) toast("Scan selesai — baru: " + props.map((r) => `${r.tool} +${r.count}`).join(", "));
-    else toast("Scan selesai — tidak ada data baru");
+    if (props.length) toast(t("Scan finished — new: {0}") + props.map((r) => `${r.tool} +${r.count}`).join(", "));
+    else toast(t("Scan finished — nothing new"));
     await Promise.all([loadStats(), loadProjects()]);
-    if (state.view === "memories") renderMemories();
+    if (state.view === "memories") renderMemorieseses();
   } catch (e) {
-    toast("Gagal scan: " + e.message, "err");
+    toast(t("Scan failed: ") + e.message, "err");
   } finally {
     btnText.textContent = old;
     $("#btnScan").disabled = false;
@@ -1048,7 +1089,7 @@ async function doScan() {
 
 async function saveMemory() {
   const content = $("#addContent").value.trim();
-  if (!content) { toast("Isi memori tidak boleh kosong", "err"); return; }
+  if (!content) { toast(t("Memory content cannot be empty"), "err"); return; }
   try {
     if (editingId) {
       await api("/api/memories", {
@@ -1056,10 +1097,10 @@ async function saveMemory() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: editingId, kind: $("#addKind").value, content }),
       });
-      toast("Memori diperbarui");
+      toast(t("Memory updated"));
       resetModal();
       loadStats();
-      if (state.view === "memories") renderMemories();
+      if (state.view === "memories") renderMemorieseses();
       return;
     }
     await api("/api/remember", {
@@ -1070,11 +1111,11 @@ async function saveMemory() {
     $("#addContent").value = "";
     $("#addProject").value = "";
     closeModal();
-    toast("Memori tersimpan");
+    toast(t("Memory saved"));
     loadStats();
-    if (state.view === "memories") renderMemories();
+    if (state.view === "memories") renderMemorieseses();
   } catch (e) {
-    toast("Gagal simpan: " + e.message, "err");
+    toast(t("Failed to save: ") + e.message, "err");
   }
 }
 
@@ -1082,9 +1123,9 @@ function resetModal() {
   editingId = null;
   $("#addContent").value = "";
   $("#addProject").value = "";
-  $("#overlay h3").textContent = "Tambah memori";
-  $("#overlay .modal-desc").textContent = "Simpan fakta, keputusan, atau tugas agar diingat di semua AI tools.";
-  $("#btnSave").textContent = "Simpan memori";
+  $("#overlay h3").textContent = t("Add memory");
+  $("#overlay .modal-desc").textContent = t("Save a fact, decision, or task so every AI tool remembers it.");
+  $("#btnSave").textContent = t("Save memory");
   closeModal();
 }
 
@@ -1096,7 +1137,7 @@ function closeModal() { $("#overlay").classList.remove("show"); }
 document.querySelectorAll(".nav-item").forEach((n) => {
   n.addEventListener("click", () => {
     setView(n.dataset.view);
-    if (n.dataset.view === "memories") { loadTags(); renderMemories(); }
+    if (n.dataset.view === "memories") { loadTags(); renderMemorieseses(); }
     if (n.dataset.view === "projects") renderProjects();
     if (n.dataset.view === "timeline") renderTimeline();
     if (n.dataset.view === "graph") renderGraph();
@@ -1104,7 +1145,7 @@ document.querySelectorAll(".nav-item").forEach((n) => {
     if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
   });
 });
-$("#linkAllMem").addEventListener("click", () => { setView("memories"); renderMemories(); });
+$("#linkAllMem").addEventListener("click", () => { setView("memories"); renderMemorieseses(); });
 $("#linkAllProj").addEventListener("click", () => { setView("projects"); renderProjects(); });
 
 $("#btnScan").addEventListener("click", doScan);
@@ -1117,35 +1158,35 @@ $("#hfGen").addEventListener("click", renderHandoff);
 $("#hfProject").addEventListener("change", renderHandoff);
 $("#hfResume").addEventListener("click", async () => {
   const slug = $("#hfProject").value;
-  if (!slug) { toast("Pilih proyek dulu", "err"); return; }
+  if (!slug) { toast(t("Pick a project first"), "err"); return; }
   try {
     const d = await api("/api/resume?slug=" + encodeURIComponent(slug));
     await navigator.clipboard.writeText(d.text || "");
-    toast("Prompt lanjutan disalin — paste di tool tujuan, sesi baru langsung nyambung");
+    toast(t("Resume prompt copied — paste it into the target tool and the new session picks up instantly"));
   } catch (e) {
-    toast("Gagal membuat prompt lanjutan: " + e.message, "err");
+    toast(t("Failed to build resume prompt: ") + e.message, "err");
   }
 });
 $("#hfCopy").addEventListener("click", () => {
-  if (!handoffText) { toast("Belum ada handoff", "err"); return; }
-  navigator.clipboard.writeText(handoffText).then(() => toast("Handoff disalin")).catch(() => toast("Gagal menyalin", "err"));
+  if (!handoffText) { toast(t("No handoff yet"), "err"); return; }
+  navigator.clipboard.writeText(handoffText).then(() => toast(t("Handoff copied"))).catch(() => toast(t("Copy failed"), "err"));
 });
 $("#hfInject").addEventListener("click", async () => {
   const slug = $("#hfProject").value;
-  if (!slug) { toast("Pilih proyek dulu", "err"); return; }
+  if (!slug) { toast(t("Pick a project first"), "err"); return; }
   try {
     const r = await api("/api/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
     if (r.ok) {
       const okFiles = (r.results || []).filter((x) => x.ok).map((x) => x.file);
       const failFiles = (r.results || []).filter((x) => !x.ok).map((x) => x.file);
-      let msg = okFiles.length ? "Konteks diinjeksi ke: " + okFiles.join(", ") : "Gagal injeksi (periksa izin tulis)";
-      if (failFiles.length) msg += " · gagal: " + failFiles.join(", ");
+      let msg = okFiles.length ? t("Context injected into: ") + okFiles.join(", ") : t("Injection failed (check write permissions)");
+      if (failFiles.length) msg += t(" · failed: ") + failFiles.join(", ");
       toast(msg, okFiles.length ? "ok" : "err");
     } else {
-      toast("Gagal injeksi (periksa izin tulis)", "err");
+      toast(t("Injection failed (check write permissions)"), "err");
     }
   } catch (e) {
-    toast("Gagal injeksi: " + e.message, "err");
+    toast(t("Injection failed: ") + e.message, "err");
   }
 });
 
@@ -1160,10 +1201,10 @@ $("#grProject").addEventListener("change", renderGraph);
 $("#grRebuild").addEventListener("click", async () => {
   try {
     const r = await api("/api/graph/rebuild", { method: "POST" });
-    toast("Koneksi dibangun ulang: " + r.links + " link");
+    toast(t("Connections rebuilt: ") + r.links + " link");
     renderGraph();
   } catch (e) {
-    toast("Gagal: " + e.message, "err");
+    toast(t("Failed: ") + e.message, "err");
   }
 });
 wireGraphCanvas();
@@ -1171,37 +1212,37 @@ wireGraphCanvas();
 $("#btnBackupNow").addEventListener("click", async () => {
   try {
     const r = await api("/api/backup", { method: "POST" });
-    toast(r.ok ? "Cadangan tersimpan: " + r.path : "Gagal cadangan", r.ok ? "ok" : "err");
+    toast(r.ok ? t("Backup saved: ") + r.path : t("Backup failed"), r.ok ? "ok" : "err");
     loadBackups();
   } catch (e) {
-    toast("Gagal cadangan: " + e.message, "err");
+    toast(t("Backup failed: ") + e.message, "err");
   }
 });
 $("#btnExport").addEventListener("click", async () => {
   try {
     const d = await api("/api/export?format=md");
     download("memoria.md", d.text || "");
-    toast("Ekspor selesai");
+    toast(t("Export finished"));
   } catch (e) {
-    toast("Gagal ekspor: " + e.message, "err");
+    toast(t("Export failed: ") + e.message, "err");
   }
 });
 $("#btnExportJson").addEventListener("click", async () => {
   try {
     const d = await api("/api/export?format=json");
     download("memoria.json", JSON.stringify(d, null, 2), "application/json");
-    toast("Ekspor JSON selesai");
+    toast(t("JSON export finished"));
   } catch (e) {
-    toast("Gagal ekspor: " + e.message, "err");
+    toast(t("Export failed: ") + e.message, "err");
   }
 });
 $("#btnObsidian").addEventListener("click", async () => {
   try {
     const r = await api("/api/export/obsidian", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
     if (r.ok) toast("Vault Obsidian tersimpan: " + r.dir + " (" + r.notes + " catatan)");
-    else toast("Gagal ekspor: " + (r.error || ""), "err");
+    else toast(t("Export failed: ") + (r.error || ""), "err");
   } catch (e) {
-    toast("Gagal ekspor: " + e.message, "err");
+    toast(t("Export failed: ") + e.message, "err");
   }
 });
 $("#btnTopics").addEventListener("click", async () => {
@@ -1210,37 +1251,37 @@ $("#btnTopics").addEventListener("click", async () => {
     btn.disabled = true;
     btn.textContent = "Membangun…";
     const r = await api("/api/tags/rebuild", { method: "POST" });
-    toast("Tag topik dibangun: " + r.memories + " memori → " + r.topics + " topik");
+    toast("Tag topik dibangun: " + r.memories + " {0} → " + r.topics + " topik");
     loadTags();
   } catch (e) {
-    toast("Gagal: " + e.message, "err");
+    toast(t("Failed: ") + e.message, "err");
   } finally {
     const btn = $("#btnTopics");
     btn.disabled = false;
-    btn.textContent = "Bangun tag topik sekarang";
+    btn.textContent = t("Build topic tags now");
   }
 });
 $("#btnDigest").addEventListener("click", async () => {
   const box = $("#digestBox");
-  box.textContent = "Membuat ringkasan…";
+  box.textContent = t("Generating digest…");
   try {
     const r = await api("/api/digest/generate", { method: "POST" });
     box.textContent = r.text || "";
-    toast("Ringkasan mingguan dibuat (" + r.memories + " memori)");
+    toast(t("Weekly digest generated (") + r.memories + t(" memories)"));
   } catch (e) {
-    box.textContent = "Gagal: " + e.message;
+    box.textContent = t("Failed: ") + e.message;
   }
 });
 
 $("#btnImport").addEventListener("click", async () => {
   const text = $("#importText").value.trim();
-  if (!text) { toast("Teks masih kosong", "err"); return; }
+  if (!text) { toast(t("Text is empty"), "err"); return; }
   try {
     const r = await api("/api/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, tool: "import" }) });
-    if (r.ok) { toast("Konteks disimpan sebagai transkrip untuk diekstrak"); $("#importText").value = ""; loadStats(); }
-    else toast("Gagal impor", "err");
+    if (r.ok) { toast(t("Context stored as a transcript, ready for extraction")); $("#importText").value = ""; loadStats(); }
+    else toast(t("Import failed"), "err");
   } catch (e) {
-    toast("Gagal impor: " + e.message, "err");
+    toast(t("Import failed: ") + e.message, "err");
   }
 });
 
@@ -1259,7 +1300,7 @@ function wireShortcutInputs() {
         });
         toast("Shortcut disimpan — berlaku setelah restart aplikasi");
       } catch (e) {
-        toast("Gagal simpan shortcut: " + e.message, "err");
+        toast(t("Failed to save shortcut: ") + e.message, "err");
       }
     });
   }
@@ -1288,31 +1329,57 @@ function wireEngineSettings() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key, value }),
         });
-        toast("Mesin diperbarui — langsung aktif");
+        toast(t("Engine updated — applied instantly"));
         loadStats();
       } catch (e) {
-        toast("Gagal simpan: " + e.message, "err");
+        toast(t("Failed to save: ") + e.message, "err");
       }
     });
   }
 }
 wireEngineSettings();
 
+function wireSettingsTabs() {
+  const nav = document.querySelector("#settingsTabs");
+  if (!nav) return;
+  nav.querySelectorAll("[data-stab-btn]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.stabBtn;
+      localStorage.setItem("memoria_settab", tab);
+      nav.querySelectorAll(".stab").forEach((x) => x.classList.toggle("active", x === btn));
+      document.querySelectorAll(".settings-group").forEach((g) => g.classList.toggle("active", g.dataset.stab === tab));
+    });
+  });
+  const saved = localStorage.getItem("memoria_settab") || "sources";
+  const target = nav.querySelector(`[data-stab-btn="${saved}"]`);
+  if (target) target.click();
+}
+wireSettingsTabs();
+
+const langSel = document.querySelector("#setLang");
+if (langSel) {
+  langSel.value = I18N.lang;
+  langSel.addEventListener("change", () => {
+    I18N.setLang(langSel.value);
+    toast(langSel.value === "id" ? "Bahasa diganti ke Indonesia" : "Language switched to English");
+  });
+}
+
 $("#search").addEventListener("input", debounce(async (e) => {
   state.search = e.target.value;
   if (state.view !== "memories") setView("memories");
-  renderMemories();
+  renderMemorieseses();
 }, 350));
 document.querySelectorAll(".mem-tabs .seg").forEach((b) => {
   b.addEventListener("click", () => {
     state.memTab = b.dataset.memtab;
     document.querySelectorAll(".mem-tabs .seg").forEach((x) => x.classList.toggle("active", x === b));
-    renderMemories();
+    renderMemorieseses();
   });
 }); 
-$("#filterKind").addEventListener("change", (e) => { state.filterKind = e.target.value; renderMemories(); });
-$("#filterProject").addEventListener("change", (e) => { state.filterProject = e.target.value; renderMemories(); });
-$("#filterTag").addEventListener("change", (e) => { state.filterTag = e.target.value; renderMemories(); });
+$("#filterKind").addEventListener("change", (e) => { state.filterKind = e.target.value; renderMemorieseses(); });
+$("#filterProject").addEventListener("change", (e) => { state.filterProject = e.target.value; renderMemorieseses(); });
+$("#filterTag").addEventListener("change", (e) => { state.filterTag = e.target.value; renderMemorieseses(); });
 
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -1325,6 +1392,19 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* ---------- Init ---------- */
+
+I18N.apply();
+document.addEventListener("memoria:lang", () => {
+  I18N.apply();
+  setView(state.view);
+  if (state.view === "memories") renderMemorieses();
+  if (state.view === "projects") renderProjects();
+  if (state.view === "timeline") renderTimeline();
+  if (state.view === "graph") renderGraph();
+  if (state.view === "integrations") renderIntegrations();
+  if (state.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
+  loadStats();
+});
 
 (async function init() {
   await loadProjects();

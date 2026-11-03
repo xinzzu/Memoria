@@ -251,6 +251,12 @@
 
     /* ---------- Settings ---------- */
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .settings-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .settings-tabs .stab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--muted); font-size: 12.5px; cursor: pointer; user-select: none; }
+    .settings-tabs .stab.active { background: #5b7cfa; border-color: transparent; color: #fff; }
+    .settings-group { display: none; }
+    .settings-group.active { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 880px; }
     .card {
       background: var(--panel); border: 1px solid var(--border-soft);
       border-radius: var(--radius); padding: 18px;
@@ -549,7 +555,7 @@
       <div class="topbar">
         <div class="page-title">
           <h2 id="pageTitle">Overview</h2>
-          <p id="pageSub">Ringkasan memori lintas semua AI tools</p>
+          <p id="pageSub" data-i18n="Memory summary across all AI tools">Memory summary across all AI tools</p>
         </div>
         <div class="spacer"></div>
         <div class="search-box">
@@ -574,36 +580,49 @@
             <div class="stat">
               <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg></div></div>
               <div class="stat-value" id="sTranscripts">—</div>
-              <div class="stat-label">Transkrip tersimpan</div>
-              <div class="stat-hint">Dari semua AI tools</div>
+              <div class="stat-label" data-i18n="Transcripts stored">Transcripts stored</div>
+              <div class="stat-hint" data-i18n="From all AI tools">From all AI tools</div>
             </div>
             <div class="stat">
               <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h8a1 1 0 0 1 1 1v11l-2.5-1.5L8 14l-2.5-1.5L3 14V3a1 1 0 0 1 1-1z"/></svg></div></div>
               <div class="stat-value" id="sMemories">—</div>
-              <div class="stat-label">Memori aktif</div>
-              <div class="stat-hint">Fakta, keputusan, tugas</div>
+              <div class="stat-label" data-i18n="Active memories">Active memories</div>
+              <div class="stat-hint" data-i18n="Facts, decisions, tasks">Facts, decisions, tasks</div>
             </div>
             <div class="stat">
               <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6-3 6 3M2 5l6 3 6-3M2 5v6l6 3 6-3V5"/><path d="M8 8v6"/></svg></div></div>
               <div class="stat-value" id="sProjects">—</div>
-              <div class="stat-label">Proyek</div>
-              <div class="stat-hint">Terakhir diakses</div>
+              <div class="stat-label" data-i18n="Projects">Projects</div>
+              <div class="stat-hint" data-i18n="Recently accessed">Recently accessed</div>
             </div>
             <div class="stat">
               <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg></div></div>
               <div class="stat-value" id="sPending">—</div>
-              <div class="stat-label">Antrian ekstraksi</div>
-              <div class="stat-hint" id="sOllama">Ollama: offline</div>
+              <div class="stat-label" data-i18n="Extraction queue">Extraction queue</div>
+              <div class="stat-hint" id="sOllama" data-i18n="Ollama: offline">Ollama: offline</div>
+            </div>
+          </div>
+
+<div class="ov-grid">
+            <div class="card">
+              <h4 data-i18n="7-day activity">7-day activity</h4>
+              <div class="card-desc" data-i18n="Messages captured from all your AI tools, per day.">Messages captured from all your AI tools, per day.</div>
+              <div class="bars" id="weekBars"></div>
+            </div>
+            <div class="card">
+              <h4 data-i18n="Resume ready">Resume ready</h4>
+              <div class="card-desc" data-i18n="Projects whose context was injected for your next session.">Projects whose context was injected for your next session.</div>
+              <div id="resumeList" style="margin-top:6px"></div>
             </div>
           </div>
 
           <div class="section">
-            <div class="section-head"><h3>Memori terbaru</h3><a id="linkAllMem">Lihat semua</a></div>
+            <div class="section-head"><h3>Memori terbaru</h3><a id="linkAllMem" data-i18n="View all">View all</a></div>
             <div id="recentList"></div>
           </div>
 
           <div class="section">
-            <div class="section-head"><h3>Proyek terakhir</h3><a id="linkAllProj">Lihat semua</a></div>
+            <div class="section-head"><h3>Proyek terakhir</h3><a id="linkAllProj" data-i18n="View all">View all</a></div>
             <div id="recentProjects"></div>
           </div>
         </div>
@@ -614,26 +633,26 @@
             <h3>Pustaka memori</h3>
           </div>
           <div class="mem-tabs" style="display:flex; gap:6px; margin-bottom:12px">
-            <button class="seg active" data-memtab="active">Aktif</button>
+            <button class="seg active" data-memtab="active" data-i18n="Active">Active</button>
             <button class="seg" data-memtab="draft">Menunggu persetujuan</button>
-            <button class="seg" data-memtab="archived">Arsip</button>
+            <button class="seg" data-memtab="archived" data-i18n="Archive">Archive</button>
           </div>
           <div class="filter-bar" style="display:flex; gap:8px; margin-bottom:16px">
             <select id="filterKind" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
-              <option value="">Semua jenis</option>
-              <option value="fact">Fakta</option>
-              <option value="decision">Keputusan</option>
-              <option value="task_done">Tugas selesai</option>
-              <option value="task_pending">Tugas pending</option>
-              <option value="error_fixed">Error diperbaiki</option>
-              <option value="preference">Preferensi</option>
-              <option value="context">Konteks</option>
+              <option value="" data-i18n="All types">All types</option>
+              <option value="fact" data-i18n="Fact">Fact</option>
+              <option value="decision" data-i18n="Decision">Decision</option>
+              <option value="task_done" data-i18n="Task done">Task done</option>
+              <option value="task_pending" data-i18n="Task pending">Task pending</option>
+              <option value="error_fixed" data-i18n="Error fixed">Error fixed</option>
+              <option value="preference" data-i18n="Preference">Preference</option>
+              <option value="context" data-i18n="Context">Context</option>
             </select>
             <select id="filterProject" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
-              <option value="">Semua proyek</option>
+              <option value="" data-i18n="All projects">All projects</option>
             </select>
             <select id="filterTag" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
-              <option value="">Semua topik</option>
+              <option value="" data-i18n="All topics">All topics</option>
             </select>
           </div>
           <div id="memoriesList"></div>
@@ -648,7 +667,7 @@
         <div class="view" id="view-timeline">
           <div class="toolbar">
             <select id="tlProject"><option value="">Memilih proyek…</option></select>
-            <button class="btn" id="tlGitBtn">Aktivitas Git</button>
+            <button class="btn" id="tlGitBtn" data-i18n="Git activity">Git activity</button>
           </div>
           <div id="timelineBox"></div>
         </div>
@@ -657,19 +676,19 @@
         <div class="view" id="view-handoff">
           <div class="toolbar">
             <select id="hfProject"><option value="">Memilih proyek…</option></select>
-            <button class="btn primary" id="hfGen">Buat Handoff</button>
-            <button class="btn" id="hfResume">Salin prompt lanjutan</button>
-            <button class="btn" id="hfCopy">Salin handoff</button>
-            <button class="btn" id="hfInject">Injeksi konteks</button>
+            <button class="btn primary" id="hfGen" data-i18n="Generate handoff">Generate handoff</button>
+            <button class="btn" id="hfResume" data-i18n="Copy resume prompt">Copy resume prompt</button>
+            <button class="btn" id="hfCopy" data-i18n="Copy handoff">Copy handoff</button>
+            <button class="btn" id="hfInject" data-i18n="Inject context">Inject context</button>
           </div>
-          <div class="pre" id="handoffBox">Pilih proyek lalu klik "Buat Handoff".</div>
+          <div class="pre" id="handoffBox" data-i18n="Pick a project, then click &quot;Generate handoff&quot;.">Pick a project, then click "Generate handoff".</div>
         </div>
 
         <!-- Graph -->
         <div class="view" id="view-graph">
           <div class="toolbar">
-            <select id="grProject"><option value="">Semua proyek</option></select>
-            <button class="btn" id="grRebuild">Bangun ulang koneksi</button>
+            <select id="grProject"><option value="" data-i18n="All projects">All projects</option></select>
+            <button class="btn" id="grRebuild" data-i18n="Rebuild connections">Rebuild connections</button>
             <span style="font-size:12px; color:var(--faint)" id="grCount"></span>
           </div>
           <div class="graph-legend" id="grLegend"></div>
@@ -693,123 +712,139 @@
 
         <!-- Settings -->
         <div class="view" id="view-settings">
-          <div class="settings-grid">
-            <div class="card">
-              <h4>Sumber data</h4>
-              <div class="card-desc">Transkrip diambil otomatis dari setiap tool saat ada aktivitas baru.</div>
+          <div class="settings-grid" style="display:block">
+          <div class="settings-tabs" id="settingsTabs">
+            <div class="stab active" data-stab-btn="sources" data-i18n="Data sources">Data sources</div>
+            <div class="stab" data-stab-btn="engine" data-i18n="Engine">Engine</div>
+            <div class="stab" data-stab-btn="behavior" data-i18n="Behavior">Behavior</div>
+            <div class="stab" data-stab-btn="data" data-i18n="Backup & data">Backup & data</div>
+          </div>
+          <div class="settings-group" data-stab="sources">
+<div class="card">
+              <h4 data-i18n="Data sources">Data sources</h4>
+              <div class="card-desc" data-i18n="Transcripts are captured automatically from each tool as new activity happens.">Transcripts are captured automatically from each tool as new activity happens.</div>
               <div id="toolsList"></div>
               <div id="sourcesToggles" style="margin-top:8px"></div>
             </div>
-            <div class="card">
-              <h4>Sistem</h4>
-              <div class="card-desc">Penyimpanan dan inference lokal — tidak ada data yang keluar dari komputer.</div>
+            
+          </div>
+          <div class="settings-group" data-stab="engine">
+<div class="card">
+              <h4 data-i18n="Intelligence engine">Intelligence engine</h4>
+              <div class="card-desc">Ekstraksi & embedding memori. Mode <b>auto</b> memakai Ollama bila menyala; tanpa model pun Memoria tetap bekerja (heuristik → hasil masuk antrian tinjau). Perubahan langsung aktif tanpa restart.</div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setExtractEngine" data-i18n="Extraction engine">Extraction engine</label>
+                <select id="setExtractEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
+                  <option value="auto" data-i18n="Auto (Ollama → Heuristics)">Auto (Ollama → Heuristics)</option>
+                  <option value="ollama" data-i18n="Ollama (local)">Ollama (local)</option>
+                  <option value="openai" data-i18n="OpenAI-compatible (LM Studio / cloud)">OpenAI-compatible (LM Studio / cloud)</option>
+                  <option value="heuristic" data-i18n="Heuristics (no model)">Heuristics (no model)</option>
+                </select>
+              </div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setEmbedEngine" data-i18n="Embedding engine">Embedding engine</label>
+                <select id="setEmbedEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
+                  <option value="auto" data-i18n="Auto (Ollama → Hash)">Auto (Ollama → Hash)</option>
+                  <option value="ollama" data-i18n="Ollama (local)">Ollama (local)</option>
+                  <option value="openai">OpenAI-compatible</option>
+                  <option value="hash" data-i18n="Local hash (no model)">Local hash (no model)</option>
+                </select>
+              </div>
+              <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
+                <div class="card-desc">Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style="color:var(--warn, #e5686b)" data-i18n="Privacy note:">Privacy note:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini.</div>
+                <input type="text" id="setOpenaiBaseUrl" placeholder="http://localhost:1234/v1" style="width:100%; margin-top:6px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <div style="display:flex; gap:8px; margin-top:8px">
+                  <input type="text" id="setOpenaiExtractModel" placeholder="extraction model" data-i18n-ph="extraction model" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                  <input type="text" id="setOpenaiEmbedModel" placeholder="embedding model" data-i18n-ph="embedding model" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                </div>
+                <input type="password" id="setOpenaiApiKey" placeholder="API key (optional for local LM Studio)" data-i18n-ph="API key (optional for local LM Studio)" style="width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+              </div>
+            </div>
+            
+<div class="card">
+              <h4 data-i18n="System">System</h4>
+              <div class="card-desc" data-i18n="Local storage and inference — nothing leaves this computer.">Local storage and inference — nothing leaves this computer.</div>
               <div class="kv"><span class="k">Data directory</span><span class="v" id="cfgDataDir">—</span></div>
               <div class="kv"><span class="k">Model ekstraksi</span><span class="v" id="cfgExtractModel">—</span></div>
               <div class="kv"><span class="k">Model embedding</span><span class="v" id="cfgEmbedModel">—</span></div>
               <div class="kv"><span class="k">API</span><span class="v" id="cfgApi">—</span></div>
             </div>
-            <div class="card">
-              <h4>Mesin kecerdasan</h4>
-              <div class="card-desc">Ekstraksi & embedding memori. Mode <b>auto</b> memakai Ollama bila menyala; tanpa model pun Memoria tetap bekerja (heuristik → hasil masuk antrian tinjau). Perubahan langsung aktif tanpa restart.</div>
-              <div style="margin-top:10px">
-                <label class="t-label" for="setExtractEngine">Mesin ekstraksi</label>
-                <select id="setExtractEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
-                  <option value="auto">Auto (Ollama → Heuristik)</option>
-                  <option value="ollama">Ollama (lokal)</option>
-                  <option value="openai">OpenAI-compatible (LM Studio / cloud)</option>
-                  <option value="heuristic">Heuristik (tanpa model)</option>
-                </select>
-              </div>
-              <div style="margin-top:10px">
-                <label class="t-label" for="setEmbedEngine">Mesin embedding</label>
-                <select id="setEmbedEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
-                  <option value="auto">Auto (Ollama → Hash)</option>
-                  <option value="ollama">Ollama (lokal)</option>
-                  <option value="openai">OpenAI-compatible</option>
-                  <option value="hash">Hash lokal (tanpa model)</option>
-                </select>
-              </div>
-              <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
-                <div class="card-desc">Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style="color:var(--warn, #e5686b)">Catatan privasi:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini.</div>
-                <input type="text" id="setOpenaiBaseUrl" placeholder="http://localhost:1234/v1" style="width:100%; margin-top:6px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
-                <div style="display:flex; gap:8px; margin-top:8px">
-                  <input type="text" id="setOpenaiExtractModel" placeholder="model ekstraksi" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
-                  <input type="text" id="setOpenaiEmbedModel" placeholder="model embedding" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
-                </div>
-                <input type="password" id="setOpenaiApiKey" placeholder="API key (opsional untuk LM Studio lokal)" style="width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
-              </div>
-            </div>
-            <div class="card">
-              <h4>Perilaku otomatis</h4>
-              <div class="card-desc">Semua proses berjalan lokal di komputer Anda.</div>
+            
+          </div>
+          <div class="settings-group" data-stab="behavior">
+<div class="card">
+              <h4 data-i18n="Automatic behavior">Automatic behavior</h4>
+              <div class="card-desc" data-i18n="Everything runs locally on your machine.">Everything runs locally on your machine.</div>
               <div class="toggle-row" data-key="autoStartOllama">
-                <div><div class="t-label">Mulai Ollama otomatis</div><div class="t-desc">Jalankan Ollama jika belum menyala saat Memoria start</div></div>
+                <div><div class="t-label" data-i18n="Auto-start Ollama">Auto-start Ollama</div><div class="t-desc" data-i18n="Launch Ollama when Memoria starts, if it is not running">Launch Ollama when Memoria starts, if it is not running</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="autoStartOllama"></div>
               </div>
               <div class="toggle-row" data-key="autoBackup">
-                <div><div class="t-label">Cadangan harian</div><div class="t-desc">Salin database otomatis tiap 6 jam (disimpan 10 terakhir)</div></div>
+                <div><div class="t-label" data-i18n="Daily backups">Daily backups</div><div class="t-desc" data-i18n="Auto-copy the database every 6 hours (last 10 kept)">Auto-copy the database every 6 hours (last 10 kept)</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="autoBackup"></div>
               </div>
               <div class="toggle-row" data-key="autoArchive">
-                <div><div class="t-label">Arsip memori usang</div><div class="t-desc">Memori tua yang tidak penting diarsipkan otomatis</div></div>
+                <div><div class="t-label" data-i18n="Archive stale memories">Archive stale memories</div><div class="t-desc" data-i18n="Old, unimportant memories are archived automatically">Old, unimportant memories are archived automatically</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="autoArchive"></div>
               </div>
               <div class="toggle-row" data-key="reviewMode">
-                <div><div class="t-label">Mode tinjau (draft)</div><div class="t-desc">Memori baru menunggu persetujuan di tab "Menunggu persetujuan" sebelum aktif</div></div>
+                <div><div class="t-label" data-i18n="Review mode (draft)">Review mode (draft)</div><div class="t-desc" data-i18n="New memories wait for approval in the &quot;Pending approval&quot; tab before becoming active">New memories wait for approval in the "Pending approval" tab before becoming active</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="reviewMode"></div>
               </div>
               <div class="toggle-row" data-key="autoInjectProjectFiles">
-                <div><div class="t-label">Suntik konteks otomatis</div><div class="t-desc">Perbarui AGENTS.md proyek aktif dengan ringkasan memori otomatis</div></div>
+                <div><div class="t-label" data-i18n="Auto context injection">Auto context injection</div><div class="t-desc" data-i18n="Keep active projects' AGENTS.md updated with a memory summary automatically">Keep active projects' AGENTS.md updated with a memory summary automatically</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="autoInjectProjectFiles"></div>
               </div>
               <div class="toggle-row" data-key="quickInbox">
-                <div><div class="t-label">Catat cepat (Ctrl+Shift+M)</div><div class="t-desc">Aktifkan window kecil catat cepat lewat shortcut global</div></div>
+                <div><div class="t-label" data-i18n="Quick note (Ctrl+Shift+M)">Quick note (Ctrl+Shift+M)</div><div class="t-desc" data-i18n="Enable the small quick-note window via global shortcut">Enable the small quick-note window via global shortcut</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="quickInbox"></div>
               </div>
               <div class="toggle-row" data-key="globalPalette">
-                <div><div class="t-label">Cari memori global (Ctrl+Shift+Space)</div><div class="t-desc">Palet pencarian memori dari mana saja</div></div>
+                <div><div class="t-label" data-i18n="Global memory search (Ctrl+Shift+Space)">Global memory search (Ctrl+Shift+Space)</div><div class="t-desc" data-i18n="Search memories from anywhere with a palette">Search memories from anywhere with a palette</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="globalPalette"></div>
               </div>
               <div class="toggle-row" data-key="autoTopics">
-                <div><div class="t-label">Tag topik otomatis</div><div class="t-desc">Klasifikasikan memori ke topik otomatis tiap harian</div></div>
+                <div><div class="t-label" data-i18n="Auto topic tags">Auto topic tags</div><div class="t-desc" data-i18n="Classify memories into topics daily, automatically">Classify memories into topics daily, automatically</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="autoTopics"></div>
               </div>
               <div class="toggle-row" data-key="weeklyDigest">
-                <div><div class="t-label">Ringkasan mingguan</div><div class="t-desc">Buat laporan otomatis tiap 7 hari</div></div>
+                <div><div class="t-label" data-i18n="Weekly digest">Weekly digest</div><div class="t-desc" data-i18n="Generate a report automatically every 7 days">Generate a report automatically every 7 days</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="weeklyDigest"></div>
               </div>
               <div class="toggle-row" data-key="autoStartLogin">
-                <div><div class="t-label">Jalankan saat login</div><div class="t-desc">Mulai Memoria otomatis saat komputer dinyalakan (berlaku setelah restart aplikasi)</div></div>
+                <div><div class="t-label" data-i18n="Run at login">Run at login</div><div class="t-desc" data-i18n="Start Memoria automatically at login (applies after app restart)">Start Memoria automatically at login (applies after app restart)</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="autoStartLogin"></div>
               </div>
             </div>
-            <div class="card">
-              <h4>Shortcut global</h4>
-              <div class="card-desc">Bentrok dengan aplikasi lain? Ubah akseleratornya di sini (format Electron, mis. CommandOrControl+Alt+M). Kosongkan untuk menonaktifkan. Berlaku setelah restart aplikasi.</div>
+            
+<div class="card">
+              <h4 data-i18n="Global shortcuts">Global shortcuts</h4>
+              <div class="card-desc" data-i18n="Conflicting with another app? Change the accelerator here (Electron format, e.g. CommandOrControl+Alt+M). Leave empty to disable. Applies after app restart.">Conflicting with another app? Change the accelerator here (Electron format, e.g. CommandOrControl+Alt+M). Leave empty to disable. Applies after app restart.</div>
               <div style="margin-top:10px">
-                <label class="t-label" for="setShortcutQuick">Catat cepat</label>
+                <label class="t-label" for="setShortcutQuick" data-i18n="Quick note">Quick note</label>
                 <input type="text" id="setShortcutQuick" placeholder="CommandOrControl+Shift+M" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
               </div>
               <div style="margin-top:10px">
-                <label class="t-label" for="setShortcutPalette">Cari memori (palette)</label>
+                <label class="t-label" for="setShortcutPalette" data-i18n="Search memories (palette)">Search memories (palette)</label>
                 <input type="text" id="setShortcutPalette" placeholder="CommandOrControl+Shift+Space" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
               </div>
             </div>
-            <div class="card">
-              <h4>Injeksi konteks (resume)</h4>
-              <div class="card-desc">Blok "⏸️ LANJUTAN SESI" disuntik ke file konteks yang dibaca tiap tool. Matikan bila tool Anda tidak memakai file tersebut. Injeksi hanya menyentuh blok ber-marker Memoria.</div>
+            
+<div class="card">
+              <h4 data-i18n="Context injection (resume)">Context injection (resume)</h4>
+              <div class="card-desc" data-i18n="The &quot;⏸️ SESSION RESUME&quot; block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.">The "⏸️ SESSION RESUME" block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.</div>
               <div class="toggle-row" data-key="injectFile:AGENTS.md">
-                <div><div class="t-label">AGENTS.md</div><div class="t-desc">Codex CLI, opencode, dan tool ber-konvensi AGENTS.md</div></div>
+                <div><div class="t-label">AGENTS.md</div><div class="t-desc" data-i18n="Codex CLI, opencode, and other AGENTS.md-convention tools">Codex CLI, opencode, and other AGENTS.md-convention tools</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="injectFile:AGENTS.md"></div>
               </div>
@@ -824,77 +859,95 @@
                 <div class="switch" data-sw="injectFile:GEMINI.md"></div>
               </div>
             </div>
-            <div class="card">
-              <h4>Topik memori</h4>
-              <div class="card-desc">Kelompokkan memori ke topik yang saling berdekatan (embedding clustering).</div>
-              <button class="btn" id="btnTopics">Bangun tag topik sekarang</button>
+            
+<div class="card">
+              <h4>Language / Bahasa</h4>
+              <div class="card-desc" data-i18n="Dashboard language. (Engine & handoff language coming later.)">Dashboard language. (Engine & handoff language coming later.)</div>
+              <select id="setLang" style="width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
+                <option value="en">English</option>
+                <option value="id">Indonesia</option>
+              </select>
             </div>
-            <div class="card">
-              <h4>Ringkasan mingguan</h4>
-              <div class="card-desc">Statistik memori 7 hari terakhir: alat, jenis, proyek, topik, dan memori terpenting.</div>
-              <button class="btn" id="btnDigest">Buat ringkasan sekarang</button>
-              <div class="pre" id="digestBox" style="margin-top:10px; min-height:120px">Belum ada ringkasan.</div>
+          </div>
+          <div class="settings-group" data-stab="data">
+<div class="card">
+              <h4 data-i18n="Memory topics">Memory topics</h4>
+              <div class="card-desc" data-i18n="Group memories into nearby topics (embedding clustering).">Group memories into nearby topics (embedding clustering).</div>
+              <button class="btn" id="btnTopics" data-i18n="Build topic tags now">Build topic tags now</button>
             </div>
-            <div class="card">
-              <h4>Cadangan & transfer</h4>
-              <div class="card-desc">Amankan memori atau pindahkan antar komputer.</div>
+            
+<div class="card">
+              <h4 data-i18n="Weekly digest">Weekly digest</h4>
+              <div class="card-desc" data-i18n="Last 7 days: tools, kinds, projects, topics, and the most important memories.">Last 7 days: tools, kinds, projects, topics, and the most important memories.</div>
+              <button class="btn" id="btnDigest" data-i18n="Generate digest now">Generate digest now</button>
+              <div class="pre" id="digestBox" style="margin-top:10px; min-height:120px" data-i18n="No digest yet.">No digest yet.</div>
+            </div>
+            
+<div class="card">
+              <h4 data-i18n="Backup & transfer">Backup & transfer</h4>
+              <div class="card-desc" data-i18n="Back up memories or move them between machines.">Back up memories or move them between machines.</div>
               <div style="display:flex; gap:8px; flex-wrap:wrap">
-                <button class="btn" id="btnBackupNow">Cadangkan sekarang</button>
-                <button class="btn" id="btnObsidian">Ekspor ke Obsidian</button>
-                <button class="btn" id="btnExport">Ekspor MD</button>
-                <button class="btn" id="btnExportJson">Ekspor JSON</button>
+                <button class="btn" id="btnBackupNow" data-i18n="Back up now">Back up now</button>
+                <button class="btn" id="btnObsidian" data-i18n="Export to Obsidian">Export to Obsidian</button>
+                <button class="btn" id="btnExport" data-i18n="Export MD">Export MD</button>
+                <button class="btn" id="btnExportJson" data-i18n="Export JSON">Export JSON</button>
               </div>
               <div id="backupList" style="margin-top:14px"></div>
               <div style="margin-top:14px">
-                <textarea id="importText" style="width:100%; min-height:70px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; resize:vertical; outline:none" placeholder="Tempel teks/konteks penting untuk disimpan sebagai memori…"></textarea>
-                <button class="btn" id="btnImport" style="margin-top:8px">Simpan sebagai memori</button>
+                <textarea id="importText" style="width:100%; min-height:70px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; resize:vertical; outline:none" placeholder="Paste important text/context to store it as a memory…" data-i18n-ph="Paste important text/context to store it as a memory…"></textarea>
+                <button class="btn" id="btnImport" style="margin-top:8px" data-i18n="Save as memory">Save as memory</button>
               </div>
             </div>
-            <div class="card" style="grid-column: 1 / -1">
-              <h4>Integrasi MCP</h4>
-              <div class="card-desc">Daftarkan server ini ke tool AI agar tiap sesi baru otomatis mengambil konteks yang relevan dan menyimpan memori baru.</div>
-              <div class="code" id="mcpCode">memuat…</div>
+            
+<div class="card">
+              <h4 data-i18n="MCP integration">MCP integration</h4>
+              <div class="card-desc" data-i18n="Register this server with your AI tools so every new session pulls relevant context and stores new memories.">Register this server with your AI tools so every new session pulls relevant context and stores new memories.</div>
+              <div class="code" id="mcpCode" data-i18n="loading…">loading…</div>
             </div>
+          
+  </div>
+
+  
           </div>
         </div>
       </div>
     </div>
-  </div>
 
   <!-- Modal -->
   <div class="overlay" id="overlay">
     <div class="modal">
-      <h3>Tambah memori</h3>
-      <div class="modal-desc">Simpan fakta, keputusan, atau tugas agar diingat di semua AI tools.</div>
+      <h3 data-i18n="Add memory">Add memory</h3>
+      <div class="modal-desc" data-i18n="Save a fact, decision, or task so every AI tool remembers it.">Save a fact, decision, or task so every AI tool remembers it.</div>
       <div class="field">
-        <label>Jenis</label>
+        <label data-i18n="Kind">Kind</label>
         <select id="addKind">
-          <option value="fact">Fakta</option>
-          <option value="decision">Keputusan</option>
-          <option value="task_done">Tugas selesai</option>
-          <option value="task_pending">Tugas pending</option>
-          <option value="error_fixed">Error diperbaiki</option>
-          <option value="preference">Preferensi</option>
-          <option value="context">Konteks</option>
+          <option value="fact" data-i18n="Fact">Fact</option>
+          <option value="decision" data-i18n="Decision">Decision</option>
+          <option value="task_done" data-i18n="Task done">Task done</option>
+          <option value="task_pending" data-i18n="Task pending">Task pending</option>
+          <option value="error_fixed" data-i18n="Error fixed">Error fixed</option>
+          <option value="preference" data-i18n="Preference">Preference</option>
+          <option value="context" data-i18n="Context">Context</option>
         </select>
       </div>
       <div class="field">
         <label>Proyek <span class="muted">(opsional)</span></label>
-        <input type="text" id="addProject" placeholder="Nama atau path proyek (opsional)" />
+        <input type="text" id="addProject" placeholder="Project name or path (optional)" data-i18n-ph="Project name or path (optional)" />
       </div>
       <div class="field">
-        <label>Isi memori</label>
-        <textarea id="addContent" placeholder="Tulis memori yang ingin disimpan… (Ctrl/Cmd+Enter untuk menyimpan)"></textarea>
+        <label data-i18n="Memory content">Memory content</label>
+        <textarea id="addContent" placeholder="Write the memory to save… (Ctrl/Cmd+Enter to save)" data-i18n-ph="Write the memory to save… (Ctrl/Cmd+Enter to save)"></textarea>
       </div>
       <div class="modal-actions">
-        <button class="btn" id="btnCancel">Batal</button>
-        <button class="btn primary" id="btnSave">Simpan memori</button>
+        <button class="btn" id="btnCancel" data-i18n="Cancel">Cancel</button>
+        <button class="btn primary" id="btnSave" data-i18n="Save memory">Save memory</button>
       </div>
     </div>
   </div>
 
   <div id="toast-wrap"></div>
 
-  <script src="app.js"></script>
+  <script src="i18n.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
