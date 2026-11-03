@@ -658,8 +658,9 @@
           <div class="toolbar">
             <select id="hfProject"><option value="">Memilih proyek…</option></select>
             <button class="btn primary" id="hfGen">Buat Handoff</button>
-            <button class="btn" id="hfCopy">Salin</button>
-            <button class="btn" id="hfInject">Injeksi ke AGENTS.md</button>
+            <button class="btn" id="hfResume">Salin prompt lanjutan</button>
+            <button class="btn" id="hfCopy">Salin handoff</button>
+            <button class="btn" id="hfInject">Injeksi konteks</button>
           </div>
           <div class="pre" id="handoffBox">Pilih proyek lalu klik "Buat Handoff".</div>
         </div>
@@ -771,6 +772,25 @@
               <div style="margin-top:10px">
                 <label class="t-label" for="setShortcutPalette">Cari memori (palette)</label>
                 <input type="text" id="setShortcutPalette" placeholder="CommandOrControl+Shift+Space" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+              </div>
+            </div>
+            <div class="card">
+              <h4>Injeksi konteks (resume)</h4>
+              <div class="card-desc">Blok "⏸️ LANJUTAN SESI" disuntik ke file konteks yang dibaca tiap tool. Matikan bila tool Anda tidak memakai file tersebut. Injeksi hanya menyentuh blok ber-marker Memoria.</div>
+              <div class="toggle-row" data-key="injectFile:AGENTS.md">
+                <div><div class="t-label">AGENTS.md</div><div class="t-desc">Codex CLI, opencode, dan tool ber-konvensi AGENTS.md</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="injectFile:AGENTS.md"></div>
+              </div>
+              <div class="toggle-row" data-key="injectFile:CLAUDE.md">
+                <div><div class="t-label">CLAUDE.md</div><div class="t-desc">Claude Code</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="injectFile:CLAUDE.md"></div>
+              </div>
+              <div class="toggle-row" data-key="injectFile:GEMINI.md">
+                <div><div class="t-label">GEMINI.md</div><div class="t-desc">Gemini CLI</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="injectFile:GEMINI.md"></div>
               </div>
             </div>
             <div class="card">

@@ -4,6 +4,39 @@ Semua perubahan penting pada Memoria didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/);
 versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [Unreleased] — Fase 1A: Resume Engine (limit-hopping)
+
+Fitur inti untuk skenario **limit-hopping**: pindah tool AI di tengah tugas tanpa
+menjelaskan ulang konteks. Branch: `feat/f1a-resume-engine`.
+
+### Added
+- **Blok "⏸️ LANJUTAN SESI"** kini menjadi bagian TERATAS setiap handoff (dan
+  setiap injeksi file). Digabung dari 4 sinyal murah tanpa LLM: sesi transkrip
+  terakhir (tool + jam + pesan penutup), task pending yang belum selesai,
+  keputusan terbaru ("terkunci — jangan diulang"), dan **`git status`**
+  (branch aktif + file yang sedang berubah — data baru via `runGitStatus`).
+- **Prompt lanjutan siap-paste** — `GET /api/resume?slug=` + tombol baru
+  "Salin prompt lanjutan" di tab Handoff. Plan B yang selalu bekerja bila
+  injeksi file tidak terbaca oleh tool tujuan.
+- **Multi-file injection**: blok konteks kini disuntik ke `AGENTS.md`
+  (Codex/opencode), `CLAUDE.md` (Claude Code), dan `GEMINI.md` (Gemini CLI) —
+  bukan lagi hanya AGENTS.md yang membuat Claude/Gemini tidak pernah membaca
+  konteks. Duplikasi blok ber-marker (bukan symlink) agar aman di Windows.
+  Tiap target bisa dimatikan di Pengaturan → "Injeksi konteks (resume)".
+- **Hot-path resume**: saat aktivitas transkrip diam ≥ 4 menit (heuristic
+  "sesi selesai"), Memoria langsung menjalankan scan → ekstraksi dengan
+  **prioritas sesi terbaru** → injeksi konteks. Target: konteks resume siap
+  ≤ 5 menit setelah pesan terakhir — tidak lagi menunggu antrian batch
+  berikutnya. Ekstraksi background tetap berjalan untuk backlog lama.
+
+### Fixed
+- **`/api/remember` membalas 500 padahal memori tersimpan**: `node:sqlite`
+  mengembalikan objek ber-prototype `null`, dan `Number(row)` di atasnya
+  melempar TypeError — user melihat "Gagal simpan" untuk memori yang sebenarnya
+  sukses. Ditemukan lewat smoke test F1A; kini `{"ok":true}` dan duplikat
+  di-merge dedupe. Stack error 500 juga kini ter-log.
+- Error API 500 sebelumnya tidak meninggalkan jejak stack sama sekali.
+
 ## [Unreleased] — Fase 0 (fondasi)
 
 Bagian pertama dari rencana eksekusi di `ROADMAP.md`. Branch: `feat/f0-foundation`.

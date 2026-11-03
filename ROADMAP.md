@@ -69,10 +69,14 @@ dengan pagination; scan port berbeda tidak memutus UI; akses dari hostname asing
 
 ---
 
-## 3. Fase 1A — Resume Engine / Limit-Hopping (P0, 5–7 hari)
+## 3. Fase 1A — Resume Engine / Limit-Hopping (P0, 5–7 hari) — ✅ SELESAI 2026-11-03
 
 Fitur inti yang menjawab keresahan asal. Bahan-bahannya sudah ada (watcher, handoff,
 tasklife, integrate) — tinggal dirangkai jadi alur "pindah tool tanpa jelasin ulang".
+**Status: 3.1–3.4 dikerjakan di branch `feat/f1a-resume-engine` (lihat `CHANGELOG.md`);
+3.5 acceptance lintas tool bersifat manual — jalankan script di bawah sebelum rilis.**
+Bonus yang ditemukan saat smoke test: bug `lastInsertRowid` (`/api/remember` balas
+500 padahal tersimpan) ikut diperbaiki.
 
 ### 3.1 Hot-path: deteksi akhir sesi → ekstraksi prioritas → inject segera
 - Heuristic "session ended": file transkrip suatu sesi tidak bertambah ±3–5 menit

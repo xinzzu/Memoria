@@ -886,7 +886,7 @@ async function loadSettingsToggles() {
   try {
     const d = await api("/api/settings");
     const s = d.settings || {};
-    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest", "autoStartLogin"];
+    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest", "autoStartLogin", "injectFile:AGENTS.md", "injectFile:CLAUDE.md", "injectFile:GEMINI.md"];
     for (const k of keys) {
       const sw = document.querySelector(`[data-sw="${k}"]`);
       if (sw) sw.classList.toggle("on", String(s[k]) === "1" || s[k] === true);
@@ -1102,6 +1102,17 @@ $("#overlay").addEventListener("click", (e) => { if (e.target === $("#overlay"))
 
 $("#hfGen").addEventListener("click", renderHandoff);
 $("#hfProject").addEventListener("change", renderHandoff);
+$("#hfResume").addEventListener("click", async () => {
+  const slug = $("#hfProject").value;
+  if (!slug) { toast("Pilih proyek dulu", "err"); return; }
+  try {
+    const d = await api("/api/resume?slug=" + encodeURIComponent(slug));
+    await navigator.clipboard.writeText(d.text || "");
+    toast("Prompt lanjutan disalin — paste di tool tujuan, sesi baru langsung nyambung");
+  } catch (e) {
+    toast("Gagal membuat prompt lanjutan: " + e.message, "err");
+  }
+});
 $("#hfCopy").addEventListener("click", () => {
   if (!handoffText) { toast("Belum ada handoff", "err"); return; }
   navigator.clipboard.writeText(handoffText).then(() => toast("Handoff disalin")).catch(() => toast("Gagal menyalin", "err"));
@@ -1110,9 +1121,16 @@ $("#hfInject").addEventListener("click", async () => {
   const slug = $("#hfProject").value;
   if (!slug) { toast("Pilih proyek dulu", "err"); return; }
   try {
-    const r = await api("/api/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, file: "AGENTS.md" }) });
-    if (r.ok) toast("Handoff diinjeksi ke AGENTS.md");
-    else toast("Gagal injeksi (periksa izin tulis)", "err");
+    const r = await api("/api/handoff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
+    if (r.ok) {
+      const okFiles = (r.results || []).filter((x) => x.ok).map((x) => x.file);
+      const failFiles = (r.results || []).filter((x) => !x.ok).map((x) => x.file);
+      let msg = okFiles.length ? "Konteks diinjeksi ke: " + okFiles.join(", ") : "Gagal injeksi (periksa izin tulis)";
+      if (failFiles.length) msg += " · gagal: " + failFiles.join(", ");
+      toast(msg, okFiles.length ? "ok" : "err");
+    } else {
+      toast("Gagal injeksi (periksa izin tulis)", "err");
+    }
   } catch (e) {
     toast("Gagal injeksi: " + e.message, "err");
   }
