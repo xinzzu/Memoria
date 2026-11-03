@@ -4,7 +4,7 @@ const $ = (sel) => document.querySelector(sel);
 const input = $("#q");
 const list = $("#list");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-const KIND_LABEL = { fact: "Fakta", decision: "Keputusan", task_done: "Selesai", task_pending: "Pending", error_fixed: "Error Fixed", preference: "Preferensi", context: "Konteks" };
+const KIND_LABEL = { fact: t("Fact"), decision: t("Decision"), task_done: t("Done"), task_pending: t(t("Pending")), error_fixed: t(t("Error Fixed")), preference: t("Preference"), context: t("Context") };
 const KIND_COLOR = { fact: "#6e8dff", decision: "#d9a05b", task_done: "#4cc38a", task_pending: "#e5686b", error_fixed: "#e08a5c", preference: "#9d8cff", context: "#8b93a2" };
 let hits = [];
 let active = -1;
@@ -12,10 +12,10 @@ let active = -1;
 function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function fmtRel(ts) {
   const diff = Date.now() - ts, m = Math.floor(diff / 60000);
-  if (m < 1) return "baru saja";
-  if (m < 60) return m + " mnt lalu";
+  if (m < 1) return t("just now");
+  if (m < 60) return m + t("m ago");
   const h = Math.floor(m / 60);
-  if (h < 24) return h + " jam lalu";
+  if (h < 24) return h + t("h ago");
   return new Date(ts).getDate() + " " + MONTHS[new Date(ts).getMonth()] + " " + new Date(ts).getFullYear();
 }
 function fmtTime(ms) {
@@ -44,7 +44,7 @@ async function search(q) {
 }
 
 function render() {
-  if (!hits.length) { list.innerHTML = '<div class="empty">Tidak ada hasil.</div>'; return; }
+  if (!hits.length) { list.innerHTML = '<div class="empty">No results.</div>'; return; }
   list.innerHTML = hits.map((h, i) => `
     <div class="item ${i === active ? "active" : ""}" data-i="${i}">
       <div class="t">${esc(h.content)}</div>
@@ -78,4 +78,5 @@ input.addEventListener("keydown", (e) => {
   else if (e.key === "Escape") { window.close(); }
 });
 
+I18N.apply();
 input.focus();

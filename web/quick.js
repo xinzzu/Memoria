@@ -32,9 +32,10 @@ async function save() {
     const d = await r.json();
     if (d.ok) {
       status.className = "ok";
-      status.textContent = "Tersimpan ✓";
+      status.textContent = "Saved ✓";
       content.value = "";
-      content.focus();
+      I18N.apply();
+content.focus();
     } else {
       status.className = "err";
       status.textContent = d.error || "Gagal menyimpan";

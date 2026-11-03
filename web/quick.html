@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'" />
-  <title>Catat cepat — Memoria</title>
+  <title data-i18n="Quick note — Memoria">Quick note — Memoria</title>
   <link rel="icon" href="../logo.png" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -42,13 +42,13 @@
 <body>
   <div class="bar">
     <select id="kind">
-      <option value="fact">Fakta</option>
-      <option value="decision">Keputusan</option>
-      <option value="task_pending">Tugas pending</option>
-      <option value="task_done">Tugas selesai</option>
-      <option value="error_fixed">Error diperbaiki</option>
-      <option value="preference">Preferensi</option>
-      <option value="context">Konteks</option>
+      <option value="fact" data-i18n="Fact">Fact</option>
+      <option value="decision" data-i18n="Decision">Decision</option>
+      <option value="task_pending" data-i18n="Task pending">Task pending</option>
+      <option value="task_done" data-i18n="Task done">Task done</option>
+      <option value="error_fixed" data-i18n="Error fixed">Error fixed</option>
+      <option value="preference" data-i18n="Preference">Preference</option>
+      <option value="context" data-i18n="Context">Context</option>
     </select>
     <input id="project" list="projects" placeholder="Proyek (opsional)" />
     <datalist id="projects"></datalist>
@@ -61,6 +61,7 @@
       <button id="save">Simpan</button>
     </div>
   </div>
-  <script src="quick.js"></script>
+  <script src="i18n.js"></script>
+<script src="quick.js"></script>
 </body>
 </html>
