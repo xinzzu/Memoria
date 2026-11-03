@@ -182,17 +182,18 @@ async function loadProjects() {
       tl.appendChild(o.cloneNode(true));
       gr.appendChild(o.cloneNode(true));
     }
-    $("#sProjects").textContent = state.projects.length;
+    const sp2 = $("#sProjects2"); if (sp2) sp2.textContent = state.projects.length;
     if (state.view === "overview") renderOverview();
     if (state.view === "projects") renderProjects();
   } catch {}
 }
 
 function renderOverview() {
-  // Onboarding hero saat belum ada data sama sekali — bukan kehampaan.
+  const st = state.stats;
   const hero = $("#overviewHero");
+
+  // Greeting personal (ganti hero onboarding saat data mulai ada)
   if (hero) {
-    const st = state.stats;
     if (st && st.transcripts === 0) {
       hero.innerHTML = `<div class="hero">
         <h3>${t("Welcome to Memoria 👋")}</h3>
@@ -205,65 +206,71 @@ function renderOverview() {
       hero.querySelector("#heroScan")?.addEventListener("click", doScan);
       hero.querySelector("#heroIntegrations")?.addEventListener("click", () => setView("integrations"));
     } else if (!st) {
-      // skeleton saat stats belum termuat
-      hero.innerHTML = `<div class="skeleton"></div><div class="skeleton" style="height:20px"></div>`;
+      hero.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="height:20px"></div>';
     } else {
-      hero.innerHTML = "";
+      const name = esc(st.user || "");
+      hero.innerHTML = `<div class="greet">
+        <h2>${t("Hello, ")}<span class="gname">${name || t("there")}</span> 👋</h2>
+        <p>${t("Your cross-tool memory — captured locally, ready for every new session.")}</p>
+      </div>`;
     }
+    // skeleton list saat pertama kali
+    const rl0 = $("#recentList");
+    if (rl0 && !st && !rl0.innerHTML.trim()) rl0.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="height:40px"></div>';
   }
-  // Skeleton list saat data belum ada
-  const rl0 = $("#recentList");
-  if (rl0 && !state.stats && !rl0.innerHTML.trim()) {
-    rl0.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="height:40px"></div>';
-  }
-  const recent = (state.stats && state.stats.recent) || [];
+
+  const recent = (st && st.recent) || [];
   const rl = $("#recentList");
   if (!recent.length) {
-    rl.innerHTML = emptyState(t("No memories yet"), t("A scan is running, or no AI tool activity has been captured yet."), `<button class="btn primary" id="emptyScan">Scan now</button>`);
-    const b = rl.querySelector("#emptyScan");
+    if (st) rl.innerHTML = emptyState(t("No memories yet"), t("A scan is running, or no AI tool activity has been captured yet."), `<button class="btn primary" id="emptyScan">${t("Scan now")}</button>`);
+    const b = rl && rl.querySelector("#emptyScan");
     if (b) b.addEventListener("click", doScan);
   } else {
     rl.innerHTML = recent.map(memoRowRenderer()).join("");
     bindRowActions(rl);
   }
 
-  const pl = $("#recentProjects");
-  const projs = state.projects.slice(0, 6);
-  if (!projs.length) {
-    pl.innerHTML = emptyState(t("No projects yet"), t("Projects appear automatically as new transcripts arrive."));
-  } else {
-    pl.innerHTML = projs.map((p) => projectRow(p, true)).join("");
-    pl.querySelectorAll("[data-open-project]").forEach((el) => {
-      el.addEventListener("click", () => {
-        const slug = el.dataset.openProject;
-        setView("timeline");
-        const sel = $("#tlProject");
-        if (sel) sel.value = slug;
-        tlMode = "text";
-        renderTimeline();
-      });
-    });
-  }
+  // Kartu proyek (angka di kartu hijau) + navigasi tombol panah kartu
+  $("#sProjects2") && ($("#sProjects2").textContent = state.projects.length.toLocaleString("id-ID"));
+  document.querySelectorAll(".stat-go[data-go]").forEach((btn) => {
+    btn.onclick = () => setView(btn.dataset.go);
+  });
 
-  // Grafik aktivitas 7 hari
-  const bars = $("#weekBars");
-  if (bars) {
-    const week = (state.stats && state.stats.week) || [];
-    const max = Math.max(1, ...week.map((w) => w.count));
-    bars.innerHTML = week.map((w) => {
-      const h = Math.round((w.count / max) * 100);
-      return `<div class="bar-col" title="${w.day}: ${w.count}">
-        <div class="bar-count">${w.count || ""}</div>
-        <div class="bar ${w.count ? "" : "zero"}" style="height:${Math.max(4, h)}%"></div>
-        <div class="bar-day">${w.day.slice(3)}</div>
-      </div>`;
-    }).join("");
+  const pl = $("#recentProjects");
+  const projs = state.projects.slice(0, 8);
+  if (pl) {
+    if (!projs.length) {
+      pl.innerHTML = emptyState(t("No projects yet"), t("Projects appear automatically as new transcripts arrive."));
+    } else {
+      const hues = ["#f5b942", "#a684ff", "#9fdd5f", "#6e8dff", "#ff9d6e", "#63d8e0", "#e5686b", "#9d8cff"];
+      pl.innerHTML = projs.map((p, i) => {
+        const today = (state.stats.week && state.stats.week[6] && state.stats.week[6].count) || 0;
+        const badge = i === 0 && today > 0 ? `+${today}` : `${(p.transcripts || 0).toLocaleString("id-ID")}`;
+        return `<div class="feed-item" data-open-project="${esc(p.slug)}" title="${esc(p.slug)}">
+          <span class="feed-dot" style="background:${hues[i % hues.length]}"></span>
+          <div style="min-width:0">
+            <div class="feed-name">${esc(p.name)}</div>
+            <div class="feed-sub">${fmtRel(p.last_seen)}</div>
+          </div>
+          <span class="feed-badge">${badge}</span>
+        </div>`;
+      }).join("");
+      pl.querySelectorAll("[data-open-project]").forEach((el) => {
+        el.addEventListener("click", () => {
+          setView("timeline");
+          const sel = $("#tlProject");
+          if (sel) sel.value = el.dataset.openProject;
+          tlMode = "text";
+          renderTimeline();
+        });
+      });
+    }
   }
 
   // Kartu resume siap
   const rsl = $("#resumeList");
   if (rsl) {
-    const ready = (state.stats && state.stats.resumeReady) || [];
+    const ready = (st && st.resumeReady) || [];
     if (!ready.length) {
       rsl.innerHTML = `<div class="card-desc">${t("No context injected yet — it happens automatically when a session goes idle, or use the Handoff tab.")}</div>`;
     } else {
@@ -276,6 +283,100 @@ function renderOverview() {
       if (g) g.addEventListener("click", () => setView("handoff"));
     }
   }
+
+  drawActivityChart();
+}
+
+/* Area chart 7 hari gaya Polysure: garis gradien + isian lembut + tooltip hover. */
+function drawActivityChart() {
+  const canvas = $("#activityChart");
+  if (!canvas) return;
+  const week = (state.stats && state.stats.week) || [];
+  const box = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = box.clientWidth - 40, H = 190;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const max = Math.max(4, ...week.map((w) => w.count));
+  const padL = 8, padR = 8, padT = 18, padB = 26;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const pts = week.map((w, i) => ({
+    x: padL + (week.length === 1 ? iw / 2 : (i / (week.length - 1)) * iw),
+    y: padT + ih - (w.count / max) * ih * 0.9,
+    ...w,
+  }));
+
+  // grid horizontal halus
+  ctx.strokeStyle = "rgba(255,255,255,.05)";
+  ctx.lineWidth = 1;
+  for (let g = 0; g <= 3; g++) {
+    const y = padT + (ih / 3) * g;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+  }
+
+  const line = (pts) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const xc = (pts[i - 1].x + pts[i].x) / 2;
+      ctx.bezierCurveTo(xc, pts[i - 1].y, xc, pts[i].y, pts[i].x, pts[i].y);
+    }
+  };
+
+  // isian gradien
+  const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+  grad.addColorStop(0, "rgba(139,110,255,.34)");
+  grad.addColorStop(1, "rgba(139,110,255,0)");
+  line(pts);
+  ctx.lineTo(pts[pts.length - 1].x, H - padB);
+  ctx.lineTo(pts[0].x, H - padB);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // garis utama
+  line(pts);
+  ctx.strokeStyle = "#a684ff";
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // titik + label hari
+  ctx.font = "10.5px Inter, sans-serif";
+  pts.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p === pts[pts.length - 1] || p.count > 0 ? 4 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = p.count > 0 ? "#c3a4ff" : "#3a4152";
+    ctx.fill();
+    if (p === pts[pts.length - 1]) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); }
+    ctx.fillStyle = "#5d6575";
+    ctx.textAlign = "center";
+    ctx.fillText(p.day.slice(3), p.x, H - 8);
+  });
+
+  // tooltip hover
+  let tip = $("#chart-tip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "chart-tip";
+    canvas.parentElement.style.position = "relative";
+    canvas.parentElement.appendChild(tip);
+  }
+  canvas.onmousemove = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.x - mx) < Math.abs(best.x - mx)) best = p;
+    tip.style.left = best.x + 20 + "px";
+    tip.style.top = best.y + 10 + "px";
+    tip.style.opacity = 1;
+    tip.textContent = `${best.day}: ${best.count} ${t("messages")}`;
+  };
+  canvas.onmouseleave = () => { tip.style.opacity = 0; };
 }
 
 function projectRow(p, clickable) {
@@ -1421,6 +1522,8 @@ document.addEventListener("keydown", (e) => {
 /* ---------- Init ---------- */
 
 I18N.apply();
+let rzT;
+window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { if (state.view === "overview") drawActivityChart(); }, 150); });
 document.addEventListener("memoria:lang", () => {
   I18N.apply();
   setView(state.view);

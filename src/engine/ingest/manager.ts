@@ -1,4 +1,5 @@
 import { getConfig } from "../config";
+import * as os from "node:os";
 import { initDb, getDb, countTranscripts, countMemories, perToolCounts, pendingExtractionCount, countDraft, countArchived, getBoolSetting } from "../store/db";
 import { scanClaude } from "./claude";
 import { scanCodex } from "./codex";
@@ -106,6 +107,7 @@ export function stats(): {
   perTool: Array<{ tool: string; count: number }>;
   week: Array<{ day: string; count: number }>;
   resumeReady: Array<{ slug: string; name: string; at: number }>;
+  user: string;
 } {
   ensureDb();
   const db = getDb();
@@ -150,5 +152,13 @@ export function stats(): {
     perTool: perToolCounts(),
     week,
     resumeReady: resumeReady.slice(0, 6),
+    // Nama user untuk greeting Overview ("Hello, {user}") — fallback sopan bila gagal.
+    user: (() => {
+      try {
+        return os.userInfo().username || "";
+      } catch {
+        return "";
+      }
+    })(),
   };
 }
