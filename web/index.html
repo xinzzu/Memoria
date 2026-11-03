@@ -764,6 +764,15 @@
     }
     .mem:hover .mem-actions { opacity: 1; }
 
+
+    select.sel { appearance: none; -webkit-appearance: none;
+      background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%238d95a6' fill='none' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+      border: 1px solid var(--border); border-radius: 10px; padding: 8px 36px 8px 13px;
+      color: var(--text); font-size: 12.5px; font-family: inherit; cursor: pointer;
+      transition: border-color .13s; }
+    select.sel:hover { border-color: #3a4152; }
+    select.sel:focus { outline: none; border-color: rgba(110,141,255,.5); box-shadow: 0 0 0 3px rgba(110,141,255,.12); }
+
   </style>
 </head>
 <body>
@@ -925,7 +934,7 @@
             <button class="seg" data-memtab="archived"><span data-i18n="Archive">Archive</span> <span class="count" id="cntArchive"></span></button>
           </div>
           <div class="filter-bar" style="display:flex; gap:8px; margin-bottom:16px">
-            <select id="filterKind" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
+            <select id="filterKind" class="sel">
               <option value="" data-i18n="All types">All types</option>
               <option value="fact" data-i18n="Fact">Fact</option>
               <option value="decision" data-i18n="Decision">Decision</option>
@@ -935,10 +944,10 @@
               <option value="preference" data-i18n="Preference">Preference</option>
               <option value="context" data-i18n="Context">Context</option>
             </select>
-            <select id="filterProject" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
+            <select id="filterProject" class="sel">
               <option value="" data-i18n="All projects">All projects</option>
             </select>
-            <select id="filterTag" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
+            <select id="filterTag" class="sel">
               <option value="" data-i18n="All topics">All topics</option>
             </select>
           </div>
