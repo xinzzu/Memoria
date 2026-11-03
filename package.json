@@ -1,6 +1,6 @@
 {
   "name": "memoria",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Second brain offline untuk semua AI coding tools - capture session dari Claude, Codex, Gemini, Copilot, Antigravity, opencode, VS Code, Cursor & Windsurf",
   "main": "dist/electron/main.js",
   "type": "commonjs",

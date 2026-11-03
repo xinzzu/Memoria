@@ -4,7 +4,7 @@ Semua perubahan penting pada Memoria didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/);
 versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
-## [Unreleased] — Fase 1B: Tiered Intelligence (Ollama opsional)
+## [0.2.0] — 2026-11-04 — Fase 1B: Tiered Intelligence (Ollama opsional)
 
 **User tanpa Ollama/API key kini mendapatkan memori sejak menit pertama** —
 dan yang punya Ollama tidak merasakan perubahan.
@@ -41,7 +41,7 @@ dan yang punya Ollama tidak merasakan perubahan.
 - Search sebelum approve: draft memang tidak ikut pencarian (by design) —
   tidak ada perubahan perilaku; dicatat agar tidak salah paham saat menguji.
 
-## [Unreleased] — Fase 1A: Resume Engine (limit-hopping)
+## [0.2.0] — Fase 1A: Resume Engine (limit-hopping)
 
 Fitur inti untuk skenario **limit-hopping**: pindah tool AI di tengah tugas tanpa
 menjelaskan ulang konteks. Branch: `feat/f1a-resume-engine`.
@@ -89,7 +89,7 @@ menjelaskan ulang konteks. Branch: `feat/f1a-resume-engine`.
 - `ollamaUrl` bisa dioverride via env `MEMORIA_OLLAMA_URL` (testing terisolasi
   & endpoint non-standar).
 
-## [Unreleased] — Fase 0 (fondasi)
+## [0.2.0] — Fase 0 (fondasi)
 
 Bagian pertama dari rencana eksekusi di `ROADMAP.md`. Branch: `feat/f0-foundation`.
 
