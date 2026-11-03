@@ -26,7 +26,7 @@ async function runHousekeepingSoon(): Promise<void> {
     const { autoInjectContext } = await import("./handoff");
     try {
       const done = await autoInjectContext();
-      if (done.length) console.log(`[memoria] Auto-inject AGENTS.md: ${done.join(", ")}`);
+      if (done.length) console.log(`[memoria] Auto-injected AGENTS.md: ${done.join(", ")}`);
     } catch {
       // proyek mungkin tanpa izin tulis; diabaikan
     }
@@ -48,7 +48,7 @@ function dailyMaintenance(): void {
       try {
         const { rebuildTopics } = require("./extract/topics") as typeof import("./extract/topics");
         const r = rebuildTopics();
-        console.log(`[memoria] Topic tags: ${r.memories} memori, ${r.topics} topik`);
+        console.log(`[memoria] Topic tags: ${r.memories} memories, ${r.topics} topics`);
       } catch {
         /* non-blokir */
       }
@@ -58,7 +58,7 @@ function dailyMaintenance(): void {
         const { nextWeeklyDigestDue, generateWeeklyDigest } = require("./summary/weekly") as typeof import("./summary/weekly");
         if (nextWeeklyDigestDue()) {
           const d = generateWeeklyDigest();
-          console.log(`[memoria] Weekly digest: ${d.memories} memori -> ${d.path}`);
+          console.log(`[memoria] Weekly digest: ${d.memories} memories -> ${d.path}`);
         }
       } catch {
         /* non-blokir */

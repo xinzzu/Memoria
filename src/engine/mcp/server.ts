@@ -13,13 +13,13 @@ import { relatedMemories } from "../graph";
 import { addMemoryWithDedupe } from "../extract/dedupe";
 
 const TOOL_DESC = `
-Kamu punya akses ke memori persisten (second brain) dari semua AI coding tool yang pernah dipakai user (Claude, Codex, opencode, Gemini, Copilot, Antigravity).
-GUNAKAN tool ini di AWAL sesi baru untuk mengambil konteks pekerjaan yang sudah pernah dikerjakan, lalu pakai saat user bertanya tentang pekerjaan sebelumnya.
+You have access to persistent memory (a second brain) from every AI coding tool the user has used (Claude, Codex, opencode, Gemini, Copilot, Antigravity).
+USE these tools at the START of a new session to retrieve context about previous work, and whenever the user asks about prior work.
 
-Cara pakai yang benar:
-1. Saat sesi dimulai, panggil recall dengan kata kunci yang relevan dengan tugas user.
-2. Sebelum mengubah kode, recall konteks proyek: decision, task_pending, error_fixed, preference.
-3. Setelah tugas selesai, panggil remember untuk menyimpan memori baru.
+How to use:
+1. At session start, call recall with keywords relevant to the user's task.
+2. Before changing code, recall project context: decisions, pending tasks, fixed errors, preferences.
+3. After finishing a task, call remember to store new memories.
 `;
 
 export function createMcpServer(): Server {
@@ -34,7 +34,7 @@ export function createMcpServer(): Server {
       {
         name: "recall",
         description:
-          "Cari memori pekerjaan sebelumnya berdasarkan kata kunci/pertanyaan. Hasil termasuk fakta, keputusan, task, error yang sudah diperbaiki. Panggil di awal sesi!",
+          "Search memories of previous work by keywords/question. Returns facts, decisions, tasks and fixed errors. Call at session start!",
         inputSchema: {
           type: "object",
           properties: {
@@ -46,7 +46,7 @@ export function createMcpServer(): Server {
       },
       {
         name: "project_context",
-        description: "Ambil konteks terbaru sebuah proyek: keputusan, task pending, hal yang sudah dikerjakan.",
+        description: "Fetch the latest context of a project: decisions, pending tasks, completed work.",
         inputSchema: {
           type: "object",
           properties: {
@@ -58,7 +58,7 @@ export function createMcpServer(): Server {
       },
       {
         name: "remember",
-        description: "Simpan memori penting (keputusan, fakta, preferensi user, task yang selesai/pending) agar diingat di semua tool.",
+        description: "Store an important memory (decision, fact, user preference, completed/pending task) so every tool remembers it.",
         inputSchema: {
           type: "object",
           properties: {
@@ -66,7 +66,7 @@ export function createMcpServer(): Server {
               type: "string",
               enum: ["fact", "decision", "task_done", "task_pending", "error_fixed", "preference", "context"],
             },
-            content: { type: "string", description: "Isi memori, singkat dan padat" },
+            content: { type: "string", description: "Memory content, short and dense" },
             project: { type: "string", description: "Path proyek (opsional)" },
             importance: { type: "number", default: 0.5 },
           },
@@ -76,7 +76,7 @@ export function createMcpServer(): Server {
       {
         name: "related",
         description:
-          "Ambil memori yang terhubung (backlink/similarity) dari sebuah memori. Pakai saat konteks dari recall kurang lengkap atau ingin menggali detail terkait. Beri id memori atau query teks.",
+          "Fetch memories connected (backlinks/similarity) to one memory. Use when recall context is incomplete or you need related detail. Pass a memory id or a text query.",
         inputSchema: {
           type: "object",
           properties: {
@@ -101,7 +101,7 @@ export function createMcpServer(): Server {
         const results = searchMemories(query, { limit: Number(a.limit || 8), embedModel: eprov.embedModel }, qEmb);
         if (!results.length) {
           return {
-            content: [{ type: "text", text: "Tidak ada memori yang cocok. Ini sesi baru, lanjutkan tugas user seperti biasa." }],
+            content: [{ type: "text", text: "No matching memories. This is a fresh session - proceed with the user's task as usual." }],
           };
         }
         const text = results
@@ -116,7 +116,7 @@ export function createMcpServer(): Server {
         const proj = resolveProject(String(a.project || ""));
         const results = proj ? projectContext(proj.slug, Number(a.limit || 10)) : [];
         if (!results.length) {
-          return { content: [{ type: "text", text: `Belum ada memori tersimpan untuk proyek "${a.project}".` }] };
+          return { content: [{ type: "text", text: `No memories stored for project "${a.project}".` }] };
         }
         const text = results
           .map((r) => `[${r.kind}] ${r.content}`)
@@ -132,14 +132,14 @@ export function createMcpServer(): Server {
           memId = hits[0]?.id ?? 0;
         }
         if (!memId) {
-          return { content: [{ type: "text", text: "Memori tidak ditemukan. Coba recall dulu untuk mendapat id, atau sertakan query." }] };
+          return { content: [{ type: "text", text: "Memory not found. Call recall first to get an id, or include a query." }] };
         }
         const me = memoryById(memId);
         const rel = relatedMemories(memId, 8);
         if (!rel.length) {
-          return { content: [{ type: "text", text: `Memori tidak memiliki koneksi terkait (id ${memId}).` }] };
+          return { content: [{ type: "text", text: `Memory has no related connections (id ${memId}).` }] };
         }
-        const head = me ? `Memori asal (${me.id}): ${me.content}\n\nMemori terhubung:\n` : `Memori terhubung (id ${memId}):\n`;
+        const head = me ? `Source memory (${me.id}): ${me.content}\n\nConnected memories:\n` : `Connected memories (id ${memId}):\n`;
         const text = head + rel
           .map((r) => `- [${r.linkKind}] (id ${r.memory.id}) ${r.memory.content}`)
           .join("\n");
@@ -150,7 +150,7 @@ export function createMcpServer(): Server {
         const kind = kinds.includes(a.kind) ? a.kind : "context";
         const content = String(a.content || "").trim();
         if (!content) {
-          return { content: [{ type: "text", text: "content kosong." }] };
+          return { content: [{ type: "text", text: "content is empty." }] };
         }
         const project = String(a.project || "");
         const resolved = resolveProject(project);
@@ -177,7 +177,7 @@ export function createMcpServer(): Server {
           origin: "user",
           embedModel: eprov.embedModel,
         });
-        return { content: [{ type: "text", text: `Memori tersimpan: [${kind}] ${content}` }] };
+        return { content: [{ type: "text", text: `Memory saved: [${kind}] ${content}` }] };
       }
       default:
         return { content: [{ type: "text", text: `Tool tidak dikenal: ${name}` }] };

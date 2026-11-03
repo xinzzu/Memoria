@@ -74,11 +74,11 @@ function displayAccel(accel: string): string {
 }
 
 function notifyShortcutConflict(accel: string, label: string): void {
-  console.warn(`[memoria] Shortcut ${accel} (${label}) tidak bisa didaftarkan — kemungkinan dipakai aplikasi lain. Ubah di Pengaturan → Shortcut global.`);
+  console.warn(`[memoria] Could not register shortcut ${accel} (${label}) - likely used by another app. Change it in Settings -> Global shortcuts.`);
   try {
     new Notification({
       title: "Memoria",
-      body: `Shortcut ${accel} (${label}) bentrok dengan aplikasi lain — ubah di Pengaturan → Shortcut global.`,
+      body: `Shortcut ${accel} (${label}) conflicts with another app - change it in Settings -> Global shortcuts.`,
     }).show();
   } catch {
     // Notification belum tersedia (sebagian Linux) — cukup log
@@ -104,20 +104,20 @@ function registerShortcuts(): void {
 
 function createTray(): void {
   tray = new Tray(createIcon());
-  tray.setToolTip("Memoria — second brain semua AI tool");
+  tray.setToolTip("Memoria — second brain for all your AI tools");
   const menu = Menu.buildFromTemplate([
-    { label: "Buka Dashboard", click: showWindow },
+    { label: "Open Dashboard", click: showWindow },
     { label: `Cari Memori (${displayAccel(paletteAccel())})`, click: openPaletteWindow },
     { label: `Catat Cepat (${displayAccel(quickAccel())})`, click: openQuickWindow },
-    { label: "Scan sekarang", click: async () => {
+    { label: "Scan now", click: async () => {
         const res = await scanAndNotify();
         new Notification({
           title: "Memoria",
-          body: `Scan selesai — transcript baru: ${res.totalNew}`,
+          body: `Scan finished — new transcripts: ${res.totalNew}`,
         }).show();
       } },
     { type: "separator" },
-    { label: "Keluar", click: () => {
+    { label: "Quit", click: () => {
         quitting = true;
         app.quit();
       } },
