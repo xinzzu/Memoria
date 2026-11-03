@@ -1,4 +1,5 @@
-const API = "http://localhost:48210";
+// Same-origin: dilayani oleh HTTP engine itu sendiri — port tidak perlu di-hardcode.
+const API = "";
 const $ = (sel) => document.querySelector(sel);
 const input = $("#q");
 const list = $("#list");

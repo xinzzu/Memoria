@@ -3,7 +3,7 @@ import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { startWatcher, stopWatcher } from "./ingest/watcher";
 import { runMcpServer } from "./mcp/server";
 import { startHttpServer } from "./http";
-import { searchMemories, setQueryEmbedding } from "./retrieve/search";
+import { searchMemories } from "./retrieve/search";
 import { embed } from "./extract/ollama";
 import { extractQueue } from "./extract/extractor";
 import { getDb } from "./store/db";
@@ -34,8 +34,7 @@ async function main(): Promise<void> {
       }
       ensureDb();
       const qEmb = await embed(q);
-      if (qEmb) setQueryEmbedding(qEmb);
-      const hits = searchMemories(q, { limit: 8 });
+      const hits = searchMemories(q, { limit: 8 }, qEmb);
       for (const h of hits) {
         console.log(`[${h.kind}] (${h.projectSlug ?? "global"} · ${h.sourceTool} · ${h.score.toFixed(2)})`);
         console.log(`  ${h.content}`);
@@ -85,7 +84,7 @@ async function main(): Promise<void> {
     }
     case "server": {
       ensureDb();
-      startHttpServer();
+      await startHttpServer();
       startWatcher();
       const { startBackgroundJobs, stopBackgroundJobs } = await import("./lifecycle");
       startBackgroundJobs();

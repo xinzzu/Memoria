@@ -1,8 +1,10 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
-import { searchMemories, projectContext, setQueryEmbedding } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, entitiesForMemory, tagsForMemory, allTags, memoriesByTag } from "./store/db";
+import { searchMemories, projectContext } from "./retrieve/search";
+import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag } from "./store/db";
 import { embed, ollamaAvailable } from "./extract/ollama";
 import { extractQueue } from "./extract/extractor";
 import { addMemoryWithDedupe } from "./extract/dedupe";
@@ -15,8 +17,27 @@ import { countOpen } from "./extract/tasklife";
 
 function sendJson(res: ServerResponse, code: number, data: unknown): void {
   const body = JSON.stringify(data);
-  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" });
+  // CORS hanya untuk origin lokal — situs eksternal tidak boleh membaca respons API.
+  const origin = String(res.req?.headers?.origin || "");
+  const allowOrigin = isLocalHost(origin) ? origin : "";
+  res.writeHead(code, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...(allowOrigin ? { "Access-Control-Allow-Origin": allowOrigin, Vary: "Origin" } : {}),
+  });
   res.end(body);
+}
+
+function isLocalHost(hostOrUrl: string): boolean {
+  if (!hostOrUrl) return false;
+  let hostname = hostOrUrl;
+  if (hostOrUrl.includes("://")) {
+    try {
+      hostname = new URL(hostOrUrl).hostname;
+    } catch {
+      return false;
+    }
+  }
+  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1" || hostname === "[::1]";
 }
 
 function enrichMemory(m: any): any {
@@ -42,17 +63,72 @@ function readBody(req: IncomingMessage): Promise<any> {
   });
 }
 
-export function startHttpServer(): void {
+// Dashboard/palette/quick dilayani dari sini agar UI tidak perlu hardcode port:
+// fetch("/api/...") same-origin bekerja di port berapa pun hasil config.
+const WEB_DIR = path.resolve(__dirname, "..", "..", "web");
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+};
+
+function serveStatic(url: URL, res: ServerResponse): boolean {
+  if (url.pathname.startsWith("/api/")) return false;
+  const rel = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
+  const file = path.resolve(path.join(WEB_DIR, rel));
+  if (!file.startsWith(WEB_DIR + path.sep)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return true;
+  }
+  try {
+    const data = fs.readFileSync(file);
+    res.writeHead(200, { "Content-Type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream" });
+    res.end(data);
+  } catch {
+    sendJson(res, 404, { error: "not found" });
+  }
+  return true;
+}
+
+export function startHttpServer(): Promise<void> {
   ensureDb();
   const port = getConfig().httpPort;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://localhost:${port}`);
     try {
+      // --- Pemeriksaan keamanan (server hanya boleh diakses dari mesin ini) ---
+      // 1) Host header: proteksi DNS-rebinding (host asing = tolak).
+      const hostName = String(req.headers.host || "").replace(/:\d+$/, "").toLowerCase();
+      if (hostName && !isLocalHost(hostName)) {
+        sendJson(res, 403, { error: "forbidden host" });
+        return;
+      }
+      // 2) Origin untuk request pengubah data: cegah drive-by dari situs eksternal.
+      if (req.method !== "GET" && req.headers.origin && !isLocalHost(String(req.headers.origin))) {
+        sendJson(res, 403, { error: "forbidden origin" });
+        return;
+      }
+      // 3) Token opsional (setting "apiToken") untuk lapisan tambahan.
+      const apiToken = getSetting("apiToken", "");
+      if (apiToken && req.headers["x-memoria-token"] !== apiToken) {
+        sendJson(res, 401, { error: "token tidak valid (header x-memoria-token)" });
+        return;
+      }
       if (req.method === "OPTIONS") {
-        res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST", "Access-Control-Allow-Headers": "Content-Type" });
+        const origin = String(req.headers.origin || "");
+        res.writeHead(204, {
+          ...(isLocalHost(origin) ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" } : {}),
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE",
+          "Access-Control-Allow-Headers": "Content-Type,x-memoria-token",
+        });
         res.end();
         return;
       }
+      if (req.method === "GET" && serveStatic(url, res)) return;
       if (url.pathname === "/api/stats" && req.method === "GET") {
         const s = stats();
         const ollama = await ollamaAvailable();
@@ -78,8 +154,7 @@ export function startHttpServer(): void {
         const kind = url.searchParams.get("kind") || undefined;
         const limit = Number(url.searchParams.get("limit") || 10);
         const qEmb = await embed(q);
-        if (qEmb) setQueryEmbedding(qEmb);
-        const hits = searchMemories(q, { limit, projectSlug: project, kind }).map(enrichMemory);
+        const hits = searchMemories(q, { limit, projectSlug: project, kind }, qEmb).map(enrichMemory);
         sendJson(res, 200, { hits });
       } else if (url.pathname === "/api/project" && req.method === "GET") {
         const project = url.searchParams.get("slug") || "";
@@ -87,17 +162,36 @@ export function startHttpServer(): void {
       } else if (url.pathname === "/api/projects" && req.method === "GET") {
         sendJson(res, 200, { projects: recentProjects(20) });
       } else if (url.pathname === "/api/memories" && req.method === "GET") {
+        // Pustaka lengkap dengan pagination — param `status` kini benar-benar dihormati.
         const status = url.searchParams.get("status") || "active";
-        const recent = allMemories()
-          .slice(0, 8)
+        const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
+        const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
+        let mems: import("./store/db").Memory[];
+        let total: number;
+        if (status === "draft") {
+          mems = listDraft();
+          total = countDraft();
+        } else if (status === "archived") {
+          mems = listArchived();
+          total = countArchived();
+        } else {
+          mems = allMemories();
+          total = countMemories();
+        }
+        const page = mems
+          .slice(offset, offset + limit)
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, status: m.status, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
         sendJson(res, 200, {
-          memories: recent,
+          memories: page,
+          total,
+          offset,
+          limit,
+          hasMore: offset + page.length < total,
           counts: {
             active: countMemories(),
             draft: countDraft(),
-            archived: listArchived().length,
+            archived: countArchived(),
           },
         });
       } else if (url.pathname === "/api/memories/list" && req.method === "GET") {
@@ -121,8 +215,10 @@ export function startHttpServer(): void {
         if (r.ok) {
           const { invalidateVecIndex } = await import("./vecfind");
           const { invalidateCentrality } = await import("./retrieve/search");
+          const { resetProjectMemo } = await import("./store/db");
           invalidateVecIndex();
           invalidateCentrality();
+          resetProjectMemo();
         }
         sendJson(res, r.ok ? 200 : 400, r);
       } else if (url.pathname === "/api/tasks" && req.method === "GET") {
@@ -183,6 +279,9 @@ export function startHttpServer(): void {
             globalPalette: getSetting("globalPalette", "1"),
             reviewMode: getSetting("reviewMode", "0"),
             weeklyDigest: getSetting("weeklyDigest", "1"),
+            autoStartLogin: getSetting("autoStartLogin", "1"),
+            shortcutQuick: getSetting("shortcutQuick", "CommandOrControl+Shift+M"),
+            shortcutPalette: getSetting("shortcutPalette", "CommandOrControl+Shift+Space"),
             extractThreshold: getSetting("extractThreshold", "0.3"),
             sources: Object.fromEntries(
               cfg.sources.map((s) => [s.tool, getSetting(`source:${s.tool}:enabled`, s.enabled ? "1" : "0")])
@@ -321,7 +420,11 @@ export function startHttpServer(): void {
       sendJson(res, 500, { error: String(e) });
     }
   });
-  server.listen(port, () => {
-    console.log(`[memoria] HTTP API aktif di http://localhost:${port}`);
+  // Bind eksplisit ke loopback — tanpa ini Node bind ke semua interface (LAN ikut kebuka).
+  return new Promise<void>((resolve) => {
+    server.listen(port, "127.0.0.1", () => {
+      console.log(`[memoria] HTTP API aktif di http://127.0.0.1:${port} (khusus mesin ini)`);
+      resolve();
+    });
   });
 }

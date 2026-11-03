@@ -16,6 +16,10 @@ export interface ScanResult {
   count: number;
 }
 
+// Timestamp scan terakhir yang BENAR-BENAR selesai (dulu stats() selalu
+// mengembalikan Date.now() — nilai palsu yang menyesatkan user).
+let lastScanFinishedAt = 0;
+
 export function ensureDb(): void {
   if (!getDbSafe()) initDb(getConfig().dataDir);
 }
@@ -31,8 +35,7 @@ function getDbSafe() {
 export async function scanAll(log?: (msg: string) => void): Promise<ScanResult[]> {
   ensureDb();
   const cfg = getConfig();
-  const results: ScanResult[] = [];
-  for (const src of cfg.sources) {
+  const results: ScanResult[] = [];  for (const src of cfg.sources) {
     const enabled = getBoolSetting(`source:${src.tool}:enabled`, src.enabled);
     if (!enabled) {
       results.push({ tool: src.tool, ok: false, detail: "disabled", count: 0 });
@@ -89,6 +92,7 @@ export async function scanAll(log?: (msg: string) => void): Promise<ScanResult[]
     }
   }
   await extractQueue();
+  lastScanFinishedAt = Date.now();
   return results;
 }
 
@@ -108,7 +112,7 @@ export function stats(): {
     pending: pendingExtractionCount(),
     draft: countDraft(),
     archived: countArchived(),
-    lastScan: new Date().toISOString(),
+    lastScan: lastScanFinishedAt ? new Date(lastScanFinishedAt).toISOString() : "",
     perTool: perToolCounts(),
   };
 }

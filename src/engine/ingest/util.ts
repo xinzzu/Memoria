@@ -55,6 +55,25 @@ export function projectSlugFromCwd(cwd?: string): string {
   return cwd.replace(/[\\/:]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "_unknown";
 }
 
+/**
+ * Normalisasi path proyek untuk pencocokan lintas tool:
+ * resolve + realpath (lepas symlink seperti /tmp -> /private/tmp di macOS)
+ * + lowercase di Windows (filesystem case-insensitive).
+ * Dipakai agar satu proyek fisik dari Claude/Codex/opencode dkk. tergabung
+ * menjadi satu record proyek meski string cwd yang dilaporkan tiap tool berbeda.
+ */
+export function canonicalPath(p?: string): string | undefined {
+  if (!p || !p.trim()) return undefined;
+  let resolved = path.resolve(p.trim());
+  try {
+    resolved = fs.realpathSync(resolved);
+  } catch {
+    // path belum ada di disk — cukup pakai hasil resolve
+  }
+  if (process.platform === "win32") resolved = resolved.toLowerCase();
+  return resolved;
+}
+
 export async function readLinesIncremental(file: string, startOffset: number): Promise<{ lines: string[]; finalOffset: number }> {
   let size: number;
   try {

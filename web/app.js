@@ -1,4 +1,5 @@
-const API = "http://localhost:48210";
+// Same-origin: dashboard dilayani oleh HTTP engine itu sendiri — port tidak perlu di-hardcode.
+const API = "";
 const $ = (sel) => document.querySelector(sel);
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const KIND_LABEL = {
@@ -220,35 +221,76 @@ function projectRow(p) {
   </div>`;
 }
 
-async function renderMemories() {
+let memPagination = null; // { offset, hasMore } untuk tab aktif tanpa filter
+
+async function renderMemories(append = false) {
   const q = state.search.trim();
   const box = $("#memoriesList");
-  if (state.filterTag && state.memTab === "active") {
-    const d = await api("/api/memories/tag?tag=" + encodeURIComponent(state.filterTag));
-    renderMemoryList(box, (d.memories || []).map((m) => ({ ...m, score: 1 })));
-    return;
+  try {
+    if (state.filterTag && state.memTab === "active") {
+      memPagination = null;
+      const d = await api("/api/memories/tag?tag=" + encodeURIComponent(state.filterTag));
+      renderMemoryList(box, (d.memories || []).map((m) => ({ ...m, score: 1 })));
+      return;
+    }
+    if (state.memTab !== "active") {
+      memPagination = null;
+      const d = await api("/api/memories/list?status=" + state.memTab);
+      let items = d.memories || [];
+      if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
+      if (state.filterProject) items = items.filter((m) => m.projectSlug === state.filterProject);
+      if (q) items = items.filter((m) => m.content.toLowerCase().includes(q.toLowerCase()));
+      renderMemoryList(box, items.map((m) => ({ ...m, score: 1 })));
+      return;
+    }
+    const params = new URLSearchParams({ limit: "50" });
+    if (state.filterKind) params.set("kind", state.filterKind);
+    if (state.filterProject) params.set("project", state.filterProject);
+    if (!q && !state.filterKind && !state.filterProject) {
+      const offset = append && memPagination ? memPagination.offset : 0;
+      const d = await api(`/api/memories?status=${state.memTab}&limit=50&offset=${offset}`);
+      const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
+      memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
+      if (append) appendMemoryList(box, items);
+      else renderMemoryList(box, items);
+      renderLoadMore(box);
+      return;
+    }
+    memPagination = null;
+    if (!q) { renderMemoryList(box, []); return; }
+    params.set("q", q);
+    const d = await api("/api/search?" + params.toString());
+    renderMemoryList(box, d.hits);
+  } catch (e) {
+    box.innerHTML = emptyState("Gagal memuat memori", esc(e.message) + " — pastikan engine Memoria berjalan, lalu coba lagi.");
   }
-  if (state.memTab !== "active") {
-    const d = await api("/api/memories/list?status=" + state.memTab);
-    let items = d.memories || [];
-    if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
-    if (state.filterProject) items = items.filter((m) => m.projectSlug === state.filterProject);
-    if (q) items = items.filter((m) => m.content.toLowerCase().includes(q.toLowerCase()));
-    renderMemoryList(box, items.map((m) => ({ ...m, score: 1 })));
-    return;
+}
+
+function appendMemoryList(box, items) {
+  state.lastMemories = [...(state.lastMemories || []), ...items];
+  let list = box.querySelector(".list");
+  if (!list) {
+    box.innerHTML = '<div class="list"></div>';
+    list = box.querySelector(".list");
   }
-  const params = new URLSearchParams({ limit: "50" });
-  if (state.filterKind) params.set("kind", state.filterKind);
-  if (state.filterProject) params.set("project", state.filterProject);
-  if (!q && !state.filterKind && !state.filterProject) {
-    const d = await api("/api/memories");
-    renderMemoryList(box, d.memories.map((m) => ({ ...m, score: 1 })));
-    return;
-  }
-  if (!q) { renderMemoryList(box, []); return; }
-  params.set("q", q);
-  const d = await api("/api/search?" + params.toString());
-  renderMemoryList(box, d.hits);
+  list.insertAdjacentHTML("beforeend", items.map(memoRowRenderer()).join(""));
+  bindRowActions(box);
+}
+
+function renderLoadMore(box) {
+  box.querySelector("#memLoadMore")?.remove();
+  if (!memPagination || !memPagination.hasMore) return;
+  const btn = document.createElement("button");
+  btn.id = "memLoadMore";
+  btn.className = "btn";
+  btn.style.cssText = "margin:14px auto; display:block";
+  btn.textContent = "Muat selengkapnya";
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    btn.textContent = "Memuat…";
+    renderMemories(true);
+  });
+  box.appendChild(btn);
 }
 
 function renderMemoryList(box, items) {
@@ -266,6 +308,7 @@ function bindRowActions(root) {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const id = btn.dataset.del;
+      if (!confirm("Hapus memori ini? Tindakan ini tidak bisa dibatalkan.")) return;
       try {
         await api("/api/memories?id=" + id, { method: "DELETE" });
         toast("Memori dihapus");
@@ -843,11 +886,15 @@ async function loadSettingsToggles() {
   try {
     const d = await api("/api/settings");
     const s = d.settings || {};
-    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest"];
+    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest", "autoStartLogin"];
     for (const k of keys) {
       const sw = document.querySelector(`[data-sw="${k}"]`);
       if (sw) sw.classList.toggle("on", String(s[k]) === "1" || s[k] === true);
     }
+    const sq = $("#setShortcutQuick");
+    const sp = $("#setShortcutPalette");
+    if (sq) sq.value = s.shortcutQuick || "";
+    if (sp) sp.value = s.shortcutPalette || "";
     try {
       const dg = await api("/api/digest");
       const box = $("#digestBox");
@@ -969,7 +1016,7 @@ function download(filename, text, type = "text/markdown") {
 async function doScan() {
   const btnText = $("#btnScanText");
   const old = btnText.textContent;
-  btnText.textContent = "Menyimpan…";
+  btnText.textContent = "Memindai…";
   $("#btnScan").disabled = true;
   try {
     const d = await api("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" } });
@@ -1168,6 +1215,26 @@ $("#btnImport").addEventListener("click", async () => {
 
 wireSettingsToggles();
 
+function wireShortcutInputs() {
+  for (const [sel, key] of [["#setShortcutQuick", "shortcutQuick"], ["#setShortcutPalette", "shortcutPalette"]]) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    el.addEventListener("change", async () => {
+      try {
+        await api("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, value: el.value.trim() }),
+        });
+        toast("Shortcut disimpan — berlaku setelah restart aplikasi");
+      } catch (e) {
+        toast("Gagal simpan shortcut: " + e.message, "err");
+      }
+    });
+  }
+}
+wireShortcutInputs();
+
 $("#search").addEventListener("input", debounce(async (e) => {
   state.search = e.target.value;
   if (state.view !== "memories") setView("memories");
@@ -1190,7 +1257,8 @@ document.addEventListener("keydown", (e) => {
     $("#search").focus();
   }
   if (e.key === "Escape") resetModal();
-  if (e.key === "Enter" && e.target === $("#addContent")) saveMemory();
+  // Ctrl/Cmd+Enter untuk simpan — Enter biasa tetap buat baris baru (memori bisa multiline).
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.target === $("#addContent")) saveMemory();
 });
 
 /* ---------- Init ---------- */

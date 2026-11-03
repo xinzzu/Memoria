@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self' http://localhost:48210" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'" />
 <title>Memoria</title>
 <link rel="icon" href="../logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -755,6 +755,23 @@
                 <div class="spacer"></div>
                 <div class="switch" data-sw="weeklyDigest"></div>
               </div>
+              <div class="toggle-row" data-key="autoStartLogin">
+                <div><div class="t-label">Jalankan saat login</div><div class="t-desc">Mulai Memoria otomatis saat komputer dinyalakan (berlaku setelah restart aplikasi)</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="autoStartLogin"></div>
+              </div>
+            </div>
+            <div class="card">
+              <h4>Shortcut global</h4>
+              <div class="card-desc">Bentrok dengan aplikasi lain? Ubah akseleratornya di sini (format Electron, mis. CommandOrControl+Alt+M). Kosongkan untuk menonaktifkan. Berlaku setelah restart aplikasi.</div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setShortcutQuick">Catat cepat</label>
+                <input type="text" id="setShortcutQuick" placeholder="CommandOrControl+Shift+M" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+              </div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setShortcutPalette">Cari memori (palette)</label>
+                <input type="text" id="setShortcutPalette" placeholder="CommandOrControl+Shift+Space" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+              </div>
             </div>
             <div class="card">
               <h4>Topik memori</h4>
@@ -812,11 +829,11 @@
       </div>
       <div class="field">
         <label>Proyek <span class="muted">(opsional)</span></label>
-        <input type="text" id="addProject" placeholder="Contoh: D:\Ngoding\Proyek X" />
+        <input type="text" id="addProject" placeholder="Nama atau path proyek (opsional)" />
       </div>
       <div class="field">
         <label>Isi memori</label>
-        <textarea id="addContent" placeholder="Tulis memori yang ingin disimpan…"></textarea>
+        <textarea id="addContent" placeholder="Tulis memori yang ingin disimpan… (Ctrl/Cmd+Enter untuk menyimpan)"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn" id="btnCancel">Batal</button>
