@@ -168,6 +168,7 @@ async function loadStats() {
     set("cntActive", st2.memories ?? "");
     set("cntDraft", st2.draft ?? "");
     set("cntArchive", st2.archived ?? "");
+    const cm = $("#cfgMem"); if (cm) cm.textContent = st2.rssMB ? st2.rssMB + " MB" : "—";
     $("#sOllama").textContent = "Ollama: " + (ollama ? "online" : "offline");
     if (state.view === "overview") renderOverview();
     if (state.view === "settings") renderSettings();
@@ -209,7 +210,6 @@ async function loadProjects() {
       gr.appendChild(o.cloneNode(true));
     }
     const sp2 = $("#sProjects2"); if (sp2) sp2.textContent = state.projects.length;
-    const cm = $("#cfgMem"); if (cm) cm.textContent = state.stats.rssMB ? state.stats.rssMB + " MB" : "—";
     if (state.view === "overview") renderOverview();
     if (state.view === "projects") renderProjects();
   } catch {}
@@ -704,16 +704,16 @@ function renderSettings() {
   const known = [["claude", "Claude Code"], ["codex", "Codex CLI"], ["opencode", "OpenCode"], ["gemini", "Gemini CLI"], ["copilot", "Copilot"], ["antigravity", "Antigravity"]];
   toolsContainer.innerHTML = known
     .map(([key, label]) => {
-      const t = tools.find((x) => x.tool === key);
+      const ts = tools.find((x) => x.tool === key);
       return `<div class="tool-row">
-        <span class="dot ${t ? "on" : "off"}"></span>
-        <span class="tool-name">${t(label)}</span>
-        <span class="tool-count">${t ? t.count.toLocaleString("id-ID") + " transcripts" : t("not detected yet")}</span>
-        <span class="tool-status">${t ? "sync" : "–"}</span>
+        <span class="dot ${ts ? "on" : "off"}"></span>
+        <span class="tool-name">${esc(label)}</span>
+        <span class="tool-count">${ts ? ts.count.toLocaleString("id-ID") + " transcripts" : t("not detected yet")}</span>
+        <span class="tool-status">${ts ? "sync" : "–"}</span>
       </div>`;
     })
-    .join("") + (tools.filter((t) => !known.some(([k]) => k === t.tool)).map((t) => `
-      <div class="tool-row"><span class="dot on"></span><span class="tool-name">${esc(t.tool)}</span><span class="tool-count">${t.count} transcripts</span></div>`).join(""));
+    .join("") + (tools.filter((tt) => !known.some(([k]) => k === tt.tool)).map((tt) => `
+      <div class="tool-row"><span class="dot on"></span><span class="tool-name">${esc(tt.tool)}</span><span class="tool-count">${tt.count} transcripts</span></div>`).join(""));
 
   const cfg = state.stats && state.stats.config;
   if (cfg) {
