@@ -15,7 +15,7 @@ Claude Code, Codex, Gemini CLI, Copilot, Antigravity, sampai opencode — satu o
 ![Electron](https://img.shields.io/badge/Electron-37-47848f)
 ![Ollama](https://img.shields.io/badge/inference-Ollama%20lokal-529fff)
 ![Data](https://img.shields.io/badge/data-100%25%20lokal-4cc38a)
-![Status](https://img.shields.io/badge/status-0.3.0--beta-7f6eff)
+![Status](https://img.shields.io/badge/status-0.4.0--beta-7f6eff)
 [![Release](https://img.shields.io/github/v/release/xinzzu/Memoria?label=Release)](https://github.com/xinzzu/Memoria/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/xinzzu/Memoria/build.yml?label=Build)](https://github.com/xinzzu/Memoria/actions)
 [![License](https://img.shields.io/github/license/xinzzu/Memoria)](LICENSE)
@@ -127,9 +127,9 @@ Memoria menutup celah itu — dan melakukannya **100% lokal**.
 
 | OS | Paket |
 |---|---|
-| Windows | Unduh `Memoria Setup 0.3.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
-| Linux | `memoria_0.3.0_amd64.deb` (`sudo dpkg -i`) atau `Memoria-0.3.0.AppImage` (`chmod +x` lalu jalankan) |
-| macOS | `Memoria-0.3.0.dmg` (drag ke Applications; bila tertahan, kanan-klik → Open) |
+| Windows | Unduh `Memoria Setup 0.4.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
+| Linux | `memoria_0.4.0_amd64.deb` (`sudo dpkg -i`) atau `Memoria-0.4.0.AppImage` (`chmod +x` lalu jalankan) |
+| macOS | `Memoria-0.4.0.dmg` (drag ke Applications; bila tertahan, kanan-klik → Open) |
 
 Aplikasi hidup sebagai **tray icon**, scan pertama berjalan otomatis.
 
@@ -224,7 +224,7 @@ npm install
 npm run dev         # TypeScript watch mode
 npm run build       # kompilasi sekali
 npm run start       # jalankan Electron dev (server di port 48210)
-npm run dist        # Windows → dist-installer/Memoria Setup 0.3.0.exe
+npm run dist        # Windows → dist-installer/Memoria Setup 0.4.0.exe
 npm run dist:linux  # Linux → AppImage + .deb (disarankan dari runner Linux)
 npm run dist:mac    # macOS → .dmg + .zip (wajib dari mesin macOS)
 ```
