@@ -1030,13 +1030,17 @@ function wireGraphCanvas() {
 
 /* ---------- Integrations ---------- */
 
+const INTEGRATION_LOGOS = {
+  claude: "logos/claude.png", codex: "logos/codex.png", opencode: "logos/opencode.ico",
+  gemini: "logos/gemini.png", copilot: "logos/copilot.svg", antigravity: "logos/antigravity.png",
+};
 const INTEGRATIONS = [
   ["claude", "Claude Code", t("MCP stdio — mirrors context into every `/memory` session")],
-  ["codex", "Codex CLI", "Registered di ~/.codex/config.toml"],
-  ["opencode", "opencode", "Registered di ~/.config/opencode/opencode.json"],
-  ["gemini", "Gemini CLI", "Registered di ~/.gemini/settings.json"],
-  ["copilot", "Copilot", "Registered di ~/.copilot/mcp-config.json"],
-  ["antigravity", "Antigravity", "Registered di ~/.gemini/config/mcp_config.json"],
+  ["codex", "Codex CLI", t("Registered in ~/.codex/config.toml")],
+  ["opencode", "opencode", t("Registered in ~/.config/opencode/opencode.json")],
+  ["gemini", "Gemini CLI", t("Registered in ~/.gemini/settings.json")],
+  ["copilot", "Copilot", t("Registered in ~/.copilot/mcp-config.json")],
+  ["antigravity", "Antigravity", t("Registered in ~/.gemini/config/mcp_config.json")],
 ];
 
 async function renderIntegrations() {
@@ -1047,8 +1051,10 @@ async function renderIntegrations() {
     box.innerHTML = INTEGRATIONS.map(([key, name, desc]) => {
       const st = map[key];
       const configured = st && st.configured;
+      const logo = INTEGRATION_LOGOS[key];
+      const initials = esc(name.slice(0, 2).toUpperCase());
       return `<div class="intg-row">
-        <div class="intg-icon">${esc(name.slice(0, 2).toUpperCase())}</div>
+        <div class="intg-icon">${logo ? `<img src="${logo}" alt="${initials}" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</div>
         <div><div class="intg-name">${esc(name)}</div><div class="intg-desc">${esc(desc)}</div></div>
         <div class="spacer"></div>
         <span class="badge ${configured ? "ok" : "no"}">${configured ? t("Registered") : t("Not yet")}</span>
