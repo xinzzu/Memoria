@@ -573,6 +573,10 @@
     .bars .bar { background: var(--grad); box-shadow: 0 0 12px rgba(110,141,255,.25); border-radius: 7px 7px 4px 4px; }
     .bars .bar.zero { background: var(--border); box-shadow: none; }
     .resume-dot { animation: pulse 2s infinite; }
+    .resume-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px;
+      border: 1px solid transparent; transition: background .12s; font-size: 12.5px; }
+    .resume-item:hover { background: rgba(110,141,255,.07); border-color: rgba(110,141,255,.2); }
+    .resume-item .feed-name { font-size: 13px; }
     @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(76,195,138,.5);} 50% { box-shadow: 0 0 0 5px rgba(76,195,138,0);} }
 
     .mem, .tl-item, .project-row, .intg-row, .tool-row, .src-toggle, .toggle-row, .bup-row {
