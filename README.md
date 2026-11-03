@@ -4,311 +4,299 @@
 
 # Memoria
 
-**Second brain offline untuk semua AI coding tools.**
+**A second brain for every AI coding tool — 100% local.**
 
-Claude Code, Codex, Gemini CLI, Copilot, Antigravity, sampai opencode — satu otak bersama yang mengingat semua yang pernah Anda kerjakan, dan menyalurkannya ke sesi berikutnya. Tanpa internet, tanpa cloud, tidak ada satu baris pun yang keluar dari komputer Anda.
+Claude Code, Codex, Gemini CLI, Copilot, Antigravity, opencode, VS Code, Cursor, Windsurf —
+one shared memory that remembers everything you've ever done and feeds it into your next session.
+
+No cloud. No account. Nothing leaves your computer.
 
 <br>
 
 ![Windows · Linux · macOS](https://img.shields.io/badge/platform-Windows%20%E2%80%A2%20Linux%20%E2%80%A2%20macOS-6e8dff)
 ![Node](https://img.shields.io/badge/node-%E2%89%A522.5-339933)
 ![Electron](https://img.shields.io/badge/Electron-37-47848f)
-![Ollama](https://img.shields.io/badge/inference-Ollama%20lokal-529fff)
-![Data](https://img.shields.io/badge/data-100%25%20lokal-4cc38a)
+![Inference](https://img.shields.io/badge/inference-optional%20%28Ollama%20%2F%20OpenAI%20compat%29-529fff)
+![Data](https://img.shields.io/badge/data-100%25%20local-4cc38a)
 ![Status](https://img.shields.io/badge/status-0.4.0--beta-7f6eff)
 [![Release](https://img.shields.io/github/v/release/xinzzu/Memoria?label=Release)](https://github.com/xinzzu/Memoria/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/xinzzu/Memoria/build.yml?label=Build)](https://github.com/xinzzu/Memoria/actions)
+[![Build](https://github.com/xinzzu/Memoria/actions/workflows/build.yml/badge.svg?label=Build)](https://github.com/xinzzu/Memoria/actions)
 [![License](https://img.shields.io/github/license/xinzzu/Memoria)](LICENSE)
+
+**English** · [Bahasa Indonesia](README.id.md)
 
 </div>
 
 ---
 
-<details>
-<summary>Daftar isi</summary>
+## Why?
 
-- [Kenapa dibutuhkan?](#kenapa-dibutuhkan)
-- [Cara kerjanya](#cara-kerjanya)
-- [Fitur utama](#fitur-utama)
-- [Kebutuhan](#kebutuhan)
-- [Quickstart](#quickstart)
-- [Dashboard](#dashboard)
-- [Pengembangan](#pengembangan)
-- [Roadmap](#roadmap)
-- [FAQ](#faq)
-- [Lisensi](#lisensi)
+Every AI tool has short-term amnesia. Claude doesn't remember yesterday's session. Codex doesn't
+know you decided "12-column grid" in Gemini CLI. And when you hit your usage limit mid-task and
+switch to another tool, you explain everything all over again.
 
-</details>
+**Memoria closes that gap.** It watches your AI tool sessions, extracts what matters — facts,
+decisions, tasks, fixed errors — and hands it to the next session, in any tool, automatically.
+
+Built for the **limit-hopping** workflow: hit your limit at 14:30, open a different tool at
+14:31 — and it already knows what you were working on.
 
 ---
 
-## Kenapa dibutuhkan?
-
-Setiap tool AI Anda punya **memori pendek**. Claude tidak ingat pekerjaan di sesi kemarin. Copilot tidak tahu keputusan "pakai grid 12 kolom" yang sudah disepakati di Gemini CLI. Akibatnya: Anda menjelaskan ulang, AI belajar ulang, dan waktu terbuang.
-
-Memoria menutup celah itu — dan melakukannya **100% lokal**.
-
----
-
-## Cara kerjanya
+## How it works
 
 ```
-              Sesi AI tools Anda
-   Claude Code · Codex · Gemini · Copilot · Antigravity · opencode
-        │                            │
-        │  jsonl / sqlite / logs     │  perintah /memory, /recall
-        ▼                            ▼
-    WATCHER (real-time)            MCP SERVER (stdio)
-        │                            ▲
-        ▼                            │
-   EXTRACTOR (Ollama, lokal)         │
-   meringkas sesi → fakta,           │
-   keputusan, tugas, error-fix       │
-        ▼                            │
-   ┌──────────────────────────────┐ │
-   │   LOCAL DATABASE (SQLite)    │──── konteks proyek
-   │   memori + graf koneksi      │   tersuntik ke AGENTS.md
-   │   + embedding vector         │
-   └──────────────┬───────────────┘
-                  ▼
-        DASHBOARD desktop (Electron)
-        timeline, graph memori, handoff
+        Your AI tool sessions
+  Claude Code · Codex · Gemini · Copilot · Antigravity · opencode · VS Code · Cursor · Windsurf
+        │                              │
+        │ jsonl / sqlite / logs        │ /memory · /recall  (MCP stdio)
+        ▼                              ▼
+   WATCHER (real-time)           MCP SERVER
+        │                              ▲
+        ▼                              │
+   EXTRACTION — tiered, never blocked  │
+   Tier 2  OpenAI-compatible (opt-in)  │
+   Tier 1  Ollama (local LLM)          │
+   Tier 0  Heuristics (no model!)      │
+        ▼                              │
+   ┌───────────────────────────────────────┐
+   │   LOCAL DATABASE (SQLite)             │
+   │   memories + graph + embeddings       │──── context injected into
+   └──────────────────┬────────────────────┘     AGENTS.md · CLAUDE.md · GEMINI.md
+        ▼                              │
+   DASHBOARD (Electron tray app)       │
 ```
 
-**Alur sederhananya:**
+1. Work as usual in any AI tool.
+2. Memoria captures new sessions in real time and stores them locally.
+3. The active intelligence tier extracts memories — indexed by keyword + embeddings + graph links.
+4. When a session goes idle (~4 minutes = session ended), the **resume engine** kicks in: the
+   newest session is extracted first, and a **SESSION RESUME** block is injected into the context
+   files your tools actually read.
+5. Open the dashboard anytime — overview, memories, task board, graph, handoffs.
 
-1. Bekerja seperti biasa di tool AI favorit Anda.
-2. Memoria menangkap sesi baru (watcher real-time) dan menyimpannya lokal.
-3. Model lokal Ollama mengekstrak `fakta`, `keputusan`, `tugas`, dan `error-fix`, lalu merekamnya sebagai memori terindeks (keyword + embedding + graph).
-4. Saat Anda membuka sesi baru di **tool mana pun**, konteks proyek yang relevan otomatis tersuntik ke `AGENTS.md` — agent langsung "ingat" dari sesi sebelumnya.
-5. Buka dashboard kapan saja: telusuri timeline, peta memori, atau buat handoff untuk sesi berikutnya.
+## Highlights
 
----
-
-## Fitur utama
-
-| Fitur | Deskripsi |
-|-------|-----------|
-| Capture multi-tool | Membaca transkrip dari 9 tool AI: Claude Code, Codex, Gemini CLI, Copilot, Antigravity, opencode, **VS Code, Cursor, Windsurf** |
-| Ekstraksi lokal | Ollama `qwen2.5-coder:3b` meringkas sesi menjadi memori terstruktur: fakta, keputusan, tugas, error fix |
-| Ingat di semua tool | MCP server (stdio) universal — daftarkan sekali, Memoria jadi memori semua tool Anda |
-| Auto-konteks | Handoff ringkas otomatis diinjeksi ke `AGENTS.md` proyek aktif sebelum sesi baru dimulai |
-| Retrieval hibrid | Keyword + embedding (`nomic-embed-text`) + popularitas graph (centrality), dengan **toleransi typo (fuzzy)** |
-| Peta memori | Graf koneksi antar memori: kesamaan topik, kata kunci, dan "memori seangkatan" (cohort) |
-| Timeline & Handoff | Jejak aktivitas per proyek + ringkasan konteks siap salin/injeksi |
-| Siklus tugas | Tugas `Pending` terdeteksi selesai otomatis saat jejaknya muncul di transkrip berikutnya |
-| Mode tinjau (draft) | Memori baru mengantre di tab "Menunggu persetujuan" sampai Anda approve |
-| Cadangan & restore | Backup berkala otomatis + pulihkan satu-klik dari dashboard |
-| Cari memori global | Palet pencarian `Ctrl+Shift+Space` — cari & salin memori dari mana saja |
-| Catat cepat | Shortcut global `Ctrl+Shift+M` untuk menyimpan ide dari mana saja |
-| Entitas & topik otomatis | Chips entitas (URL, path, command, teknologi) + clustering embedding jadi tag topik |
-| Ekspor Obsidian | Vault Markdown siap pakai dengan frontmatter, `[[wikilinks]]`, dan Index |
-| Tanpa cloud | Semua data di `~/.memoria` — Anda pemilik penuh |
-
----
-
-## Kebutuhan
-
-| | Minimal |
+| | |
 |---|---|
-| Windows | Windows 10/11 |
-| Linux | distro berbasis .deb (Ubuntu/Debian) atau AppImage; tray icon butuh libappindicator |
-| macOS | macOS 12+ (Apple Silicon maupun Intel) |
-| Node.js | ≥ 22.5 (dibutuhkan saat build dari source) |
-| Ollama | `qwen2.5-coder:3b` + `nomic-embed-text` |
-| RAM | 4 GB (rekomendasi 8 GB) |
-| GPU | Opsional — tanpa GPU pun berjalan (CPU-only) |
+| 🔄 **Capture from 9 tools** | Claude Code, Codex, opencode, Gemini CLI, Copilot, Antigravity, VS Code, Cursor, Windsurf |
+| ⏸️ **Resume engine** | A SESSION RESUME block auto-injected into AGENTS.md / CLAUDE.md / GEMINI.md: open tasks, locked decisions, current branch, dirty files |
+| ✅ **Tasks view** | Every task your AI sessions promised, in one checkable board |
+| 🧠 **Tiered intelligence** | Works with **no model at all** (heuristics + review queue), with Ollama, or any OpenAI-compatible endpoint (LM Studio, llama.cpp, vLLM, cloud — opt-in) |
+| 🔍 **Hybrid retrieval** | Keyword + embeddings + graph centrality, fuzzy-tolerant |
+| 🕸️ **Memory graph** | Obsidian-style: node labels, hover focus on neighbors, zoom & pan |
+| 📋 **Tasks & timeline** | Per-project activity + git history + weekly digest |
+| 🔎 **Global palette** | Search & copy memories from anywhere; quick-note hotkey |
+| 🌐 **EN / ID interface** | English-first, Bahasa Indonesia one click away |
+| 🔐 **Local & private** | Everything in `~/.memoria`; API keys encrypted via OS keychain; no telemetry |
+| 💾 **Backups & export** | Auto-backup (last 10), restore, export to Markdown / JSON / Obsidian vault |
 
----
+## Requirements
+
+| | Minimum | Notes |
+|---|---|---|
+| Windows | 10/11 | |
+| Linux | .deb distros / AppImage | tray needs libappindicator |
+| macOS | 12+ | Apple Silicon & Intel |
+| Node.js | ≥ 22.5 | only when building from source |
+| Ollama | **optional** | upgrade path for LLM-grade extraction & embeddings |
+| RAM | 4 GB (8 GB recommended) | works CPU-only |
 
 ## Quickstart
 
-### 1. Install
+### 1 · Install
 
-| OS | Paket |
+| OS | Package |
 |---|---|
-| Windows | Unduh `Memoria Setup 0.4.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
-| Linux | `memoria_0.4.0_amd64.deb` (`sudo dpkg -i`) atau `Memoria-0.4.0.AppImage` (`chmod +x` lalu jalankan) |
-| macOS | `Memoria-0.4.0.dmg` (drag ke Applications; bila tertahan, kanan-klik → Open) |
+| Windows | `Memoria Setup 0.4.0.exe` from [Releases](https://github.com/xinzzu/Memoria/releases) |
+| Linux | `memoria_0.4.0_amd64.deb` (`sudo dpkg -i`) or `Memoria-0.4.0.AppImage` |
+| macOS | `Memoria-0.4.0.dmg` (drag to Applications; right-click → Open if gated) |
 
-Aplikasi hidup sebagai **tray icon**, scan pertama berjalan otomatis.
+Memoria lives in the tray and starts capturing automatically.
 
-### 2. Siapkan Ollama (sekali saja)
+### 2 · First run — no model required
+
+Out of the box, Memoria runs on **Tier 0 heuristics**: sessions are captured and turned into
+memory candidates that land in the **Pending approval** inbox for you to curate. Search, tasks,
+timeline, graph, handoff — everything works.
+
+Want LLM-grade extraction and embeddings later?
 
 ```bash
 ollama pull qwen2.5-coder:3b
 ollama pull nomic-embed-text
 ```
 
-Memoria otomatis meluncurkan Ollama saat start bila belum menyala.
+Memoria detects them automatically (within ~5 minutes) and moves up a tier — nothing to
+reconfigure, no data migrations. Prefer LM Studio / llama.cpp / a cloud endpoint instead?
+Settings → **Engine**.
 
-### 3. Daftarkan ke tool AI Anda
+### 3 · Register your tools
 
-Buka tab **Integrasi** di dashboard, klik **Daftarkan** untuk masing-masing tool:
-
-| Tool | Konfigurasi |
-|------|-------------|
-| Claude Code | MCP di `~/.claude.json` + command `/memory` |
-| Codex CLI | `~/.codex/config.toml` |
-| opencode | `~/.config/opencode/opencode.json` |
-| Gemini CLI | `~/.gemini/settings.json` |
-| Copilot | `~/.copilot/mcp-config.json` |
-| Antigravity | `~/.gemini/config/mcp_config.json` |
-| VS Code / Cursor / Windsurf | Baca otomatis dari `state.vscdb` — aktifkan toggle di Pengaturan |
-
-Mulai sesi baru, lalu beri tahu agent:
-
-```
-Ingat keputusan proyek ini dari sesi sebelumnya.
-```
-
-### 4. CLI
+Open the **Integrations** tab → one-click registration per tool, or via CLI:
 
 ```bash
-node dist/engine/index.js scan                   # scan semua tool sekarang juga
-node dist/engine/index.js recall "docker issue"  # cari memori
-node dist/engine/index.js status                 # status memori + Ollama
+node dist/engine/index.js integrate claude
 ```
 
-Mode MCP (stdio): `node dist/engine/index.js mcp`
+Supported targets: `~/.claude.json`, `~/.codex/config.toml`, `~/.config/opencode/opencode.json`,
+`~/.gemini/settings.json`, `~/.copilot/mcp-config.json`, `~/.gemini/config/mcp_config.json`.
 
----
+Then start a new session and tell your agent:
+
+```
+Recall the decisions from previous sessions in this project.
+```
+
+### 4 · CLI
+
+```bash
+node dist/engine/index.js scan      # scan all tools now
+node dist/engine/index.js recall "docker issue"
+node dist/engine/index.js status
+node dist/engine/index.js mcp       # MCP stdio mode
+```
+
+## The resume engine — limit-hopping
+
+The core feature. You hit a usage limit mid-task and switch tools; the new tool should already
+know what you were doing.
+
+When transcript activity goes quiet (~4 minutes = session ended), Memoria runs the hot path:
+**scan → extract the newest session first → inject**. Within ~5 minutes, every context
+convention file in the project contains an idempotent, marked block:
+
+```markdown
+## SESSION RESUME
+> claude · 14:32 · branch: feat/auth
+
+**Open tasks:**
+- [ ] finish the refresh-token endpoint in routes/api.ts
+
+**Locked decisions (do not repeat):**
+- JWT access tokens, 15 min — not sessions
+
+**Dirty files (git):** src/auth/middleware.ts, src/auth/routes.ts
+
+_Continue the work above — do not re-litigate locked decisions._
+```
+
+Injected into **AGENTS.md** (Codex/opencode), **CLAUDE.md** (Claude Code) and **GEMINI.md**
+(Gemini CLI) — each target toggleable in Settings — plus a one-click **resume prompt** for
+tools that don't read context files.
+
+## Tiered intelligence
+
+| Tier | Engine | Needs | Extraction | Embeddings |
+|---|---|---|---|---|
+| 2 | OpenAI-compatible | explicit opt-in + endpoint | ✓ LLM-grade | ✓ model-grade |
+| 1 | Ollama | installed locally | ✓ LLM-grade | ✓ model-grade |
+| 0 | **Heuristics** (default) | **nothing** | rule-based → review queue | local hash (256-dim) |
+
+- `Auto` mode: Ollama when it's running **and** the model exists, otherwise heuristics.
+  Never touches the cloud.
+- Engine changes apply instantly — no restart.
+- Embedding dialects are never mixed: search, dedupe and the graph never compare vectors
+  across models.
 
 ## Dashboard
 
-Aplikasi desktop (Electron, tray), seluruh tampilan berbahasa Indonesia.
+Nine views, English or Bahasa Indonesia:
 
-- **Overview** — statistik memori, memori terbaru, proyek aktif.
-- **Memori** — pencarian lintas tool, filter jenis & proyek, tab *Menunggu persetujuan* (draft) dan *Arsip*.
-- **Proyek** — aktivitas berdasarkan proyek.
-- **Timeline** — jejak aktivitas per proyek + riwayat git.
-- **Handoff** — generate, salin, atau injeksi ringkasan konteks ke `AGENTS.md`.
-- **Graph** — peta visual antar memori; klik node untuk detail koneksi & backlink.
-- **Integrasi** — daftarkan MCP server ke semua tool sekali klik.
-- **Pengaturan** — sumber data, model, perilaku otomatis (Ollama, backup harian, arsip usang, mode tinjau, auto-inject), plus daftar cadangan & restore.
+- **Overview** — greeting, pastel stat cards, 7-day activity chart, "Recently worked on",
+  resume-ready projects, setup checklist
+- **Memories** — full library: search, kind/project/topic filters, approval inbox, archive
+- **Projects** — per-project activity, click through to timelines
+- **Timeline** — session trail + git history
+- **Handoff** — generate, copy, or inject the resume block
+- **Tasks** — the AI-session promise board
+- **Graph** — memory connections, Obsidian-style interactions
+- **Integrations** — official logos, one-click MCP registration
+- **Settings** — two-pane layout: data sources, engine tiers, behavior, backup & data
 
-<details>
-<summary>Lihat tampilan</summary>
+Global: `Ctrl/⌘ + Shift + M` quick note · `Ctrl/⌘ + Shift + Space` memory palette
+(both rebindable in Settings).
 
-**Overview**
+## Privacy
 
-![Overview](docs/img/overview.png)
+- Capture, extraction, search — 100% local in `~/.memoria` by default.
+- The OpenAI-compatible tier is the **only** way data leaves the machine, and it requires
+  explicit opt-in with a visible privacy warning.
+- API keys are encrypted by the OS (Keychain on macOS / DPAPI on Windows) and never returned
+  to the UI.
+- Stale, low-importance memories are archived automatically (forgetting curve); backups keep
+  the last 10 versions.
 
-**Memori + tab draft/arsip**
-
-![Memori](docs/img/memori.png)
-
-**Peta koneksi memori**
-
-![Graph](docs/img/graph.png)
-
-**Handoff**
-
-![Handoff](docs/img/handoff.png)
-
-**Pengaturan**
-
-![Pengaturan](docs/img/pengaturan.png)
-
-</details>
-
----
-
-## Pengembangan
-
-### Build dari source
+## Development
 
 ```bash
-git clone <url-repo> && cd memoria
+git clone https://github.com/xinzzu/Memoria && cd Memoria
 npm install
-npm run dev         # TypeScript watch mode
-npm run build       # kompilasi sekali
-npm run start       # jalankan Electron dev (server di port 48210)
-npm run dist        # Windows → dist-installer/Memoria Setup 0.4.0.exe
-npm run dist:linux  # Linux → AppImage + .deb (disarankan dari runner Linux)
-npm run dist:mac    # macOS → .dmg + .zip (wajib dari mesin macOS)
+npm run dev          # TypeScript watch mode
+npm run build        # compile once
+npm run start        # Electron dev (engine on port 48210)
+npm run check:ui     # audit UI selectors
+npm run dist         # Windows installer
+npm run dist:linux   # AppImage + .deb
+npm run dist:mac     # .dmg + .zip (macOS only)
 ```
 
-> Catatan: instalernya menghasilkan artefak per platform. AppImage & .deb juga bisa diproduksi otomatis oleh GitHub Actions (`Build Installers` workflow di `.github/workflows/build.yml`).
-
-### Struktur proyek
+### Project structure
 
 ```
 src/
 ├── engine/
-│   ├── config.ts         # konfigurasi sumber data & tool (per-OS)
-│   ├── http.ts           # API HTTP lokal (port 48210)
-│   ├── ingest/           # watcher sesi + parser per tool (claude, codex, vscdb, …)
-│   │   ├── manager.ts    # orkestrasi scan & pipeline memori
-│   │   └── vscdb.ts      # baca state.vscdb (VS Code/Cursor/Windsurf)
-│   ├── extract/
-│   │   ├── extractor.ts  # ekstraksi LLM (Ollama) + antrian
-│   │   ├── entities.ts   # deteksi entitas (URL, path, perintah)
-│   │   ├── topics.ts     # clustering embedding → tag topik
-│   │   ├── tasklife.ts   # deteksi penyelesaian tugas Pending
-│   │   └── dedupe.ts     # deduplikasi & merge memori
-│   ├── retrieve/search.ts # retrieval hibrid + re-ranking
-│   ├── vecfind.ts        # index LSH untuk skala embedding besar
-│   ├── graph.ts          # graf memori (similarity/keyword/cohort)
-│   ├── handoff.ts        # handoff + auto-inject konteks
-│   ├── summary/weekly.ts # ringkasan mingguan otomatis
-│   ├── export/obsidian.ts # ekspor vault Obsidian
-│   ├── mcp/server.ts     # MCP server (stdio)
-│   ├── store/            # SQLite (node:sqlite), backup & restore
-│   ├── lifecycle.ts      # agenda background (backup, arsip, topik, digest)
-│   └── index.ts          # entry: CLI (scan/recall/status), server, MCP
-├── electron/main.ts      # tray, dashboard, hotkey global
-web/                      # dashboard UI (HTML/JS murni)
-scripts/gen-icon.js       # generator ikon
-.github/workflows/build.yml # build installer 3 OS
-logo.png                  # ikon aplikasi
+│   ├── config.ts              # per-OS data sources & tool config
+│   ├── http.ts                # local API (127.0.0.1:48210) + static dashboard
+│   ├── ingest/                # watcher + per-tool parsers (claude, codex, vscdb, …)
+│   ├── extract/               # provider tiers, heuristics, ollama, openai-compat,
+│   │                          # entities, topics, task lifecycle, dedupe
+│   ├── retrieve/search.ts     # hybrid retrieval (keyword + embeddings + centrality)
+│   ├── mcp/server.ts          # MCP server (stdio)
+│   ├── store/                 # SQLite (node:sqlite), backup, secure storage
+│   ├── handoff.ts             # resume engine + multi-file injection
+│   └── index.ts               # CLI entry
+├── electron/main.ts           # tray, dashboard, global hotkeys
+web/                           # dashboard UI (vanilla JS, EN/ID i18n)
+scripts/                       # icon generator, UI selector audit
+ROADMAP.md                     # execution plan & current position
+CHANGELOG.md                   # release notes
 ```
 
-### Teknologi
+### Tech
 
-TypeScript · Node 24 (`node:sqlite`) · Electron 37 · Ollama API · chokidar · Model Context Protocol SDK
-
----
-
-## Roadmap
-
-- [x] Multi-tool capture (9 tools)
-- [x] Ekstraksi & embedding lokal (Ollama)
-- [x] MCP server + registrasi 1-klik ke semua tool
-- [x] Auto-inject konteks & handoff
-- [x] Graf memori + backlink, re-ranking dengan centrality
-- [x] Mode tinjau/draft, siklus tugas, backup/restore, inbox hotkey
-- [x] Capture VS Code / Cursor / Windsurf
-- [x] Palet pencarian global, entitas, tag topik otomatis, fuzzy search
-- [x] Ekspor vault Obsidian
-- [x] Ringkasan mingguan otomatis (statistik 7 hari + memori terpenting)
-- [x] Dukungan Linux & macOS (path per-OS, target AppImage/.deb/.dmg, GitHub Actions)
-- [ ] Sinkronisasi terenkripsi antar komputer
-- [ ] Plugin hooks & webhook (Slack/Discord/Telegram)
-- [ ] PWA/mobile companion
-
----
+TypeScript · Node 24 (`node:sqlite`) · Electron 37 · chokidar · MCP SDK · vanilla JS dashboard
 
 ## FAQ
 
-**Apakah data saya keluar?**
-Tidak. Seluruh proses — pengambilan, ekstraksi, pencarian — berjalan 100% lokal di `~/.memoria`. Ollama berjalan di `localhost:11434`.
+**Does my data leave my computer?**
+No. Capture, extraction and search all run locally in `~/.memoria`. The cloud tier exists but
+only activates if you explicitly configure it.
 
-**Tool AI apa saja yang didukung?**
-Claude Code, Codex CLI, Gemini CLI, Copilot, Antigravity, opencode, VS Code, Cursor, dan Windsurf — plus endpoint `/api/import` untuk sumber apa pun.
+**Do I need Ollama?**
+No. Heuristics work with zero models — the review-queue inbox guides you from there. Ollama is
+an upgrade path, detected automatically when you install it.
 
-**Apakah harus punya GPU?**
-Tidak wajib. Tanpa GPU tetap berjalan, hanya lebih lambat saat memproses transkrip dalam jumlah besar.
+**Which tools are supported?**
+Claude Code, Codex, opencode, Gemini CLI, Copilot, Antigravity — plus VS Code, Cursor and
+Windsurf capture, and a generic `/api/import` endpoint for anything else.
 
-**Apakah memori akan membengkak tanpa henti?**
-Tidak. Memori lama ber-kepentingan rendah otomatis diarsipkan (forgetting curve), dan backup hanya menyimpan 10 versi terakhir.
+**Will memories grow forever?**
+No — stale, low-importance memories are archived automatically (forgetting curve); backups
+keep the last 10 versions.
+
+**UI language?**
+English by default; Bahasa Indonesia one click away in Settings.
+
+## Documentation
+
+- [ROADMAP.md](ROADMAP.md) — execution plan, phases and current position
+- [CHANGELOG.md](CHANGELOG.md) — release notes
+
+## License
+
+MIT © 2026 Memoria
 
 ---
 
-## Lisensi
-
-[MIT](LICENSE) © 2026 Memoria
-
----
-
-<p align="center"><i>Dibuat di Indonesia — supaya agent AI Anda tidak pernah lupa lagi.</i></p>
+_Made in Indonesia — so your AI agents never forget again._
