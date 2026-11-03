@@ -55,7 +55,9 @@ export function getConfig(): AppConfig {
 
   return {
     dataDir,
-    ollamaUrl: "http://localhost:11434",
+    // Env override memungkinkan testing terisolasi (arahkan ke port mati agar
+    // pipeline ekstraksi tidak menyentuh Ollama asli) dan setup power-user.
+    ollamaUrl: process.env.MEMORIA_OLLAMA_URL || "http://localhost:11434",
     ollamaPath:
       process.env.OLLAMA_PATH ||
       (isWin
