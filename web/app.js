@@ -886,11 +886,15 @@ async function loadSettingsToggles() {
   try {
     const d = await api("/api/settings");
     const s = d.settings || {};
-    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest"];
+    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest", "autoStartLogin"];
     for (const k of keys) {
       const sw = document.querySelector(`[data-sw="${k}"]`);
       if (sw) sw.classList.toggle("on", String(s[k]) === "1" || s[k] === true);
     }
+    const sq = $("#setShortcutQuick");
+    const sp = $("#setShortcutPalette");
+    if (sq) sq.value = s.shortcutQuick || "";
+    if (sp) sp.value = s.shortcutPalette || "";
     try {
       const dg = await api("/api/digest");
       const box = $("#digestBox");
@@ -1210,6 +1214,26 @@ $("#btnImport").addEventListener("click", async () => {
 });
 
 wireSettingsToggles();
+
+function wireShortcutInputs() {
+  for (const [sel, key] of [["#setShortcutQuick", "shortcutQuick"], ["#setShortcutPalette", "shortcutPalette"]]) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    el.addEventListener("change", async () => {
+      try {
+        await api("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, value: el.value.trim() }),
+        });
+        toast("Shortcut disimpan — berlaku setelah restart aplikasi");
+      } catch (e) {
+        toast("Gagal simpan shortcut: " + e.message, "err");
+      }
+    });
+  }
+}
+wireShortcutInputs();
 
 $("#search").addEventListener("input", debounce(async (e) => {
   state.search = e.target.value;

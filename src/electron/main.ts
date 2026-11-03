@@ -6,7 +6,7 @@ import { startHttpServer } from "../engine/http";
 import { startWatcher, stopWatcher } from "../engine/ingest/watcher";
 import { scanAndNotify } from "./scan";
 import { startBackgroundJobs, stopBackgroundJobs } from "../engine/lifecycle";
-import { getBoolSetting } from "../engine/store/db";
+import { getBoolSetting, getSetting } from "../engine/store/db";
 
 let tray: Tray | null = null;
 let win: BrowserWindow | null = null;
@@ -60,13 +60,55 @@ function showWindow(): void {
   win.focus();
 }
 
+function quickAccel(): string {
+  return getSetting("shortcutQuick", "CommandOrControl+Shift+M");
+}
+
+function paletteAccel(): string {
+  return getSetting("shortcutPalette", "CommandOrControl+Shift+Space");
+}
+
+function displayAccel(accel: string): string {
+  const mac = process.platform === "darwin";
+  return accel.replace("CommandOrControl", mac ? "⌘" : "Ctrl");
+}
+
+function notifyShortcutConflict(accel: string, label: string): void {
+  console.warn(`[memoria] Shortcut ${accel} (${label}) tidak bisa didaftarkan — kemungkinan dipakai aplikasi lain. Ubah di Pengaturan → Shortcut global.`);
+  try {
+    new Notification({
+      title: "Memoria",
+      body: `Shortcut ${accel} (${label}) bentrok dengan aplikasi lain — ubah di Pengaturan → Shortcut global.`,
+    }).show();
+  } catch {
+    // Notification belum tersedia (sebagian Linux) — cukup log
+  }
+}
+
+function registerShortcuts(): void {
+  // Catatan: globalShortcut.register TIDAK melempar exception saat gagal —
+  // ia mengembalikan false. try/catch di kode lama tidak pernah tereksekusi.
+  if (getBoolSetting("quickInbox", true)) {
+    const accel = quickAccel();
+    if (accel && !globalShortcut.register(accel, openQuickWindow)) {
+      notifyShortcutConflict(accel, "Catat Cepat");
+    }
+  }
+  if (getBoolSetting("globalPalette", true)) {
+    const accel = paletteAccel();
+    if (accel && !globalShortcut.register(accel, openPaletteWindow)) {
+      notifyShortcutConflict(accel, "Cari Memori");
+    }
+  }
+}
+
 function createTray(): void {
   tray = new Tray(createIcon());
   tray.setToolTip("Memoria — second brain semua AI tool");
   const menu = Menu.buildFromTemplate([
     { label: "Buka Dashboard", click: showWindow },
-    { label: "Cari Memori (Ctrl+Shift+Space)", click: openPaletteWindow },
-    { label: "Catat Cepat (Ctrl+Shift+M)", click: openQuickWindow },
+    { label: `Cari Memori (${displayAccel(paletteAccel())})`, click: openPaletteWindow },
+    { label: `Catat Cepat (${displayAccel(quickAccel())})`, click: openQuickWindow },
     { label: "Scan sekarang", click: async () => {
         const res = await scanAndNotify();
         new Notification({
@@ -136,12 +178,7 @@ app.whenReady().then(async () => {
   await startHttpServer();
   startWatcher();
   createTray();
-  try {
-    globalShortcut.register("CommandOrControl+Shift+M", () => openQuickWindow());
-    globalShortcut.register("CommandOrControl+Shift+Space", () => openPaletteWindow());
-  } catch {
-    // shortcut sudah dipakai aplikasi lain
-  }
+  registerShortcuts();
   if (process.env.PECUT_SHOW_ON_START === "1") {
     showWindow();
   } else if (!app.getLoginItemSettings().wasOpenedAtLogin) {

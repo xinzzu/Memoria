@@ -279,6 +279,9 @@ export function startHttpServer(): Promise<void> {
             globalPalette: getSetting("globalPalette", "1"),
             reviewMode: getSetting("reviewMode", "0"),
             weeklyDigest: getSetting("weeklyDigest", "1"),
+            autoStartLogin: getSetting("autoStartLogin", "1"),
+            shortcutQuick: getSetting("shortcutQuick", "CommandOrControl+Shift+M"),
+            shortcutPalette: getSetting("shortcutPalette", "CommandOrControl+Shift+Space"),
             extractThreshold: getSetting("extractThreshold", "0.3"),
             sources: Object.fromEntries(
               cfg.sources.map((s) => [s.tool, getSetting(`source:${s.tool}:enabled`, s.enabled ? "1" : "0")])
