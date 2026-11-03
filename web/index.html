@@ -252,11 +252,9 @@
     .project-meta .sub { font-size: 11px; color: var(--faint); }
 
     /* ---------- Settings ---------- */
-    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    #view-settings .settings-grid { display: block; height: 100%; }
         #view-settings.active { height: 100%; display: flex; flex-direction: column; }
     #view-settings:not(.active) { display: none; }
-    .settings-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; }
+    .settings-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; align-items: start; }
         .settings-navcol { min-width: 0; overflow: hidden; }
     .settings-navcol .settings-tabs { display: flex; flex-direction: column; gap: 3px; }
     .settings-tabs .stab { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 9px;
@@ -269,7 +267,7 @@
       border-top: 1px solid var(--border-soft); }
     .stab-lang .t-label { font-size: 11px; color: var(--faint); }
     .stab-lang select { width: 100%; }
-    .settings-groups { display: grid; gap: 18px; min-width: 0; align-content: start; overflow-y: auto; min-height: 0; max-height: 100%; padding-right: 8px; }
+    .settings-groups { display: grid; gap: 18px; min-width: 0; align-content: start; overflow-y: auto; min-height: 0; padding-right: 8px; }
     .settings-group { display: none; }
     .settings-group.active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; max-width: none; }
     .settings-group .card-desc { max-width: 74ch; }
@@ -1084,8 +1082,7 @@
 
         <!-- Settings -->
         <div class="view" id="view-settings">
-          <div class="settings-grid" style="display:block">
-<div class="settings-wrap">
+          <div class="settings-wrap">
           <div class="settings-navcol">
           <div class="settings-tabs" id="settingsTabs">
             <div class="stab active" data-stab-btn="sources">
@@ -1119,6 +1116,7 @@
 <div class="card">
               <h4 data-i18n="Data sources">Data sources</h4>
               <div class="card-desc" data-i18n="Transcripts are captured automatically from each tool as new activity happens.">Transcripts are captured automatically from each tool as new activity happens.</div>
+              <div id="toolsList"></div>
               <div id="sourcesToggles" style="margin-top:8px"></div>
             </div>
             
@@ -1290,14 +1288,10 @@
               <div class="card-desc" data-i18n="Register this server with your AI tools so every new session pulls relevant context and stores new memories.">Register this server with your AI tools so every new session pulls relevant context and stores new memories.</div>
               <div class="code" id="mcpCode" data-i18n="loading…">loading…</div>
             </div>
-          
-  </div>
-
-  </div>
-  </div>
-  </div>
-  </div>
-  </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Modal -->
