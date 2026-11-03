@@ -699,21 +699,8 @@ async function loadTags() {
 }
 
 function renderSettings() {
-  const toolsContainer = $("#toolsList");
   const tools = state.stats && state.stats.perTool ? state.stats.perTool : [];
-  const known = [["claude", "Claude Code"], ["codex", "Codex CLI"], ["opencode", "OpenCode"], ["gemini", "Gemini CLI"], ["copilot", "Copilot"], ["antigravity", "Antigravity"]];
-  toolsContainer.innerHTML = known
-    .map(([key, label]) => {
-      const ts = tools.find((x) => x.tool === key);
-      return `<div class="tool-row">
-        <span class="dot ${ts ? "on" : "off"}"></span>
-        <span class="tool-name">${esc(label)}</span>
-        <span class="tool-count">${ts ? ts.count.toLocaleString("id-ID") + " transcripts" : t("not detected yet")}</span>
-        <span class="tool-status">${ts ? "sync" : "–"}</span>
-      </div>`;
-    })
-    .join("") + (tools.filter((tt) => !known.some(([k]) => k === tt.tool)).map((tt) => `
-      <div class="tool-row"><span class="dot on"></span><span class="tool-name">${esc(tt.tool)}</span><span class="tool-count">${tt.count} transcripts</span></div>`).join(""));
+  const known = [["claude", "Claude Code"], ["codex", "Codex CLI"], ["opencode", "OpenCode"], ["gemini", "Gemini CLI"], ["copilot", "Copilot"], ["antigravity", "Antigravity"], ["vscode", "VS Code"], ["cursor", "Cursor"], ["windsurf", "Windsurf"]];
 
   const cfg = state.stats && state.stats.config;
   if (cfg) {
