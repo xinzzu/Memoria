@@ -21,7 +21,8 @@
     "start": "electron .",
     "dist": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "dist:mac": "npm run build && electron-builder --mac"
+    "dist:mac": "npm run build && electron-builder --mac",
+    "check:ui": "node scripts/audit-ui.js"
   },
   "engines": {
     "node": ">=22.5.0"
