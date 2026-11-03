@@ -1302,8 +1302,11 @@ document.querySelectorAll(".nav-item").forEach((n) => {
     if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
   });
 });
-$("#linkAllMem").addEventListener("click", () => { setView("memories"); renderMemories(); });
-$("#linkAllProj").addEventListener("click", () => { setView("projects"); renderProjects(); });
+// Optional chaining WAJIB: selector yang hilang tak boleh mematikan seluruh script
+// (kejadian nyata: #linkAllProj terhapus saat redesign overview -> TypeError saat
+// load -> wireSettingsTabs/init tak pernah jalan -> halaman Settings kosong).
+$("#linkAllMem")?.addEventListener("click", () => { setView("memories"); renderMemories(); });
+$("#linkAllProj")?.addEventListener("click", () => { setView("projects"); renderProjects(); });
 
 $("#btnScan").addEventListener("click", doScan);
 $("#btnAdd").addEventListener("click", () => { resetModal(); openModal(); });
@@ -1508,7 +1511,7 @@ function wireSettingsTabs() {
     });
   });
   const saved = localStorage.getItem("memoria_settab") || "sources";
-  const target = nav.querySelector(`[data-stab-btn="${saved}"]`);
+  const target = nav.querySelector(`[data-stab-btn="${saved}"]`) || nav.querySelector('[data-stab-btn="sources"]');
   if (target) target.click();
 }
 wireSettingsTabs();
