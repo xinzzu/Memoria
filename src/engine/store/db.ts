@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { extractEntities } from "../extract/entities";
-import { canonicalPath } from "../ingest/util";
+import { canonicalPath, projectSlugFromCwd } from "../ingest/util";
 
 export interface Transcript {
   id?: number;
@@ -183,6 +183,40 @@ const ensureProjectMemo = new Map<string, number>();
 
 export function resetProjectMemo(): void {
   ensureProjectMemo.clear();
+}
+
+/**
+ * Resolve input proyek (bisa path, slug, atau nama) ke record proyek.
+ * Urutan: slug persis -> slug hasil slugify path -> path kanonik -> LIKE nama/slug.
+ * Dipakai MCP dan HTTP agar input agent/user yang formatnya beda dikit tetap
+ * menemu-kan proyek yang benar, bukan "Belum ada memori".
+ */
+export function resolveProject(input: string): { id: number; slug: string } | null {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const db = getDb();
+
+  for (const cand of [raw.toLowerCase(), projectSlugFromCwd(raw)]) {
+    const bySlug = db.prepare("SELECT id, slug FROM projects WHERE slug = ?").get(cand) as
+      | { id: number; slug: string }
+      | undefined;
+    if (bySlug) return bySlug;
+  }
+
+  const canon = canonicalPath(raw);
+  if (canon) {
+    const rows = db.prepare("SELECT id, slug, path FROM projects WHERE path IS NOT NULL AND path != ''").all() as
+      Array<{ id: number; slug: string; path: string }>;
+    for (const r of rows) {
+      if (canonicalPath(r.path) === canon) return { id: r.id, slug: r.slug };
+    }
+  }
+
+  const like = `%${raw.toLowerCase()}%`;
+  const byLike = db
+    .prepare("SELECT id, slug FROM projects WHERE lower(name) LIKE ? OR lower(slug) LIKE ? ORDER BY last_seen DESC LIMIT 1")
+    .get(like, like) as { id: number; slug: string } | undefined;
+  return byLike ?? null;
 }
 
 export function ensureProject(slug: string, projectPath?: string): number {

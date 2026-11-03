@@ -69,14 +69,19 @@ dengan pagination; scan port berbeda tidak memutus UI; akses dari hostname asing
 
 ---
 
-## 3. Fase 1A — Resume Engine / Limit-Hopping (P0, 5–7 hari) — ✅ SELESAI 2026-11-03
+## 3. Fase 1A — Resume Engine / Limit-Hopping (P0, 5–7 hari) — ✅ SELESAI 100% (2026-11-03)
 
 Fitur inti yang menjawab keresahan asal. Bahan-bahannya sudah ada (watcher, handoff,
 tasklife, integrate) — tinggal dirangkai jadi alur "pindah tool tanpa jelasin ulang".
-**Status: 3.1–3.4 dikerjakan di branch `feat/f1a-resume-engine` (lihat `CHANGELOG.md`);
-3.5 acceptance lintas tool bersifat manual — jalankan script di bawah sebelum rilis.**
-Bonus yang ditemukan saat smoke test: bug `lastInsertRowid` (`/api/remember` balas
-500 padahal tersimpan) ikut diperbaiki.
+**Status: 3.1–3.5 SELESAI.** Acceptance (3.5) dieksekusi otomatis di macOS dengan
+fixture nyata: proyek git asli + transkrip format jsonl Claude Code asli + watcher &
+hot-path timer hidup → 12/12 assertion lolos (injeksi otomatis ke AGENTS/CLAUDE/
+GEMINI.md, merge lintas-path `/tmp` vs `/private/tmp` jadi SATU proyek, blok
+LANJUTAN berisi task/keputusan/branch/file dirty/pesan sesi, resume & remove via
+path mentah). Acceptance menangkap & memperbaiki 2 bug tambahan:
+`/api/remember` membuang path (merge gagal untuk simpanan dashboard) dan
+`GET /api/handoff`/`resume`/`remove` belum fuzzy-resolve. Threshold idle kini
+configurable (`resumeIdleMinutes`, default 4).
 
 ### 3.1 Hot-path: deteksi akhir sesi → ekstraksi prioritas → inject segera
 - Heuristic "session ended": file transkrip suatu sesi tidak bertambah ±3–5 menit

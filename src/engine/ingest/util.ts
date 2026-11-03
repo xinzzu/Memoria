@@ -74,6 +74,20 @@ export function canonicalPath(p?: string): string | undefined {
   return resolved;
 }
 
+/**
+ * Apakah string ini terlihat seperti path filesystem (bukan sekadar nama proyek)?
+ * Hanya input ber-bentuk path yang boleh dipakai sebagai kandidat path proyek —
+ * nama seperti "smoke-proj" di-resolve menjadi <cwd>/smoke-proj yang menyesatkan.
+ */
+export function looksLikePath(p?: string): boolean {
+  if (!p) return false;
+  const s = p.trim();
+  if (!s) return false;
+  if (s.startsWith("/") || s.startsWith("\\") || s.startsWith("~")) return true;
+  if (/^[a-zA-Z]:[/\\]/.test(s)) return true; // C:\... atau C:/... (Windows)
+  return s.includes("/") || s.includes("\\");
+}
+
 export async function readLinesIncremental(file: string, startOffset: number): Promise<{ lines: string[]; finalOffset: number }> {
   let size: number;
   try {
