@@ -4,7 +4,7 @@ import { startWatcher, stopWatcher } from "./ingest/watcher";
 import { runMcpServer } from "./mcp/server";
 import { startHttpServer } from "./http";
 import { searchMemories } from "./retrieve/search";
-import { embed } from "./extract/ollama";
+import { getEmbedProvider } from "./extract/provider";
 import { extractQueue } from "./extract/extractor";
 import { getDb } from "./store/db";
 
@@ -33,8 +33,9 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       ensureDb();
-      const qEmb = await embed(q);
-      const hits = searchMemories(q, { limit: 8 }, qEmb);
+      const eprov = await getEmbedProvider();
+      const qEmb = await eprov.embed(q);
+      const hits = searchMemories(q, { limit: 8, embedModel: eprov.embedModel }, qEmb);
       for (const h of hits) {
         console.log(`[${h.kind}] (${h.projectSlug ?? "global"} · ${h.sourceTool} · ${h.score.toFixed(2)})`);
         console.log(`  ${h.content}`);

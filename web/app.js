@@ -148,8 +148,11 @@ async function loadStats() {
     $("#sPending").textContent = state.stats.pending.toLocaleString("id-ID");
     $("#navMemCount").textContent = state.stats.memories > 0 ? state.stats.memories.toLocaleString("id-ID") : "";
     const ollama = state.stats.ollamaOnline;
-    $("#ollamaDot").className = "dot " + (ollama ? "on" : "off");
-    $("#ollamaText").textContent = ollama ? "Ollama: online" : "Ollama: offline";
+    const engine = state.stats.engine;
+    $("#ollamaDot").className = "dot " + (ollama || engine ? "on" : "off");
+    // Chip topbar kini menampilkan mesin aktif (bukan cuma status Ollama) —
+    // user tanpa Ollama tetap melihat bahwa heuristik yang bekerja.
+    $("#ollamaText").textContent = engine ? "🧠 " + engine.extract : (ollama ? "Ollama: online" : "Ollama: offline");
     $("#sOllama").textContent = "Ollama: " + (ollama ? "online" : "offline");
     if (state.view === "overview") renderOverview();
     if (state.view === "settings") renderSettings();
@@ -895,6 +898,16 @@ async function loadSettingsToggles() {
     const sp = $("#setShortcutPalette");
     if (sq) sq.value = s.shortcutQuick || "";
     if (sp) sp.value = s.shortcutPalette || "";
+    // Mesin kecerdasan
+    const ee = $("#setExtractEngine"), de = $("#setEmbedEngine");
+    if (ee) ee.value = s.extractEngine || "auto";
+    if (de) de.value = s.embedEngine || "auto";
+    const ob = $("#setOpenaiBaseUrl"), om1 = $("#setOpenaiExtractModel"), om2 = $("#setOpenaiEmbedModel"), ok = $("#setOpenaiApiKey");
+    if (ob) ob.value = s.openaiBaseUrl || "";
+    if (om1) om1.value = s.openaiExtractModel || "";
+    if (om2) om2.value = s.openaiEmbedModel || "";
+    if (ok) ok.value = ""; // key tidak dikirim balik ke UI — hanya indikator
+    if (ok) ok.placeholder = s.openaiHasKey === "1" ? "API key tersimpan — isi ulang untuk mengganti" : "API key (opsional untuk LM Studio lokal)";
     try {
       const dg = await api("/api/digest");
       const box = $("#digestBox");
@@ -1252,6 +1265,38 @@ function wireShortcutInputs() {
   }
 }
 wireShortcutInputs();
+
+function wireEngineSettings() {
+  // API key hanya dikirim bila diisi (tidak menimpa key tersimpan dengan kosong).
+  const fields = [
+    ["#setExtractEngine", "extractEngine", false],
+    ["#setEmbedEngine", "embedEngine", false],
+    ["#setOpenaiBaseUrl", "openaiBaseUrl", false],
+    ["#setOpenaiExtractModel", "openaiExtractModel", false],
+    ["#setOpenaiEmbedModel", "openaiEmbedModel", false],
+    ["#setOpenaiApiKey", "openaiApiKey", true],
+  ];
+  for (const [sel, key, onlyIfFilled] of fields) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    el.addEventListener("change", async () => {
+      const value = el.value.trim();
+      if (onlyIfFilled && !value) return;
+      try {
+        await api("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, value }),
+        });
+        toast("Mesin diperbarui — langsung aktif");
+        loadStats();
+      } catch (e) {
+        toast("Gagal simpan: " + e.message, "err");
+      }
+    });
+  }
+}
+wireEngineSettings();
 
 $("#search").addEventListener("input", debounce(async (e) => {
   state.search = e.target.value;

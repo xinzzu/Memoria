@@ -6,7 +6,8 @@ import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
 import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject } from "./store/db";
 import { looksLikePath, projectSlugFromCwd } from "./ingest/util";
-import { embed, ollamaAvailable } from "./extract/ollama";
+import { ollamaAvailable } from "./extract/ollama";
+import { getEmbedProvider, engineStatus } from "./extract/provider";
 import { extractQueue } from "./extract/extractor";
 import { addMemoryWithDedupe } from "./extract/dedupe";
 import { generateHandoff, injectHandoff, injectHandoffAll, removeInjectAll } from "./handoff";
@@ -133,6 +134,7 @@ export function startHttpServer(): Promise<void> {
       if (url.pathname === "/api/stats" && req.method === "GET") {
         const s = stats();
         const ollama = await ollamaAvailable();
+        const engine = await engineStatus();
         const cfg = getConfig();
         const recent = allMemories()
           .slice(0, 8)
@@ -141,6 +143,7 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, 200, {
           ...s,
           ollamaOnline: ollama,
+          engine,
           recent,
           config: { dataDir: cfg.dataDir, ollamaExtractModel: cfg.ollamaExtractModel, ollamaEmbedModel: cfg.ollamaEmbedModel, httpPort: cfg.httpPort },
         });
@@ -154,8 +157,9 @@ export function startHttpServer(): Promise<void> {
         const project = url.searchParams.get("project") || undefined;
         const kind = url.searchParams.get("kind") || undefined;
         const limit = Number(url.searchParams.get("limit") || 10);
-        const qEmb = await embed(q);
-        const hits = searchMemories(q, { limit, projectSlug: project, kind }, qEmb).map(enrichMemory);
+        const eprov = await getEmbedProvider();
+        const qEmb = await eprov.embed(q);
+        const hits = searchMemories(q, { limit, projectSlug: project, kind, embedModel: eprov.embedModel }, qEmb).map(enrichMemory);
         sendJson(res, 200, { hits });
       } else if (url.pathname === "/api/project" && req.method === "GET") {
         const project = url.searchParams.get("slug") || "";
@@ -236,7 +240,8 @@ export function startHttpServer(): Promise<void> {
         const projectId = rawProject && rawProject !== "_unknown"
           ? ensureProject(projectSlugFromCwd(rawProject), looksLikePath(rawProject) ? rawProject : undefined)
           : null;
-        const embedding = await embed(String(body.content || ""));
+        const eprov = await getEmbedProvider();
+        const embedding = await eprov.embed(String(body.content || ""));
         addMemoryWithDedupe({
           projectId,
           kind,
@@ -248,6 +253,8 @@ export function startHttpServer(): Promise<void> {
           sourceTool: "dashboard",
           embedding,
           status: effectiveStatus(),
+          origin: "user",
+          embedModel: eprov.embedModel,
         });
         sendJson(res, 200, { ok: true });
       } else if (url.pathname === "/api/memories" && req.method === "DELETE") {
@@ -290,6 +297,12 @@ export function startHttpServer(): Promise<void> {
             "injectFile:AGENTS.md": getSetting("injectFile:AGENTS.md", "1"),
             "injectFile:CLAUDE.md": getSetting("injectFile:CLAUDE.md", "1"),
             "injectFile:GEMINI.md": getSetting("injectFile:GEMINI.md", "1"),
+            extractEngine: getSetting("extractEngine", "auto"),
+            embedEngine: getSetting("embedEngine", "auto"),
+            openaiBaseUrl: getSetting("openaiBaseUrl", "http://localhost:1234/v1"),
+            openaiExtractModel: getSetting("openaiExtractModel", "gpt-4o-mini"),
+            openaiEmbedModel: getSetting("openaiEmbedModel", "text-embedding-3-small"),
+            openaiHasKey: getSetting("openaiApiKey", "") ? "1" : "0",
             extractThreshold: getSetting("extractThreshold", "0.3"),
             sources: Object.fromEntries(
               cfg.sources.map((s) => [s.tool, getSetting(`source:${s.tool}:enabled`, s.enabled ? "1" : "0")])

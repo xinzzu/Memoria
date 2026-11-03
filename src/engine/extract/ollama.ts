@@ -1,6 +1,9 @@
 import { getConfig } from "../config";
 
 async function ensureModel(model: string): Promise<void> {
+  // Dahulu: auto-pull diam-diam bila model belum ada — bisa mendownload GB tanpa izin.
+  // Sekarang: hanya cek; kalau tidak ada, beri tahu user (ekstraksi otomatis
+  // jatuh ke provider lain via lapisan provider).
   try {
     const res = await fetch(`${getConfig().ollamaUrl}/api/show`, {
       method: "POST",
@@ -9,14 +12,10 @@ async function ensureModel(model: string): Promise<void> {
       body: JSON.stringify({ model }),
     });
     if (!res.ok) {
-      await fetch(`${getConfig().ollamaUrl}/api/pull`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model }),
-      });
+      console.warn(`[memoria] Model Ollama "${model}" belum ter-install. Jalankan: ollama pull ${model}`);
     }
   } catch {
-    // offline; retry next cycle
+    // Ollama offline — provider layer akan memilih tier lain
   }
 }
 

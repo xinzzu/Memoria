@@ -709,6 +709,37 @@
               <div class="kv"><span class="k">API</span><span class="v" id="cfgApi">—</span></div>
             </div>
             <div class="card">
+              <h4>Mesin kecerdasan</h4>
+              <div class="card-desc">Ekstraksi & embedding memori. Mode <b>auto</b> memakai Ollama bila menyala; tanpa model pun Memoria tetap bekerja (heuristik → hasil masuk antrian tinjau). Perubahan langsung aktif tanpa restart.</div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setExtractEngine">Mesin ekstraksi</label>
+                <select id="setExtractEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
+                  <option value="auto">Auto (Ollama → Heuristik)</option>
+                  <option value="ollama">Ollama (lokal)</option>
+                  <option value="openai">OpenAI-compatible (LM Studio / cloud)</option>
+                  <option value="heuristic">Heuristik (tanpa model)</option>
+                </select>
+              </div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setEmbedEngine">Mesin embedding</label>
+                <select id="setEmbedEngine" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
+                  <option value="auto">Auto (Ollama → Hash)</option>
+                  <option value="ollama">Ollama (lokal)</option>
+                  <option value="openai">OpenAI-compatible</option>
+                  <option value="hash">Hash lokal (tanpa model)</option>
+                </select>
+              </div>
+              <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
+                <div class="card-desc">Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style="color:var(--warn, #e5686b)">Catatan privasi:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini.</div>
+                <input type="text" id="setOpenaiBaseUrl" placeholder="http://localhost:1234/v1" style="width:100%; margin-top:6px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <div style="display:flex; gap:8px; margin-top:8px">
+                  <input type="text" id="setOpenaiExtractModel" placeholder="model ekstraksi" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                  <input type="text" id="setOpenaiEmbedModel" placeholder="model embedding" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                </div>
+                <input type="password" id="setOpenaiApiKey" placeholder="API key (opsional untuk LM Studio lokal)" style="width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+              </div>
+            </div>
+            <div class="card">
               <h4>Perilaku otomatis</h4>
               <div class="card-desc">Semua proses berjalan lokal di komputer Anda.</div>
               <div class="toggle-row" data-key="autoStartOllama">
