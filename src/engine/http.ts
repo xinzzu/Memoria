@@ -80,6 +80,20 @@ const MIME: Record<string, string> = {
 
 function serveStatic(url: URL, res: ServerResponse): boolean {
   if (url.pathname.startsWith("/api/")) return false;
+  // Aset logo tinggal di root aplikasi (dipakai juga ikon tray/app) —
+  // layankan path tetap ini tanpa membuka direktori lain.
+  if (url.pathname === "/logo.png") {
+    try {
+      const logo = path.resolve(WEB_DIR, "..", "logo.png");
+      const data = fs.readFileSync(logo);
+      res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "max-age=3600" });
+      res.end(data);
+      return true;
+    } catch {
+      sendJson(res, 404, { error: "not found" });
+      return true;
+    }
+  }
   const rel = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
   const file = path.resolve(path.join(WEB_DIR, rel));
   if (!file.startsWith(WEB_DIR + path.sep)) {

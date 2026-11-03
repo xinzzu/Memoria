@@ -666,12 +666,7 @@
     /* Prinsip: tanpa emoji, tanpa gradien, tanpa tile pelangi.
        Hierarki dibawa oleh tipografi + satu aksen datar. */
     .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; border-bottom: 1px solid var(--border-soft); margin-bottom: 12px; }
-    .brand-mark {
-      width: 34px; height: 34px; border-radius: 9px;
-      background: #3d4657; border: 1px solid rgba(255,255,255,.08);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 15px; color: #fff;
-    }
+    .brand-mark { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; display: block; }
     .brand-name { font-weight: 650; font-size: 14.5px; letter-spacing: -.01em; color: var(--text); }
     .brand-tag { font-size: 9.5px; color: var(--faint); letter-spacing: .1em; text-transform: uppercase; }
 
@@ -711,7 +706,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">M</div>
+        <img class="brand-mark" src="/logo.png" alt="Memoria" />
         <div class="brand-txt">
           <div class="brand-name">Memoria</div>
           <div class="brand-tag" data-i18n="second brain">second brain</div>
