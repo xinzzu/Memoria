@@ -253,8 +253,9 @@
 
     /* ---------- Settings ---------- */
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .settings-wrap { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; align-items: start; }
-    .settings-tabs { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 3px; }
+    .settings-wrap { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; }
+    .settings-navcol { min-width: 0; }
+    .settings-navcol .settings-tabs { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 3px; }
     .settings-tabs .stab { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 9px;
       border: 1px solid transparent; background: transparent; color: var(--muted);
       font-size: 12.5px; cursor: pointer; user-select: none; transition: background .12s, color .12s; }
@@ -265,6 +266,7 @@
       border-top: 1px solid var(--border-soft); }
     .stab-lang .t-label { font-size: 11px; color: var(--faint); }
     .stab-lang select { width: 100%; }
+    .settings-groups { display: grid; gap: 18px; min-width: 0; }
     .settings-group { display: none; }
     .settings-group.active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; max-width: none; }
     .settings-group .card-desc { max-width: 74ch; }
@@ -1081,6 +1083,7 @@
         <div class="view" id="view-settings">
           <div class="settings-grid" style="display:block">
 <div class="settings-wrap">
+          <div class="settings-navcol">
           <div class="settings-tabs" id="settingsTabs">
             <div class="stab active" data-stab-btn="sources">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="4" rx="5.5" ry="2.5"/><path d="M2.5 4v8c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5V4M2.5 8c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5V8"/></svg>
@@ -1106,7 +1109,9 @@
               </select>
             </div>
           </div>
+          </div><!-- /settings-navcol -->
           <div class="settings-groups-col">
+            <div class="settings-groups">
           <div class="settings-group" data-stab="sources">
 <div class="card">
               <h4 data-i18n="Data sources">Data sources</h4>
@@ -1292,8 +1297,8 @@
           </div><!-- /settings-wrap -->
       </div>
     </div>
-
-  <!-- Modal -->
+            </div>
+<!-- Modal -->
   <div class="overlay" id="overlay">
     <div class="modal">
       <h3 data-i18n="Add memory">Add memory</h3>
