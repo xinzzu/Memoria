@@ -127,6 +127,29 @@ export const heuristicProvider: MemoryProvider = {
 
 /* ---------------- Seleksi ---------------- */
 
+// Server Ollama hidup != model siap. Cek model via /api/show (cache 5 menit)
+// supaya mode auto bisa jatuh ke heuristik, bukan gagal ekstraksi berulang.
+let ollamaModelOk: { model: string; ok: boolean; at: number } | null = null;
+async function ollamaModelAvailable(model: string): Promise<boolean> {
+  if (ollamaModelOk && ollamaModelOk.model === model && Date.now() - ollamaModelOk.at < 5 * 60_000) {
+    return ollamaModelOk.ok;
+  }
+  let ok = false;
+  try {
+    const res = await fetch(`${getConfig().ollamaUrl}/api/show`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(4000),
+      body: JSON.stringify({ model }),
+    });
+    ok = res.ok;
+  } catch {
+    ok = false;
+  }
+  ollamaModelOk = { model, ok, at: Date.now() };
+  return ok;
+}
+
 async function resolvePreferred(pref: string, available: () => Promise<MemoryProvider | null>, fallback: MemoryProvider): Promise<MemoryProvider> {
   if (pref === "ollama") return ollamaProvider;
   if (pref === "openai") return openaiProvider;
@@ -147,7 +170,15 @@ export async function getExtractProvider(): Promise<MemoryProvider> {
   }
   return resolvePreferred(
     pref,
-    async () => ((await ollamaAvailable()) ? ollamaProvider : null),
+    async () => {
+      if (!(await ollamaAvailable())) return null;
+      const model = getConfig().ollamaExtractModel;
+      if (!(await ollamaModelAvailable(model))) {
+        console.warn(`[memoria] Auto: model "${model}" belum ter-install — ekstraksi pakai heuristik. Install: ollama pull ${model}`);
+        return null;
+      }
+      return ollamaProvider;
+    },
     heuristicProvider
   );
 }
@@ -162,7 +193,15 @@ export async function getEmbedProvider(): Promise<MemoryProvider> {
   }
   return resolvePreferred(
     pref,
-    async () => ((await ollamaAvailable()) ? ollamaProvider : null),
+    async () => {
+      if (!(await ollamaAvailable())) return null;
+      const model = getConfig().ollamaEmbedModel;
+      if (!(await ollamaModelAvailable(model))) {
+        console.warn(`[memoria] Auto: model "${model}" belum ter-install — embedding pakai hash lokal. Install: ollama pull ${model}`);
+        return null;
+      }
+      return ollamaProvider;
+    },
     heuristicProvider // embed via hashEmbed, dialect HASH_MODEL
   );
 }
