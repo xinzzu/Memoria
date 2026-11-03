@@ -611,7 +611,7 @@
     /* Greeting */
     .greet { margin-bottom: 18px; }
     .greet h2 { font-size: 22px; letter-spacing: -.02em; }
-    .greet h2 .gname { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .greet h2 .gname { color: #fff; }
     .greet p { color: var(--muted); font-size: 13px; margin-top: 2px; }
 
     /* Kartu pastel 4 warna */
@@ -662,61 +662,48 @@
       padding: 2px 8px; border-radius: 999px; color: var(--muted); flex: none; }
 
 
-    /* ================= SIDEBAR v2 ================= */
+    /* ================= SIDEBAR v3 — professional, monochrome ================= */
+    /* Prinsip: tanpa emoji, tanpa gradien, tanpa tile pelangi.
+       Hierarki dibawa oleh tipografi + satu aksen datar. */
     .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; border-bottom: 1px solid var(--border-soft); margin-bottom: 12px; }
     .brand-mark {
-      width: 36px; height: 36px; border-radius: 11px; background: var(--grad);
+      width: 34px; height: 34px; border-radius: 9px;
+      background: #3d4657; border: 1px solid rgba(255,255,255,.08);
       display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 17px; color: #fff;
-      box-shadow: 0 6px 18px rgba(110,141,255,.4), inset 0 1px 0 rgba(255,255,255,.25);
+      font-weight: 700; font-size: 15px; color: #fff;
     }
-    .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
-    .brand-tag { font-size: 10px; color: var(--faint); letter-spacing: .08em; text-transform: uppercase; }
+    .brand-name { font-weight: 650; font-size: 14.5px; letter-spacing: -.01em; color: var(--text); }
+    .brand-tag { font-size: 9.5px; color: var(--faint); letter-spacing: .1em; text-transform: uppercase; }
 
-    .nav-item { display: flex; align-items: center; gap: 11px; padding: 6px 8px; }
-    .nav-ic {
-      width: 31px; height: 31px; border-radius: 10px; flex: none;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(255,255,255,.035); border: 1px solid var(--border-soft); color: var(--muted);
-      transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+    .nav-item {
+      display: flex; align-items: center; gap: 11px; padding: 7px 10px;
+      border-radius: 9px; font-size: 13px; color: var(--muted);
+      transition: background .12s, color .12s;
     }
-    .nav-ic svg { width: 15px; height: 15px; }
-    .nav-item > span:not(.nav-ic):not(.count), .nav-item { font-size: 13px; }
+    .nav-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+    .nav-item:active { background: rgba(255,255,255,.06); }
+    .nav-item.active { background: rgba(255,255,255,.055); color: #fff; }
+    .nav-item.active > span:not(.nav-ic):not(.count) { font-weight: 600; color: #fff; }
 
-    [data-view="overview"]     .nav-ic { color: #f5b942; background: rgba(245,185,66,.09);  border-color: rgba(245,185,66,.18); }
-    [data-view="memories"]     .nav-ic { color: #a684ff; background: rgba(166,132,255,.09); border-color: rgba(166,132,255,.18); }
-    [data-view="projects"]     .nav-ic { color: #9fdd5f; background: rgba(159,221,95,.08);  border-color: rgba(159,221,95,.16); }
-    [data-view="timeline"]     .nav-ic { color: #6e8dff; background: rgba(110,141,255,.09); border-color: rgba(110,141,255,.18); }
-    [data-view="handoff"]      .nav-ic { color: #63d8e0; background: rgba(99,216,224,.08);  border-color: rgba(99,216,224,.16); }
-    [data-view="graph"]        .nav-ic { color: #e58cc6; background: rgba(229,140,198,.08); border-color: rgba(229,140,198,.16); }
-    [data-view="integrations"] .nav-ic { color: #ff9d6e; background: rgba(255,157,110,.08); border-color: rgba(255,157,110,.16); }
-    [data-view="settings"]     .nav-ic { color: #aab3c5; background: rgba(170,179,197,.08); border-color: rgba(170,179,197,.14); }
+    .nav-ic { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; color: inherit; }
+    .nav-ic svg { width: 16px; height: 16px; }
 
-    .nav-item:hover .nav-ic { transform: scale(1.06); }
-    .nav-ic { transition: transform .15s, background .15s, box-shadow .15s; }
-    .nav-item.active .nav-ic {
-      background: var(--grad); color: #fff; border-color: transparent;
-      box-shadow: 0 5px 14px rgba(110,141,255,.4);
-    }
-    .nav-item.active > span:not(.nav-ic) { font-weight: 600; }
+    .nav-item.active { box-shadow: inset 2px 0 0 #6e8dff; }
 
     .side-promo {
-      margin: auto 8px 14px; padding: 14px 13px; border-radius: 14px;
-      background: linear-gradient(150deg, rgba(166,132,255,.16), rgba(110,141,255,.07));
-      border: 1px solid rgba(166,132,255,.25);
+      margin: auto 8px 14px; padding: 13px 13px 12px; border-radius: 12px;
+      background: var(--panel); border: 1px solid var(--border-soft);
     }
-    .side-promo .sp-ic { font-size: 17px; margin-bottom: 7px; }
+    .side-promo .sp-ic { color: var(--muted); margin-bottom: 8px; }
+    .side-promo .sp-ic svg { width: 16px; height: 16px; }
     .side-promo p { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
     .sp-btn {
-      width: 100%; padding: 7px 0; border-radius: 9px; border: none; cursor: pointer;
-      background: rgba(16,18,24,.55); color: #e9ecf3; font-size: 12px; font-weight: 600;
-      border: 1px solid rgba(255,255,255,.08);
-      transition: background .15s, transform .1s; font-family: inherit;
+      width: 100%; padding: 6px 0; border-radius: 8px; cursor: pointer;
+      background: rgba(255,255,255,.05); color: var(--text); font-size: 12px; font-weight: 550;
+      border: 1px solid var(--border);
+      transition: background .12s, border-color .12s; font-family: inherit;
     }
-    .sp-btn:hover { background: rgba(16,18,24,.75); }
-    .sp-btn:hover { filter: brightness(1.1); }
-    .sp-btn:active { transform: scale(.97); }
-
+    .sp-btn:hover { background: rgba(255,255,255,.09); border-color: #3a4152; }
   </style>
 </head>
 <body>
@@ -769,7 +756,7 @@
       </nav>
 
       <div class="side-promo">
-        <div class="sp-ic">⏸️</div>
+        <div class="sp-ic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5h9L9 3M13.5 10.5h-9L7 13"/></svg></div>
         <p data-i18n="Switching tools? Resume context is injected automatically when a session goes idle.">Switching tools? Resume context is injected automatically when a session goes idle.</p>
         <button class="sp-btn" id="promoHandoff" data-i18n="Try Handoff">Try Handoff</button>
       </div>
@@ -1082,7 +1069,7 @@
             
 <div class="card">
               <h4 data-i18n="Context injection (resume)">Context injection (resume)</h4>
-              <div class="card-desc" data-i18n="The &quot;⏸️ SESSION RESUME&quot; block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.">The "⏸️ SESSION RESUME" block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.</div>
+              <div class="card-desc" data-i18n="The SESSION RESUME block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.">The SESSION RESUME block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.</div>
               <div class="toggle-row" data-key="injectFile:AGENTS.md">
                 <div><div class="t-label">AGENTS.md</div><div class="t-desc" data-i18n="Codex CLI, opencode, and other AGENTS.md-convention tools">Codex CLI, opencode, and other AGENTS.md-convention tools</div></div>
                 <div class="spacer"></div>

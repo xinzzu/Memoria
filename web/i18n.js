@@ -162,7 +162,6 @@
   "Quick note": "Catat cepat",
   "Search memories (palette)": "Cari memori (palette)",
   "Context injection (resume)": "Injeksi konteks (resume)",
-  "The \"⏸️ SESSION RESUME\" block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.": "Blok \"⏸️ LANJUTAN SESI\" disuntik ke file konteks yang dibaca tiap tool. Matikan bila tool Anda tidak memakai file tersebut. Injeksi hanya menyentuh blok ber-marker Memoria.",
   "Codex CLI, opencode, and other AGENTS.md-convention tools": "Codex CLI, opencode, dan tool ber-konvensi AGENTS.md",
   "Memory topics": "Topik memori",
   "Group memories into nearby topics (embedding clustering).": "Kelompokkan memori ke topik yang saling berdekatan (embedding clustering).",
@@ -284,7 +283,8 @@
   "Projects your AI tools touched most recently.": "Proyek yang paling baru disentuh AI tools Anda.",
   "second brain": "otak kedua",
   "Switching tools? Resume context is injected automatically when a session goes idle.": "Pindah tool? Konteks resume tersuntik otomatis begitu sesi diam.",
-  "Try Handoff": "Coba Handoff"
+  "Try Handoff": "Coba Handoff",
+  "The SESSION RESUME block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.": "Blok \"⏸️ LANJUTAN SESI\" disuntik ke file konteks yang dibaca tiap tool. Matikan bila tool Anda tidak memakai file tersebut. Injeksi hanya menyentuh blok ber-marker Memoria."
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
