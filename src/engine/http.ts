@@ -244,10 +244,17 @@ export function startHttpServer(): Promise<void> {
         }
         sendJson(res, r.ok ? 200 : 400, r);
       } else if (url.pathname === "/api/tasks" && req.method === "GET") {
-        const project = url.searchParams.get("slug") || undefined;
-        const proj = project ? (await import("./store/db")).projectRecord(project) : null;
-        const open = countOpen(proj ? proj.id : undefined);
-        sendJson(res, 200, { open });
+        const slug = url.searchParams.get("slug") || "";
+        const proj = slug ? resolveProject(slug) : null;
+        const { listTasks } = await import("./store/db");
+        const { open, done } = listTasks(proj ? proj.id : null, 300);
+        const slim = (m: any) => ({ id: m.id, content: m.content, importance: m.importance, createdAt: m.createdAt, resolvedAt: m.resolvedAt, sourceTool: m.sourceTool, projectSlug: projectSlugById(m.projectId) });
+        sendJson(res, 200, { open: open.map(slim), done: done.map(slim), countOpen: open.length, project: proj?.slug ?? null });
+      } else if (url.pathname === "/api/tasks/resolve" && req.method === "POST") {
+        const body = await readBody(req);
+        const { setTaskResolved } = await import("./store/db");
+        const ok = setTaskResolved(Number(body.id || 0), body.resolved !== false);
+        sendJson(res, ok ? 200 : 404, { ok });
       } else if (url.pathname === "/api/remember" && req.method === "POST") {
         const body = await readBody(req);
         const kind = ["fact", "decision", "task_done", "task_pending", "error_fixed", "preference", "context"].includes(body.kind) ? body.kind : "context";

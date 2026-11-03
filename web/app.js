@@ -139,6 +139,7 @@ function setView(name) {
     projects: [t("Projects"), t("Activity by project")],
     timeline: ["Timeline", t("Per-project activity trail")],
     handoff: ["Handoff", t("Context summary for the next AI session")],
+    tasks: ["Tasks", t("Everything your AI sessions promised - in one checklist")],
     graph: ["Graph", t("Map of connections between memories")],
     integrations: [t("Integrations"), t("Register Memoria with your AI tools")],
     settings: [t("Settings"), t("Data sources and integrations")],
@@ -188,6 +189,16 @@ async function loadProjects() {
     tl.innerHTML = '<option value="">Pick a project…</option>';
     const gr = $("#grProject");
     gr.innerHTML = '<option value="">All projects</option>';
+    const tk = $("#tkProject");
+    if (tk) {
+      tk.innerHTML = '<option value="">' + t("All projects") + '</option>';
+      for (const p of state.projects) {
+        const o = document.createElement("option");
+        o.value = p.slug;
+        o.textContent = p.name;
+        tk.appendChild(o.cloneNode(true));
+      }
+    }
     for (const p of state.projects) {
       const o = document.createElement("option");
       o.value = p.slug;
@@ -1383,6 +1394,7 @@ document.querySelectorAll(".nav-item").forEach((n) => {
     if (n.dataset.view === "projects") renderProjects();
     if (n.dataset.view === "timeline") renderTimeline();
     if (n.dataset.view === "graph") renderGraph();
+    if (n.dataset.view === "tasks") renderTasks();
     if (n.dataset.view === "integrations") renderIntegrations();
     if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
   });
@@ -1453,6 +1465,60 @@ $("#grRebuild").addEventListener("click", async () => {
   }
 });
 wireGraphCanvas();
+
+/* ---------- Tasks ---------- */
+async function renderTasks() {
+  const slug = $("#tkProject") ? $("#tkProject").value : "";
+  const openBox = $("#tasksOpen");
+  const doneBox = $("#tasksDone");
+  if (!openBox) return;
+  try {
+    const d = await api("/api/tasks" + (slug ? "?slug=" + encodeURIComponent(slug) : ""));
+    const item = (task, done) => `
+      <div class="task-item ${done ? "done-row" : ""}" data-id="${task.id}">
+        <div class="task-check" data-toggle="${task.id}" title="${done ? t("Reopen") : t("Mark done")}">${done ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>' : ""}</div>
+        <div class="task-body">
+          <div class="task-text">${esc(task.content)}</div>
+          <div class="task-meta">${esc(prettySlug(task.projectSlug))} · ${esc(TOOL_LABEL[task.sourceTool] || task.sourceTool)} · ${done ? t("done") + " " + fmtRel(task.resolvedAt) : fmtRel(task.createdAt)}</div>
+        </div>
+        <button class="task-del" data-tdel="${task.id}" title="${t("Delete")}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 4h10M6 4V3h4v1M5.5 4l.6 9h3.8l.6-9"/></svg></button>
+      </div>`;
+    openBox.innerHTML = d.open.length
+      ? d.open.map((task) => item(task, false)).join("")
+      : emptyState(t("No open tasks"), t("Pending tasks captured from your AI sessions show up here."));
+    doneBox.innerHTML = d.done.length
+      ? d.done.map((task) => item(task, true)).join("")
+      : `<div class="card-desc" style="padding:6px 2px">${t("Nothing completed yet.")}</div>`;
+    $("#tkOpenBadge").textContent = t("{0} open", d.open.length);
+    const navBadge = document.getElementById("navTaskCount");
+    if (navBadge) navBadge.textContent = d.open.length > 0 ? d.open.length : "";
+
+    openBox.querySelectorAll("[data-toggle]").forEach((el) => {
+      el.addEventListener("click", async () => {
+        await api("/api/tasks/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(el.dataset.toggle), resolved: true }) });
+        renderTasks();
+      });
+    });
+    doneBox.querySelectorAll("[data-toggle]").forEach((el) => {
+      el.addEventListener("click", async () => {
+        await api("/api/tasks/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(el.dataset.toggle), resolved: false }) });
+        renderTasks();
+      });
+    });
+    document.querySelectorAll("[data-tdel]").forEach((el) => {
+      el.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm(t("Delete this task?"))) return;
+        await api("/api/memories?id=" + el.dataset.tdel, { method: "DELETE" });
+        renderTasks();
+      });
+    });
+  } catch (e) {
+    openBox.innerHTML = `<div class="err-box"><h4>${t("Couldn't load tasks")}</h4><p>${esc(e.message)}</p><button class="btn" onclick="renderTasks()">${t("Retry")}</button></div>`;
+    if (doneBox) doneBox.innerHTML = "";
+  }
+}
+$("#tkProject")?.addEventListener("change", renderTasks);
 
 $("#btnBackupNow").addEventListener("click", async () => {
   try {

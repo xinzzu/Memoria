@@ -36,13 +36,13 @@ function hotResumeTick(): void {
   hotRunning = true;
   (async () => {
     try {
-      console.log("[memoria] Sesi terdeteksi selesai (idle) — hot resume: ekstraksi prioritas + injeksi konteks");
+      console.log("[memoria] Session idle detected - hot resume: priority extraction + context injection");
       await scanAll();
       // Sesi terbaru duluan — konteks pindah-tool tidak boleh mengantri di belakang backlog lama.
       await extractQueue(true, { order: "desc" });
       const { autoInjectContext } = await import("../handoff");
       const injected = await autoInjectContext();
-      if (injected.length) console.log(`[memoria] Konteks resume siap untuk: ${injected.join(", ")}`);
+      if (injected.length) console.log(`[memoria] Resume context ready for: ${injected.join(", ")}`);
     } catch {
       // biarkan siklus berikutnya mencoba lagi
       dirtySinceResume = true;

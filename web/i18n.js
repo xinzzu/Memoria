@@ -316,7 +316,22 @@
   "Failed to save shortcut: ": "Gagal simpan shortcut: ",
   "Welcome to Memoria": "Selamat datang di Memoria",
   "One click registers Memoria as an MCP server (stdio) in your AI tools. Every new session automatically pulls project context and stores new memories.": "Sekali klik, Memoria terdaftar sebagai MCP server (stdio) di tool AI Anda. Tiap sesi baru otomatis memuat konteks proyek dan menyimpan memori baru.",
-  "OpenAI-compatible endpoint — LM Studio (localhost:1234), llama.cpp, vLLM, or cloud. <b style='color:var(--warn, #e5686b)'>Privacy note:</b> using a cloud endpoint means session content leaves this machine.": "Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style='color:var(--warn, #e5686b)'>Catatan privasi:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini."
+  "OpenAI-compatible endpoint — LM Studio (localhost:1234), llama.cpp, vLLM, or cloud. <b style='color:var(--warn, #e5686b)'>Privacy note:</b> using a cloud endpoint means session content leaves this machine.": "Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style='color:var(--warn, #e5686b)'>Catatan privasi:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini.",
+  "Tasks": "Tugas",
+  "Open tasks": "Tugas terbuka",
+  "Completed": "Selesai",
+  "Promises made in AI sessions - check them off when done.": "Janji-janji dari sesi AI — centang saat selesai.",
+  "Uncheck to reopen a task.": "Hilangkan centang untuk membuka kembali tugas.",
+  "Everything your AI sessions promised - in one checklist": "Semua yang dijanjikan sesi AI Anda — dalam satu checklist",
+  "Reopen": "Buka lagi",
+  "Mark done": "Tandai selesai",
+  "done": "selesai",
+  "Delete this task?": "Hapus tugas ini?",
+  "Couldn't load tasks": "Gagal memuat tugas",
+  "No open tasks": "Tidak ada tugas terbuka",
+  "Pending tasks captured from your AI sessions show up here.": "Tugas pending dari sesi AI Anda muncul di sini.",
+  "Nothing completed yet.": "Belum ada yang selesai.",
+  "{0} open": "{0} terbuka"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
