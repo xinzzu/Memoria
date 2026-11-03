@@ -802,6 +802,7 @@ const graph = {
   nodes: [], edges: [], pos: [], vel: [], idx: new Map(),
   zoom: 1, offX: 0, offY: 0, selected: null,
   drag: null, lastX: 0, lastY: 0, running: false, alpha: 0,
+  hover: null, degree: new Map(), dirty: true, labeled: new Set(),
 };
 
 async function renderGraph() {
@@ -817,12 +818,25 @@ async function renderGraph() {
     graph.pos = graph.nodes.map(() => ({ x: (Math.random() - 0.5) * 400, y: (Math.random() - 0.5) * 300 }));
     graph.vel = graph.nodes.map(() => ({ x: 0, y: 0 }));
     graph.selected = null;
+    graph.hover = null;
     graph.alpha = 1;
+    graph.dirty = true;
+    // degree (jumlah koneksi) -> ukuran node & prioritas label
+    graph.degree = new Map();
+    for (const e of graph.edges) {
+      graph.degree.set(e.fromId, (graph.degree.get(e.fromId) || 0) + 1);
+      graph.degree.set(e.toId, (graph.degree.get(e.toId) || 0) + 1);
+    }
+    const labeled = [...graph.nodes]
+      .sort((a, b) => (graph.degree.get(b.id) || 0) - (graph.degree.get(a.id) || 0))
+      .slice(0, Math.max(20, Math.min(30, Math.ceil(graph.nodes.length * 0.25))))
+      .map((n) => n.id);
+    graph.labeled = new Set(labeled);
     $("#grCount").textContent = graph.nodes.length + t(" nodes · ") + graph.edges.length + t(" connections");
     if (!graph.nodes.length) {
       $("#graphSide").innerHTML = '<div class="gs-empty">No memories to show yet. Run a scan + extraction first, or add memories manually.</div>';
     } else {
-      $("#graphSide").innerHTML = '<div class="gs-title">Detailss</div><div class="gs-empty">Click a node on the canvas to see its details and connections.</div>';
+      $("#graphSide").innerHTML = '<div class="gs-title">Details</div><div class="gs-empty">Click a node on the canvas to see its details and connections.</div>';
     }
     renderGraphLegend();
     startGraphLoop();
@@ -849,24 +863,39 @@ function startGraphLoop() {
     const box = canvas.parentElement;
     const dpr = window.devicePixelRatio || 1;
     const w = box.clientWidth, h = box.clientHeight;
-    if (canvas.width !== Math.floor(w * dpr)) { canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr); }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
+    if (canvas.width !== Math.floor(w * dpr)) { canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr); graph.dirty = true; }
 
     if (graph.alpha > 0.01) {
       simulate(w, h);
       graph.alpha *= 0.985;
+      graph.dirty = true;
     }
+    // Dirty-flag: simulasi stabil + tanpa interaksi = tidak menggambar apa-apa (hemat CPU/baterai).
+    if (!graph.dirty) { requestAnimationFrame(frame); return; }
+    graph.dirty = false;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
 
     ctx.save();
     ctx.translate(w / 2 + graph.offX, h / 2 + graph.offY);
     ctx.scale(graph.zoom, graph.zoom);
 
+    const focus = graph.hover != null ? graph.hover : graph.selected;
+    const neighbors = new Set();
+    if (focus != null) {
+      for (const e of graph.edges) {
+        if (e.fromId === focus) neighbors.add(e.toId);
+        if (e.toId === focus) neighbors.add(e.fromId);
+      }
+    }
+
     for (const e of graph.edges) {
       const a = graph.pos[graph.idx.get(e.fromId)];
       const b = graph.pos[graph.idx.get(e.toId)];
       if (!a || !b) continue;
-      const alpha = e.kind === "cohort" ? 0.06 : 0.08 + e.weight * 0.28;
+      let alpha = e.kind === "cohort" ? 0.06 : 0.08 + e.weight * 0.28;
+      if (focus != null && e.fromId !== focus && e.toId !== focus) alpha *= 0.25;
       ctx.strokeStyle = `rgba(148, 163, 196, ${Math.min(0.4, alpha)})`;
       ctx.lineWidth = 0.7 + e.weight * 1.1;
       ctx.beginPath();
@@ -875,20 +904,40 @@ function startGraphLoop() {
       ctx.stroke();
     }
 
+    // label tampil bila node sedikit, zoom besar, atau node terpilih/hover/penting
+    const showAllLabels = graph.nodes.length <= 40 || graph.zoom > 1.6;
+
     for (let i = 0; i < graph.nodes.length; i++) {
       const n = graph.nodes[i];
       const p = graph.pos[i];
-      const r = 5 + n.importance * 5;
+      const deg = graph.degree.get(n.id) || 0;
+      const r = 5 + n.importance * 4 + Math.min(6, deg * 0.8);
+      const isFocus = focus != null && (n.id === focus || neighbors.has(n.id));
+      const dimmed = focus != null && !isFocus;
+      ctx.globalAlpha = dimmed ? 0.15 : 0.9;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = KIND_COLOR[n.kind] || "#8b93a2";
-      ctx.globalAlpha = 0.85;
       ctx.fill();
       ctx.globalAlpha = 1;
       if (graph.selected === n.id) {
         ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = 1.8;
         ctx.stroke();
+      } else if (graph.hover === n.id) {
+        ctx.strokeStyle = "rgba(255,255,255,.55)";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+      // Label ala Obsidian
+      if (showAllLabels || graph.labeled.has(n.id) || n.id === focus) {
+        ctx.globalAlpha = dimmed ? 0.12 : n.id === focus ? 0.95 : 0.7;
+        ctx.fillStyle = "#dfe3ec";
+        ctx.font = "10px Inter, sans-serif";
+        ctx.textAlign = "center";
+        const label = n.content.replace(/\s+/g, " ").slice(0, 26) + (n.content.length > 26 ? "…" : "");
+        ctx.fillText(label, p.x, p.y + r + 12);
+        ctx.globalAlpha = 1;
       }
     }
     ctx.restore();
@@ -977,6 +1026,7 @@ function renderGraphSide() {
       <div class="gs-kind" style="color:${KIND_COLOR[n.kind] || "#8b93a2"}">${t(KIND_LABEL[n.kind] || n.kind)} · importance ${(n.importance * 100).toFixed(0)}</div>
       <div class="gs-content">${esc(n.content)}</div>
       <div class="gs-meta">${esc(n.projectSlug || "global")} · ${esc(TOOL_LABEL[n.sourceTool] || n.sourceTool)} · ${fmtRel(n.createdAt)}</div>
+      <button class="btn" id="gsEdit" style="margin-top:10px">${t("Edit memory")}</button>
     </div>
     <div class="gs-title" style="margin-top:4px">Connections (${rels.length})</div>
     ${rels.length ? rels.map((r) => `
@@ -987,9 +1037,11 @@ function renderGraphSide() {
   side.querySelectorAll("[data-goto]").forEach((el) => {
     el.addEventListener("click", () => {
       graph.selected = Number(el.dataset.goto);
+      graph.dirty = true;
       renderGraphSide();
     });
   });
+  side.querySelector("#gsEdit")?.addEventListener("click", () => openEditModal(graph.selected));
 }
 
 function wireGraphCanvas() {
@@ -1003,13 +1055,25 @@ function wireGraphCanvas() {
     graph.lastY = e.clientY;
   });
   canvas.addEventListener("pointermove", (e) => {
-    if (!graph.drag) return;
+    if (!graph.drag) {
+      // Hover ala Obsidian: sorot node + tetangga, redupkan sisanya
+      const p = graphPointer(e);
+      const hit = graphHit(p);
+      const hv = hit >= 0 ? graph.nodes[hit].id : null;
+      if (graph.hover !== hv) {
+        graph.hover = hv;
+        graph.dirty = true;
+        canvas.style.cursor = hv != null ? "pointer" : "grab";
+      }
+      return;
+    }
     const dx = e.clientX - graph.drag.x;
     const dy = e.clientY - graph.drag.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
     graph.offX = graph.drag.startOffX + dx;
     graph.offY = graph.drag.startOffY + dy;
     graph.alpha = Math.max(graph.alpha, 0.15);
+    graph.dirty = true;
   });
   canvas.addEventListener("pointerup", (e) => {
     if (!graph.drag) return;
@@ -1018,6 +1082,7 @@ function wireGraphCanvas() {
       const p = graphPointer(e);
       const hit = graphHit(p);
       graph.selected = hit >= 0 ? graph.nodes[hit].id : null;
+      graph.dirty = true;
       renderGraphSide();
     }
   });
@@ -1025,6 +1090,7 @@ function wireGraphCanvas() {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     graph.zoom = Math.min(3, Math.max(0.25, graph.zoom * factor));
+    graph.dirty = true;
   }, { passive: false });
 }
 
