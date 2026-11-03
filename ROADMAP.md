@@ -15,12 +15,11 @@ Nama proyek pretty (basename + backfill) ✅ · Cache policy (HTML/JS/CSS no-cac
 Release v0.2.0 terbit (CI 3 OS hijau) ✅. Estimasi total ±65%.
 
 **Backlog eksekusi berikutnya (urut):**
-1. F2-2b: **Tab Tugas** (endpoint /api/tasks ada, buat UI board per proyek) + halaman detail proyek
-2. F2-2c: metrik RAM/latensi di /api/stats (process.memoryUsage) + batch embedding
-3. F2-2d: wizard first-run (deteksi Ollama/model) + safeStorage untuk API key + light theme
-4. F2-3: engine-side English (deskripsi tool MCP, label handoff, notifikasi OS) — configurable
-5. F1C (dipicu metrik): FTS5, embedding Float32 BLOB, virtualisasi list, SSE penuh
-6. F3: webhook, sync terenkripsi, test suite, code signing — butuh keputusan produk
+1. ~~F2-2b Tab Tugas~~ ✅ · ~~F2-2c metrik RAM + batch embedding~~ ✅ · ~~F2-2d wizard~~ ✅ (setup checklist) · ~~safeStorage~~ ✅ · ~~engine-side English~~ ✅
+2. Sisa F2: light theme (butuh pass token warna lebih dalam), halaman detail proyek (sebagian tercakup feed→timeline)
+3. Sisa F1C (dipicu metrik — RSS terukur ±125MB, masih sehat): FTS5, embedding Float32 BLOB, virtualisasi list, SSE penuh
+4. F3: webhook, sync terenkripsi, test suite, code signing — butuh keputusan produk
+5. Release v0.3.0 sudah terbit (CI 3 OS hijau); potong v0.3.1/v0.4.0 saat backlog berikutnya selesai
 
 **Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
 data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).
