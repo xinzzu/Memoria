@@ -1,47 +1,64 @@
 import { VecIndex } from "./vecindex";
 import { getDb } from "./store/db";
 
-let vecIndex: VecIndex | null = null;
-let indexCount = -1;
+/* Index vektor per-DIALEK: vektor dari model berbeda (nomic vs hash-256 vs
+ * embedding LM Studio) tidak boleh dicampur dalam satu ruang pencarian. */
 
-export function ensureVecIndex(): VecIndex | null {
-  const cntRow = getDb()
+interface DialectIndex {
+  index: VecIndex | null;
+  count: number;
+}
+
+const indexes = new Map<string, DialectIndex>();
+
+function dialectCount(model: string): number {
+  const row = getDb()
     .prepare(
-      "SELECT COUNT(*) AS c FROM memories WHERE archived = 0 AND status = 'active' AND embedding IS NOT NULL AND embedding != ''"
+      `SELECT COUNT(*) AS c FROM memories
+       WHERE archived = 0 AND status = 'active' AND embedding IS NOT NULL AND embedding != ''
+         AND COALESCE(embed_model, '') = ?`
     )
-    .get() as { c: number };
-  if (vecIndex && indexCount === cntRow.c) return vecIndex;
+    .get(model) as { c: number };
+  return row.c;
+}
 
-  vecIndex = null;
-  indexCount = cntRow.c;
-  if (cntRow.c === 0) return null;
+export function ensureVecIndex(model: string): VecIndex | null {
+  const target = dialectCount(model);
+  const cached = indexes.get(model);
+  if (cached && cached.count === target) return cached.index;
+
+  indexes.set(model, { index: null, count: target });
+  if (target === 0) return null;
 
   const rows = getDb()
     .prepare(
-      "SELECT id, embedding FROM memories WHERE archived = 0 AND status = 'active' AND embedding IS NOT NULL AND embedding != ''"
+      `SELECT id, embedding FROM memories
+       WHERE archived = 0 AND status = 'active' AND embedding IS NOT NULL AND embedding != ''
+         AND COALESCE(embed_model, '') = ?`
     )
-    .all() as Array<{ id: number; embedding: string }>;
+    .all(model) as Array<{ id: number; embedding: string }>;
+  let index: VecIndex | null = null;
   let dim = 0;
   for (const r of rows) {
     try {
       const emb = JSON.parse(r.embedding) as number[];
       if (!dim) dim = emb.length;
-      if (!vecIndex) vecIndex = new VecIndex(dim);
-      vecIndex.add(r.id, emb);
+      if (!index) index = new VecIndex(dim);
+      index.add(r.id, emb);
     } catch {
       continue;
     }
   }
-  return vecIndex;
+  indexes.set(model, { index, count: target });
+  return index;
 }
 
 export function invalidateVecIndex(): void {
-  vecIndex = null;
-  indexCount = -1;
+  indexes.clear();
 }
 
-export function vecCandidates(emb: number[], need: number): Set<number> {
-  const idx = ensureVecIndex();
+export function vecCandidates(emb: number[], need: number, model = ""): Set<number> {
+  const idx = ensureVecIndex(model);
   const set = new Set<number>();
   if (!idx || idx.isEmpty) return set;
   for (const id of idx.search(emb, need)) set.add(id);

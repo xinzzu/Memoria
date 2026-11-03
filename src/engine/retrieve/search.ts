@@ -73,7 +73,7 @@ export function keywordScore(content: string, query: string): number {
 
 export function searchMemories(
   query: string,
-  opts: { limit?: number; projectSlug?: string; kind?: string } = {},
+  opts: { limit?: number; projectSlug?: string; kind?: string; embedModel?: string } = {},
   queryEmbedding?: number[] | null
 ): SearchHit[] {
   const limit = opts.limit ?? 10;
@@ -82,7 +82,9 @@ export function searchMemories(
   const now = Date.now();
   const centrality = loadCentrality();
   const qEmb = queryEmbedding && queryEmbedding.length ? queryEmbedding : null;
-  const semCands = qEmb ? vecCandidates(qEmb, limit) : null;
+  // Guard dialek: vektor dari model berbeda tidak boleh dibandingkan silang.
+  const qModel = opts.embedModel || "";
+  const semCands = qEmb ? vecCandidates(qEmb, limit, qModel) : null;
 
   for (const m of memories) {
     if (opts.projectSlug) {
@@ -91,7 +93,7 @@ export function searchMemories(
     }
     if (opts.kind && m.kind !== opts.kind) continue;
     const kw = keywordScore(m.content, query);
-    const sem = m.embedding && qEmb && (!semCands || semCands.has(m.id!))
+    const sem = m.embedding && qEmb && (m.embedModel || "") === qModel && (!semCands || semCands.has(m.id!))
       ? vecCosine(m.embedding, qEmb)
       : 0;
     const ageDays = (now - m.createdAt) / 86400000;

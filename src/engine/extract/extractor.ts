@@ -1,5 +1,5 @@
 import { getDb, getPendingExtraction, markExtracted, projectSlugById, getBoolSetting } from "../store/db";
-import { extractMemories, embed, ollamaAvailable } from "./ollama";
+import { getExtractProvider, getEmbedProvider } from "./provider";
 import { addMemoryWithDedupe } from "./dedupe";
 
 let running = false;
@@ -38,13 +38,19 @@ export async function extractQueue(force = false, opts: { order?: "asc" | "desc"
   running = true;
   let extracted = 0;
   try {
-    if (!(await ollamaAvailable())) return 0;
+    // Tiered intelligence: pilihan mesin dibaca tiap siklus (ubah di Pengaturan
+    // langsung aktif). Tanpa model apapun pun, heuristik tetap menghasilkan memori.
+    const extractProv = await getExtractProvider();
+    const embedProv = await getEmbedProvider();
     // order "desc" = sesi TERBARU diproses duluan — dipakai hot-path resume agar
     // konteks untuk pindah tool tersedia secepatnya, sisanya menyusul di background.
     const pending = getPendingExtraction(160, opts.order ?? "asc");
     if (!pending.length) return 0;
-    const reviewMode = getBoolSetting("reviewMode", false);
-    const status = reviewMode ? "draft" : "active";
+    // Hasil heuristik kualitasnya lebih rendah → SELALU lewat antrian tinjau (draft),
+    // terlepas dari mode tinjau global.
+    const heuristic = extractProv.id === "heuristic";
+    const status = heuristic ? "draft" : getBoolSetting("reviewMode", false) ? "draft" : "active";
+    const origin = heuristic ? "heuristic" : "llm";
 
     const bySession = new Map<string, typeof pending>();
     for (const t of pending) {
@@ -69,13 +75,13 @@ export async function extractQueue(force = false, opts: { order?: "asc" | "desc"
           role: r.role === "user" ? "user" : "assistant",
           content: r.content,
         }));
-        const memories = await extractMemories({ projectName: projectSlugById(projectId) || "unknown", conversation });
+        const memories = await extractProv.extract(projectSlugById(projectId) || "unknown", conversation);
         const ids = winRows.map((r) => r.id as number).filter((x) => x != null);
-        if (!memories) break; // ollama hiccup → retry next cycle
+        if (!memories) break; // provider bermasalah → coba siklus berikutnya
         for (const mem of memories) {
           if (isGenericMemory(mem.content)) continue;
           if (mem.importance < 0.3) continue;
-          const embedding = await embed(mem.content);
+          const embedding = await embedProv.embed(mem.content);
           addMemoryWithDedupe({
             projectId: projectId || null,
             kind: mem.kind,
@@ -87,6 +93,8 @@ export async function extractQueue(force = false, opts: { order?: "asc" | "desc"
             sourceTool: tool,
             embedding,
             status,
+            origin,
+            embedModel: embedProv.embedModel,
           });
           extracted++;
         }

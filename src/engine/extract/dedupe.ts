@@ -19,26 +19,51 @@ export interface DedupeResult {
   mergedInto?: number;
 }
 
+// Ambang kemiripan per dialek: hash-256 lebih kasar → threshold lebih longgar.
+function simThreshold(embedModel: string): number {
+  return embedModel.startsWith("hash-") ? 0.85 : 0.92;
+}
+
+function tokens(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .split(/[\s,.;:!?"'()[\]{}<>\\/|@#$%^&*+=~`-]+/)
+      .filter((t) => t.length > 2)
+  );
+}
+
+/** Kemiripan teks tanpa embedding (Jaccard token) — jalur dedupe untuk mode tanpa model. */
+export function textSimilarity(a: string, b: string): number {
+  const ta = tokens(a);
+  const tb = tokens(b);
+  if (!ta.size || !tb.size) return 0;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  return inter / (ta.size + tb.size - inter);
+}
+
 export function addMemoryWithDedupe(m: Memory): DedupeResult {
   if (!m.status) m.status = effectiveStatus();
-  if (!m.embedding || !m.embedding.length) {
-    insertMemory(m);
-    const newId = lastInsertId();
-    if (newId != null) linkNew(newId);
-    return { inserted: true };
-  }
-  const candidates = allMemories().filter((x) => x.embedding && x.embedding.length);
+  const hasEmb = !!(m.embedding && m.embedding.length);
+  const threshold = simThreshold(m.embedModel || "");
+  const candidates = allMemories().filter((x) => {
+    if (m.projectId != null && x.projectId != null && x.projectId !== m.projectId) return false;
+    if (hasEmb) return !!(x.embedding && x.embedding.length) && (x.embedModel || "") === (m.embedModel || "");
+    return true; // jalur teks: bandingkan dengan semua kandidat proyek sama
+  });
   let best = -1;
   let bestSim = 0;
   for (const cand of candidates) {
-    if (m.projectId != null && cand.projectId != null && cand.projectId !== m.projectId) continue;
-    const sim = cosine(m.embedding, cand.embedding!);
+    const sim = hasEmb && cand.embedding ? cosine(m.embedding!, cand.embedding) : textSimilarity(m.content, cand.content);
     if (sim > bestSim && sim > 0.5) {
       bestSim = sim;
       best = cand.id!;
     }
   }
-  if (bestSim >= 0.92) {
+  // Tanpa embedding pakai threshold lebih ketat (teks lebih mudah false-positive).
+  const mergeAt = hasEmb ? threshold : 0.85;
+  if (best >= 0 && bestSim >= mergeAt) {
     const existing = candidates.find((c) => c.id === best)!;
     updateMemory(best, {
       importance: Math.max(existing.importance, m.importance),

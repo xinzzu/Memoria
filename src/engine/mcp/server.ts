@@ -8,7 +8,7 @@ import { ensureDb } from "../ingest/manager";
 import { searchMemories, projectContext } from "../retrieve/search";
 import { ensureProject, memoryById, effectiveStatus, getDb, resolveProject } from "../store/db";
 import { looksLikePath, projectSlugFromCwd } from "../ingest/util";
-import { embed } from "../extract/ollama";
+import { getEmbedProvider } from "../extract/provider";
 import { relatedMemories } from "../graph";
 import { addMemoryWithDedupe } from "../extract/dedupe";
 
@@ -96,8 +96,9 @@ export function createMcpServer(): Server {
       case "recall": {
         const query = String(a.query || "");
         // Embed query agar skor semantik aktif — tanpa ini recall MCP hanya keyword.
-        const qEmb = await embed(query);
-        const results = searchMemories(query, { limit: Number(a.limit || 8) }, qEmb);
+        const eprov = await getEmbedProvider();
+        const qEmb = await eprov.embed(query);
+        const results = searchMemories(query, { limit: Number(a.limit || 8), embedModel: eprov.embedModel }, qEmb);
         if (!results.length) {
           return {
             content: [{ type: "text", text: "Tidak ada memori yang cocok. Ini sesi baru, lanjutkan tugas user seperti biasa." }],
@@ -125,8 +126,9 @@ export function createMcpServer(): Server {
       case "related": {
         let memId = Number(a.id || 0);
         if (!memId && a.query) {
-          const qEmb = await embed(String(a.query));
-          const hits = searchMemories(String(a.query), { limit: 1 }, qEmb);
+          const eprov = await getEmbedProvider();
+          const qEmb = await eprov.embed(String(a.query));
+          const hits = searchMemories(String(a.query), { limit: 1, embedModel: eprov.embedModel }, qEmb);
           memId = hits[0]?.id ?? 0;
         }
         if (!memId) {
@@ -159,7 +161,8 @@ export function createMcpServer(): Server {
               // nama proyek polos di-resolve jadi <cwd>/<nama> yang menyesatkan.
               ensureProject(projectSlugFromCwd(project), looksLikePath(project) ? project : undefined)
             : null;
-        const embedding = await embed(content);
+        const eprov = await getEmbedProvider();
+        const embedding = await eprov.embed(content);
         addMemoryWithDedupe({
           projectId,
           kind,
@@ -171,6 +174,8 @@ export function createMcpServer(): Server {
           sourceTool: "mcp",
           embedding,
           status: effectiveStatus(),
+          origin: "user",
+          embedModel: eprov.embedModel,
         });
         return { content: [{ type: "text", text: `Memori tersimpan: [${kind}] ${content}` }] };
       }

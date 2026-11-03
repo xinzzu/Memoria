@@ -28,6 +28,10 @@ export interface Memory {
   embedding?: number[] | null;
   status?: string;
   resolvedAt?: number;
+  /** Asal memori: llm (default) | heuristic | user — untuk transparansi kualitas. */
+  origin?: string;
+  /** Dialek embedding (nama model / hash-256-v1). Vektor lintas dialek tak boleh dibandingkan. */
+  embedModel?: string;
 }
 
 let db: DatabaseSync | null = null;
@@ -131,6 +135,12 @@ function migrate(d: DatabaseSync): void {
   }
   if (!cols.includes("resolved_at")) {
     d.exec("ALTER TABLE memories ADD COLUMN resolved_at INTEGER DEFAULT 0");
+  }
+  if (!cols.includes("origin")) {
+    d.exec("ALTER TABLE memories ADD COLUMN origin TEXT DEFAULT 'llm'");
+  }
+  if (!cols.includes("embed_model")) {
+    d.exec("ALTER TABLE memories ADD COLUMN embed_model TEXT DEFAULT ''");
   }
 }
 
@@ -327,8 +337,8 @@ export function countMemories(): number {
 export function insertMemory(m: Memory): void {
   const d = getDb();
   d.prepare(
-    `INSERT INTO memories (project_id, kind, content, importance, created_at, source_tool, embedding, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO memories (project_id, kind, content, importance, created_at, source_tool, embedding, status, origin, embed_model)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     m.projectId,
     m.kind,
@@ -337,7 +347,9 @@ export function insertMemory(m: Memory): void {
     m.createdAt,
     m.sourceTool,
     m.embedding ? JSON.stringify(m.embedding) : null,
-    m.status || "active"
+    m.status || "active",
+    m.origin || "user",
+    m.embedModel || ""
   );
   // node:sqlite mengembalikan objek ber-prototype null — ambil properti .id-nya.
   // Number(row) di atas objek null-prototype melempar "Cannot convert object to
@@ -521,6 +533,8 @@ function readMemories(whereClause: string, params: Array<number | string | null>
     embedding: string | null;
     status: string | null;
     resolved_at: number;
+    origin: string | null;
+    embed_model: string | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
@@ -535,6 +549,8 @@ function readMemories(whereClause: string, params: Array<number | string | null>
     embedding: r.embedding ? JSON.parse(r.embedding) : null,
     status: r.status || "active",
     resolvedAt: r.resolved_at || 0,
+    origin: r.origin || "user",
+    embedModel: r.embed_model || "",
   }));
 }
 
