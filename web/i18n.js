@@ -302,7 +302,19 @@
   "Registered in ~/.config/opencode/opencode.json": "Terdaftar di ~/.config/opencode/opencode.json",
   "Registered in ~/.gemini/settings.json": "Terdaftar di ~/.gemini/settings.json",
   "Registered in ~/.copilot/mcp-config.json": "Terdaftar di ~/.copilot/mcp-config.json",
-  "Registered in ~/.gemini/config/mcp_config.json": "Terdaftar di ~/.gemini/config/mcp_config.json"
+  "Registered in ~/.gemini/config/mcp_config.json": "Terdaftar di ~/.gemini/config/mcp_config.json",
+  "Weekly digest generated ({0} memories)": "Ringkasan mingguan dibuat ({0} memori)",
+  "Topic tags built: {0} memories → {1} topics": "Tag topik dibangun: {0} memori → {1} topik",
+  "Shortcut saved — applies after app restart": "Shortcut disimpan — berlaku setelah restart aplikasi",
+  "Restore memory": "Kembalikan memori",
+  "Open": "Buka",
+  "Projects appear automatically as AI tools record activity.": "Proyek muncul otomatis saat AI tools mencatat aktivitas.",
+  "MCP stdio — mirrors context into every `/memory` session": "MCP stdio — kloning konteks tiap sesi `/memory`",
+  "Failed to save setting: ": "Gagal simpan pengaturan: ",
+  "Scan finished — new: {0}": "Scan selesai — baru: {0}",
+  "Scan failed: ": "Gagal scan: ",
+  "JSON export finished": "Ekspor JSON selesai",
+  "Failed to save shortcut: ": "Gagal simpan shortcut: "
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
