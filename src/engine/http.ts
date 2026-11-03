@@ -15,8 +15,27 @@ import { countOpen } from "./extract/tasklife";
 
 function sendJson(res: ServerResponse, code: number, data: unknown): void {
   const body = JSON.stringify(data);
-  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" });
+  // CORS hanya untuk origin lokal — situs eksternal tidak boleh membaca respons API.
+  const origin = String(res.req?.headers?.origin || "");
+  const allowOrigin = isLocalHost(origin) ? origin : "";
+  res.writeHead(code, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...(allowOrigin ? { "Access-Control-Allow-Origin": allowOrigin, Vary: "Origin" } : {}),
+  });
   res.end(body);
+}
+
+function isLocalHost(hostOrUrl: string): boolean {
+  if (!hostOrUrl) return false;
+  let hostname = hostOrUrl;
+  if (hostOrUrl.includes("://")) {
+    try {
+      hostname = new URL(hostOrUrl).hostname;
+    } catch {
+      return false;
+    }
+  }
+  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1" || hostname === "[::1]";
 }
 
 function enrichMemory(m: any): any {
@@ -42,14 +61,37 @@ function readBody(req: IncomingMessage): Promise<any> {
   });
 }
 
-export function startHttpServer(): void {
+export function startHttpServer(): Promise<void> {
   ensureDb();
   const port = getConfig().httpPort;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://localhost:${port}`);
     try {
+      // --- Pemeriksaan keamanan (server hanya boleh diakses dari mesin ini) ---
+      // 1) Host header: proteksi DNS-rebinding (host asing = tolak).
+      const hostName = String(req.headers.host || "").replace(/:\d+$/, "").toLowerCase();
+      if (hostName && !isLocalHost(hostName)) {
+        sendJson(res, 403, { error: "forbidden host" });
+        return;
+      }
+      // 2) Origin untuk request pengubah data: cegah drive-by dari situs eksternal.
+      if (req.method !== "GET" && req.headers.origin && !isLocalHost(String(req.headers.origin))) {
+        sendJson(res, 403, { error: "forbidden origin" });
+        return;
+      }
+      // 3) Token opsional (setting "apiToken") untuk lapisan tambahan.
+      const apiToken = getSetting("apiToken", "");
+      if (apiToken && req.headers["x-memoria-token"] !== apiToken) {
+        sendJson(res, 401, { error: "token tidak valid (header x-memoria-token)" });
+        return;
+      }
       if (req.method === "OPTIONS") {
-        res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET,POST", "Access-Control-Allow-Headers": "Content-Type" });
+        const origin = String(req.headers.origin || "");
+        res.writeHead(204, {
+          ...(isLocalHost(origin) ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" } : {}),
+          "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE",
+          "Access-Control-Allow-Headers": "Content-Type,x-memoria-token",
+        });
         res.end();
         return;
       }
@@ -321,7 +363,11 @@ export function startHttpServer(): void {
       sendJson(res, 500, { error: String(e) });
     }
   });
-  server.listen(port, () => {
-    console.log(`[memoria] HTTP API aktif di http://localhost:${port}`);
+  // Bind eksplisit ke loopback — tanpa ini Node bind ke semua interface (LAN ikut kebuka).
+  return new Promise<void>((resolve) => {
+    server.listen(port, "127.0.0.1", () => {
+      console.log(`[memoria] HTTP API aktif di http://127.0.0.1:${port} (khusus mesin ini)`);
+      resolve();
+    });
   });
 }
