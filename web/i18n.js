@@ -266,7 +266,15 @@
   "Backup & data": "Cadangan & Data",
   "enabled": "diaktifkan",
   "disabled": "dimatikan",
-  "Scan finished — nothing new": "Scan selesai — tidak ada data baru"
+  "Scan finished — nothing new": "Scan selesai — tidak ada data baru",
+  "Welcome to Memoria 👋": "Selamat datang di Memoria 👋",
+  "Your AI tools' sessions are captured automatically — decisions, tasks and fixes become memories shared across every tool. Start with a scan, or register your tools.": "Sesi AI tools Anda tertangkap otomatis — keputusan, tugas, dan perbaikan jadi memori yang dipakai bersama semua tool. Mulai dengan scan, atau daftarkan tool Anda.",
+  "Connect your AI tools": "Daftarkan AI tools Anda",
+  "Recent memories": "Memori terbaru",
+  "Recent projects": "Proyek terakhir",
+  "Search memories… e.g. database, ERP, bug login": "Cari memori… mis. database, ERP, bug login",
+  "Ollama: checking…": "Ollama: mengecek…",
+  "Engine: active": "Engine: aktif"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],

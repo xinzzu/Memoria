@@ -189,6 +189,33 @@ async function loadProjects() {
 }
 
 function renderOverview() {
+  // Onboarding hero saat belum ada data sama sekali — bukan kehampaan.
+  const hero = $("#overviewHero");
+  if (hero) {
+    const st = state.stats;
+    if (st && st.transcripts === 0) {
+      hero.innerHTML = `<div class="hero">
+        <h3>${t("Welcome to Memoria 👋")}</h3>
+        <p>${t("Your AI tools' sessions are captured automatically — decisions, tasks and fixes become memories shared across every tool. Start with a scan, or register your tools.")}</p>
+        <div class="hero-actions">
+          <button class="btn primary" id="heroScan">${t("Scan now")}</button>
+          <button class="btn" id="heroIntegrations">${t("Connect your AI tools")}</button>
+        </div>
+      </div>`;
+      hero.querySelector("#heroScan")?.addEventListener("click", doScan);
+      hero.querySelector("#heroIntegrations")?.addEventListener("click", () => setView("integrations"));
+    } else if (!st) {
+      // skeleton saat stats belum termuat
+      hero.innerHTML = `<div class="skeleton"></div><div class="skeleton" style="height:20px"></div>`;
+    } else {
+      hero.innerHTML = "";
+    }
+  }
+  // Skeleton list saat data belum ada
+  const rl0 = $("#recentList");
+  if (rl0 && !state.stats && !rl0.innerHTML.trim()) {
+    rl0.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="height:40px"></div>';
+  }
   const recent = (state.stats && state.stats.recent) || [];
   const rl = $("#recentList");
   if (!recent.length) {
