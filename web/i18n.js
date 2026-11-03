@@ -314,7 +314,9 @@
   "Scan failed: ": "Gagal scan: ",
   "JSON export finished": "Ekspor JSON selesai",
   "Failed to save shortcut: ": "Gagal simpan shortcut: ",
-  "Welcome to Memoria": "Selamat datang di Memoria"
+  "Welcome to Memoria": "Selamat datang di Memoria",
+  "One click registers Memoria as an MCP server (stdio) in your AI tools. Every new session automatically pulls project context and stores new memories.": "Sekali klik, Memoria terdaftar sebagai MCP server (stdio) di tool AI Anda. Tiap sesi baru otomatis memuat konteks proyek dan menyimpan memori baru.",
+  "OpenAI-compatible endpoint — LM Studio (localhost:1234), llama.cpp, vLLM, or cloud. <b style='color:var(--warn, #e5686b)'>Privacy note:</b> using a cloud endpoint means session content leaves this machine.": "Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style='color:var(--warn, #e5686b)'>Catatan privasi:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini."
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
