@@ -107,7 +107,7 @@ export function resumeSectionLines(d: ResumeData): string[] {
   if (!hasAny) return [];
   const lines: string[] = [];
   const head = [
-    "## ⏸️ LANJUTAN SESI",
+    "## SESSION RESUME",
     `> ${d.lastTool ?? "tool tidak diketahui"}${d.lastTs ? ` · ${hhmm(d.lastTs)}` : ""}${
       d.git?.branch ? ` · branch: ${d.git.branch}` : ""
     }`,
