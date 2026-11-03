@@ -732,6 +732,38 @@
     .tl-day::after { content: ""; flex: 1; height: 1px; background: var(--border-soft); }
     .pre { background: var(--panel); border: 1px solid var(--border-soft); border-radius: 14px; }
 
+
+    /* ===== Memories: kartu baris ===== */
+    .mem {
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--border-soft); border-radius: 13px;
+      padding: 12px 14px; margin-bottom: 10px; position: relative;
+      transition: border-color .13s, transform .1s;
+    }
+    .mem:hover { border-color: rgba(110,141,255,.35); }
+    .mem.open { border-color: rgba(110,141,255,.5); }
+    .mem-meta { font-size: 11px; color: var(--faint); gap: 7px; }
+    .mem-meta .sep { opacity: .5; }
+    .mem-kind { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 650;
+      letter-spacing: .03em; }
+    .mem-kind.kind-fact          { background: rgba(110,141,255,.14); color: #9db2ff; }
+    .mem-kind.kind-decision      { background: rgba(217,160,91,.14);  color: #eec08a; }
+    .mem-kind.kind-task_done     { background: rgba(76,195,138,.13);  color: #6fe0ac; }
+    .mem-kind.kind-Done          { background: rgba(76,195,138,.13);  color: #6fe0ac; }
+    .mem-kind.kind-task_pending  { background: rgba(229,104,107,.13); color: #ff9d9f; }
+    .mem-kind.kind-Pending       { background: rgba(229,104,107,.13); color: #ff9d9f; }
+    .mem-kind.kind-error_fixed   { background: rgba(224,138,92,.13);  color: #ffb28a; }
+    .mem-kind.kind-preference    { background: rgba(157,140,255,.14); color: #b9abff; }
+    .mem-kind.kind-context       { background: rgba(139,147,162,.14); color: #a7afbf; }
+    .mem-content { font-size: 13.5px; line-height: 1.55; color: var(--text);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .mem.open .mem-content { -webkit-line-clamp: unset; display: block; }
+    .mem-actions {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      padding: 3px 5px; gap: 2px; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+    }
+    .mem:hover .mem-actions { opacity: 1; }
+
   </style>
 </head>
 <body>
@@ -888,9 +920,9 @@
             <h3 data-i18n="Memory library">Memory library</h3>
           </div>
           <div class="mem-tabs" style="display:flex; gap:6px; margin-bottom:12px">
-            <button class="seg active" data-memtab="active" data-i18n="Active">Active</button>
-            <button class="seg" data-memtab="draft" data-i18n="Pending approval">Pending approval</button>
-            <button class="seg" data-memtab="archived" data-i18n="Archive">Archive</button>
+            <button class="seg active" data-memtab="active"><span data-i18n="Active">Active</span> <span class="count" id="cntActive"></span></button>
+            <button class="seg" data-memtab="draft"><span data-i18n="Pending approval">Pending approval</span> <span class="count" id="cntDraft"></span></button>
+            <button class="seg" data-memtab="archived"><span data-i18n="Archive">Archive</span> <span class="count" id="cntArchive"></span></button>
           </div>
           <div class="filter-bar" style="display:flex; gap:8px; margin-bottom:16px">
             <select id="filterKind" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-size:12.5px; font-family:var(--font); outline:none">
