@@ -254,7 +254,7 @@
     /* ---------- Settings ---------- */
         #view-settings.active { height: 100%; display: flex; flex-direction: column; }
     #view-settings:not(.active) { display: none; }
-    .settings-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; align-items: start; }
+    .settings-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; }
         .settings-navcol { min-width: 0; overflow: hidden; }
     .settings-navcol .settings-tabs { display: flex; flex-direction: column; gap: 3px; }
     .settings-tabs .stab { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 9px;
@@ -1253,6 +1253,7 @@
                 <div class="switch" data-sw="injectFile:GEMINI.md"></div>
               </div>
             </div>
+          </div>
           <div class="settings-group" data-stab="data">
 <div class="card">
               <h4 data-i18n="Memory topics">Memory topics</h4>
@@ -1292,7 +1293,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- Modal -->
   <div class="overlay" id="overlay">
