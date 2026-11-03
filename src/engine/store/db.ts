@@ -448,6 +448,29 @@ export function approveMemory(id: number): boolean {
   return res.changes > 0;
 }
 
+/** Daftar task per proyek: terbuka (belum resolved) & selesai. */
+export function listTasks(projectId: number | null, limit = 300): { open: Memory[]; done: Memory[] } {
+  const cond = projectId != null ? "AND project_id = ?" : "";
+  const params = projectId != null ? [projectId, limit] : [limit];
+  const open = readMemories(
+    `WHERE kind = 'task_pending' AND archived = 0 AND status = 'active' AND COALESCE(resolved_at, 0) = 0 ${cond} ORDER BY created_at DESC LIMIT ?`,
+    params
+  );
+  const done = readMemories(
+    `WHERE kind = 'task_pending' AND archived = 0 AND status = 'active' AND COALESCE(resolved_at, 0) > 0 ${cond} ORDER BY resolved_at DESC LIMIT ?`,
+    params
+  );
+  return { open, done };
+}
+
+/** Toggle resolved manual dari dashboard Tasks. */
+export function setTaskResolved(id: number, resolved: boolean): boolean {
+  const res = getDb()
+    .prepare("UPDATE memories SET resolved_at = ?, updated_at = ? WHERE id = ?")
+    .run(resolved ? Date.now() : 0, Date.now(), id);
+  return res.changes > 0;
+}
+
 export function markResolved(id: number): boolean {
   const res = getDb()
     .prepare("UPDATE memories SET resolved_at = ?, updated_at = ? WHERE id = ?")
