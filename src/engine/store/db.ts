@@ -265,12 +265,12 @@ export function setSourceOffset(tool: string, file: string, offset: number, mtim
   ).run(tool, path.dirname(file), file, offset, mtime);
 }
 
-export function getPendingExtraction(limit = 30): Transcript[] {
+export function getPendingExtraction(limit = 30, order: "asc" | "desc" = "asc"): Transcript[] {
   const d = getDb();
   const rows = d
     .prepare(
       `SELECT id, tool, session_id AS sessionId, project_id AS projectId, role, content, ts, seq
-       FROM transcripts WHERE extracted = 0 AND content != '' ORDER BY ts ASC LIMIT ?`
+       FROM transcripts WHERE extracted = 0 AND content != '' ORDER BY ts ${order === "desc" ? "DESC" : "ASC"} LIMIT ?`
     )
     .all(limit) as unknown as Transcript[];
   return rows;

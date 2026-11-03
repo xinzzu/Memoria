@@ -31,7 +31,7 @@ export function isGenericMemory(content: string): boolean {
   return false;
 }
 
-export async function extractQueue(force = false): Promise<number> {
+export async function extractQueue(force = false, opts: { order?: "asc" | "desc" } = {}): Promise<number> {
   if (running) return 0;
   if (!force && Date.now() - lastAttempt < 30_000) return 0;
   lastAttempt = Date.now();
@@ -39,7 +39,9 @@ export async function extractQueue(force = false): Promise<number> {
   let extracted = 0;
   try {
     if (!(await ollamaAvailable())) return 0;
-    const pending = getPendingExtraction(160);
+    // order "desc" = sesi TERBARU diproses duluan — dipakai hot-path resume agar
+    // konteks untuk pindah tool tersedia secepatnya, sisanya menyusul di background.
+    const pending = getPendingExtraction(160, opts.order ?? "asc");
     if (!pending.length) return 0;
     const reviewMode = getBoolSetting("reviewMode", false);
     const status = reviewMode ? "draft" : "active";
