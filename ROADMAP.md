@@ -5,6 +5,29 @@
 
 ---
 
+## ⏭️ POSI TERKINI (2026-11-04) — untuk melanjutkan kerja
+
+**Selesai & ter-push (main @ 7ac6e20):** F0 ✅ · F1A ✅ (acceptance 12/12) · F1B ✅ (smoke 6/6) ·
+F2 batch-1 & 1b: i18n EN default (310 entri) ✅ · Settings sub-tab ✅ · Overview Polysure (greeting,
+kartu pastel, area chart, feed "Recently worked on") ✅ · Sidebar v3 monokrom + logo asli ✅ ·
+Graph ala Obsidian (label, hover-focus, dirty-flag, tombol Edit) ✅ · Memories kartu + badge jumlah ✅ ·
+Nama proyek pretty (basename + backfill) ✅ · Cache policy (HTML/JS/CSS no-cache) ✅ ·
+Release v0.2.0 terbit (CI 3 OS hijau) ✅. Estimasi total ±65%.
+
+**Backlog eksekusi berikutnya (urut):**
+1. F2-2b: **Tab Tugas** (endpoint /api/tasks ada, buat UI board per proyek) + halaman detail proyek
+2. F2-2c: metrik RAM/latensi di /api/stats (process.memoryUsage) + batch embedding
+3. F2-2d: wizard first-run (deteksi Ollama/model) + safeStorage untuk API key + light theme
+4. F2-3: engine-side English (deskripsi tool MCP, label handoff, notifikasi OS) — configurable
+5. F1C (dipicu metrik): FTS5, embedding Float32 BLOB, virtualisasi list, SSE penuh
+6. F3: webhook, sync terenkripsi, test suite, code signing — butuh keputusan produk
+
+**Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
+data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).
+Static asset HTML/JS/CSS = no-cache; gambar cache 1 jam. `npm run check:ui` = audit selector.
+
+---
+
 ## 0. Ringkasan Eksekutif
 
 Memoria = second brain offline untuk semua AI coding tool. Rencana ini menyatukan:
