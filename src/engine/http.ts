@@ -306,8 +306,8 @@ export function startHttpServer(): Promise<void> {
           sendJson(res, 400, { error: "key & value wajib" });
         }
       } else if (url.pathname === "/api/handoff" && req.method === "GET") {
-        const slug = url.searchParams.get("slug") || "";
-        const md = await generateHandoff(slug);
+        const proj = resolveProject(url.searchParams.get("slug") || "");
+        const md = await generateHandoff(proj ? proj.slug : "");
         sendJson(res, 200, { text: md });
       } else if (url.pathname === "/api/resume" && req.method === "GET") {
         // Prompt lanjutan ringkas siap-paste — plan B bila injeksi file tidak terbaca tool.
