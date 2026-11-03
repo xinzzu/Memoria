@@ -1001,7 +1001,7 @@
         <div class="view" id="view-integrations">
           <div class="card" style="margin-bottom:16px">
             <h4 data-i18n="Register MCP server">Register MCP server</h4>
-            <div class="card-desc">Sekali klik, Memoria terdaftar sebagai MCP server (stdio) di tool AI Anda. Tiap sesi baru otomatis memuat konteks proyek dan menyimpan memori baru.</div>
+            <div class="card-desc" data-i18n-html="One click registers Memoria as an MCP server (stdio) in your AI tools. Every new session automatically pulls project context and stores new memories.">One click registers Memoria as an MCP server (stdio) in your AI tools. Every new session automatically pulls project context and stores new memories.</div>
           </div>
           <div id="integrationsBox"></div>
         </div>
@@ -1047,7 +1047,7 @@
                 </select>
               </div>
               <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
-                <div class="card-desc">Endpoint OpenAI-compatible — LM Studio (localhost:1234), llama.cpp, vLLM, atau cloud. <b style="color:var(--warn, #e5686b)" data-i18n="Privacy note:">Privacy note:</b> memakai endpoint cloud berarti konten sesi keluar dari mesin ini.</div>
+                <div class="card-desc" data-i18n-html="OpenAI-compatible endpoint — LM Studio (localhost:1234), llama.cpp, vLLM, or cloud. <b style='color:var(--warn, #e5686b)'>Privacy note:</b> using a cloud endpoint means session content leaves this machine.">OpenAI-compatible endpoint — LM Studio (localhost:1234), llama.cpp, vLLM, or cloud. <b style='color:var(--warn, #e5686b)'>Privacy note:</b> using a cloud endpoint means session content leaves this machine.</div>
                 <input type="text" id="setOpenaiBaseUrl" placeholder="http://localhost:1234/v1" style="width:100%; margin-top:6px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
                 <div style="display:flex; gap:8px; margin-top:8px">
                   <input type="text" id="setOpenaiExtractModel" placeholder="extraction model" data-i18n-ph="extraction model" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
