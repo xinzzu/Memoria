@@ -102,7 +102,10 @@ function serveStatic(url: URL, res: ServerResponse): boolean {
   }
   try {
     const data = fs.readFileSync(file);
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream" });
+    const mime = MIME[path.extname(file).toLowerCase()] || "application/octet-stream";
+    // HTML tanpa cache agar update UI langsung terlihat; aset lain cache singkat.
+    const cache = mime.startsWith("text/html") ? "no-cache" : "max-age=300";
+    res.writeHead(200, { "Content-Type": mime, "Cache-Control": cache });
     res.end(data);
   } catch {
     sendJson(res, 404, { error: "not found" });

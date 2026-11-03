@@ -161,6 +161,12 @@ async function loadStats() {
     // Chip topbar kini menampilkan mesin aktif (bukan cuma status Ollama) —
     // user tanpa Ollama tetap melihat bahwa heuristik yang bekerja.
     $("#ollamaText").textContent = engine ? engine.extract : (ollama ? t("Ollama: online") : t("Ollama: offline"));
+    // Badge jumlah di tab pustaka memori
+    const st2 = state.stats || {};
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("cntActive", st2.memories ?? "");
+    set("cntDraft", st2.draft ?? "");
+    set("cntArchive", st2.archived ?? "");
     $("#sOllama").textContent = "Ollama: " + (ollama ? "online" : "offline");
     if (state.view === "overview") renderOverview();
     if (state.view === "settings") renderSettings();
