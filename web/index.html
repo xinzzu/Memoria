@@ -599,6 +599,66 @@
     }
     @keyframes shimmer { 100% { transform: translateX(100%); } }
 
+
+    /* ================= SKIN v2 — Polysure-style ================= */
+    body { padding: 10px; }
+    .layout { height: calc(100vh - 20px); border-radius: 20px; overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04); }
+    .content { padding: 20px 26px; }
+
+    /* Greeting */
+    .greet { margin-bottom: 18px; }
+    .greet h2 { font-size: 22px; letter-spacing: -.02em; }
+    .greet h2 .gname { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .greet p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+    /* Kartu pastel 4 warna */
+    .hi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .hi-grid .stat { border: none; border-radius: 16px; padding: 16px 16px 14px; color: #191919; }
+    .hi-grid .stat .stat-label { font-weight: 600; color: inherit; opacity: .85; font-size: 12.5px; }
+    .hi-grid .stat .stat-hint { color: inherit; opacity: .6; font-size: 11.5px; margin-top: 2px; }
+    .hi-grid .stat-value { font-size: 27px; font-weight: 800; letter-spacing: -.02em; margin: 10px 0 2px; }
+    .hi-grid .stat .stat-head { display: flex; align-items: center; justify-content: space-between; }
+    .stat-go { width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+      background: rgba(0,0,0,.14); color: inherit; display: flex; align-items: center; justify-content: center;
+      transition: transform .12s, background .15s; }
+    .stat-go:hover { transform: scale(1.1); background: rgba(0,0,0,.22); }
+    .stat-go svg { width: 13px; height: 13px; }
+    .c-amber  { background: linear-gradient(145deg, #f5b942, #eaa72e); box-shadow: 0 10px 26px rgba(234,167,46,.25); }
+    .c-purple { background: linear-gradient(145deg, #c3a4ff, #a684ff); box-shadow: 0 10px 26px rgba(166,132,255,.28); }
+    .c-green  { background: linear-gradient(145deg, #b8e986, #9fdd5f); box-shadow: 0 10px 26px rgba(159,221,95,.22); }
+    .c-blue   { background: linear-gradient(145deg, #8fb0ff, #6e8dff); box-shadow: 0 10px 26px rgba(110,141,255,.28); }
+    .c-amber .stat-go, .c-green .stat-go { background: rgba(0,0,0,.16); }
+    .c-purple .stat-go, .c-blue .stat-go { background: rgba(255,255,255,.25); color: #14161a; }
+
+    /* Layout utama: kolom kiri (chart+memori) / kanan (feed proyek) */
+    .ov-main-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+    .ov-col-right { position: sticky; top: 74px; }
+    @media (max-width: 1080px) { .ov-main-grid { grid-template-columns: 1fr; } .ov-col-right { position: static; } }
+
+    .chart-card { padding: 18px 20px 10px; }
+    .chart-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+    .chart-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .lg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grad); display: inline-block; }
+    #activityChart { width: 100%; display: block; }
+    #chart-tip { position: absolute; pointer-events: none; background: #1c2029; border: 1px solid var(--border);
+      color: var(--text); font-size: 11.5px; padding: 5px 9px; border-radius: 8px; transform: translate(-50%, -130%);
+      white-space: nowrap; opacity: 0; transition: opacity .12s; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+
+    /* Feed proyek kanan */
+    .feed-card { padding: 16px 14px; }
+    .feed { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .feed-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 11px; border-radius: 12px;
+      cursor: pointer; border: 1px solid transparent; transition: background .12s, border-color .12s;
+    }
+    .feed-item:hover { background: rgba(110,141,255,.08); border-color: rgba(110,141,255,.25); }
+    .feed-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; transform: rotate(45deg); }
+    .feed-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .feed-sub { font-size: 11px; color: var(--faint); }
+    .feed-badge { margin-left: auto; font-size: 10.5px; background: rgba(255,255,255,.05); border: 1px solid var(--border-soft);
+      padding: 2px 8px; border-radius: 999px; color: var(--muted); flex: none; }
+
   </style>
 </head>
 <body>
@@ -676,57 +736,65 @@
       <div class="content">
         <!-- Overview -->
         <div class="view active" id="view-overview">
-          <div class="stats-grid">
-            <div class="stat">
-              <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg></div></div>
-              <div class="stat-value" id="sTranscripts">—</div>
-              <div class="stat-label" data-i18n="Transcripts stored">Transcripts stored</div>
-              <div class="stat-hint" data-i18n="From all AI tools">From all AI tools</div>
-            </div>
-            <div class="stat">
-              <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h8a1 1 0 0 1 1 1v11l-2.5-1.5L8 14l-2.5-1.5L3 14V3a1 1 0 0 1 1-1z"/></svg></div></div>
-              <div class="stat-value" id="sMemories">—</div>
-              <div class="stat-label" data-i18n="Active memories">Active memories</div>
-              <div class="stat-hint" data-i18n="Facts, decisions, tasks">Facts, decisions, tasks</div>
-            </div>
-            <div class="stat">
-              <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6-3 6 3M2 5l6 3 6-3M2 5v6l6 3 6-3V5"/><path d="M8 8v6"/></svg></div></div>
-              <div class="stat-value" id="sProjects">—</div>
-              <div class="stat-label" data-i18n="Projects">Projects</div>
-              <div class="stat-hint" data-i18n="Recently accessed">Recently accessed</div>
-            </div>
-            <div class="stat">
-              <div class="stat-top"><div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg></div></div>
-              <div class="stat-value" id="sPending">—</div>
-              <div class="stat-label" data-i18n="Extraction queue">Extraction queue</div>
-              <div class="stat-hint" id="sOllama" data-i18n="Ollama: offline">Ollama: offline</div>
-            </div>
-          </div>
+        <div id="overviewHero"></div>
 
-<div id="overviewHero"></div>
-          <div class="ov-grid">
-            <div class="card">
-              <h4 data-i18n="7-day activity">7-day activity</h4>
-              <div class="card-desc" data-i18n="Messages captured from all your AI tools, per day.">Messages captured from all your AI tools, per day.</div>
-              <div class="bars" id="weekBars"></div>
-            </div>
-            <div class="card">
-              <h4 data-i18n="Resume ready">Resume ready</h4>
-              <div class="card-desc" data-i18n="Projects whose context was injected for your next session.">Projects whose context was injected for your next session.</div>
-              <div id="resumeList" style="margin-top:6px"></div>
-            </div>
+        <div class="hi-grid">
+          <div class="stat c-amber">
+            <div class="stat-head"><span class="stat-label" data-i18n="Transcripts stored">Transcripts stored</span><button class="stat-go" data-go="timeline" title="Timeline"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11L11 5M6 5h5v5"/></svg></button></div>
+            <div class="stat-value" id="sTranscripts">—</div>
+            <div class="stat-hint" data-i18n="From all AI tools">From all AI tools</div>
           </div>
-
-          <div class="section">
-            <div class="section-head"><h3 data-i18n="Recent memories">Recent memories</h3><a id="linkAllMem" data-i18n="View all">View all</a></div>
-            <div id="recentList"></div>
+          <div class="stat c-purple">
+            <div class="stat-head"><span class="stat-label" data-i18n="Active memories">Active memories</span><button class="stat-go" data-go="memories" title="Memories"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11L11 5M6 5h5v5"/></svg></button></div>
+            <div class="stat-value" id="sMemories">—</div>
+            <div class="stat-hint" data-i18n="Facts, decisions, tasks">Facts, decisions, tasks</div>
           </div>
-
-          <div class="section">
-            <div class="section-head"><h3 data-i18n="Recent projects">Recent projects</h3><a id="linkAllProj" data-i18n="View all">View all</a></div>
-            <div id="recentProjects"></div>
+          <div class="stat c-green">
+            <div class="stat-head"><span class="stat-label" data-i18n="Projects">Projects</span><button class="stat-go" data-go="projects" title="Projects"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11L11 5M6 5h5v5"/></svg></button></div>
+            <div class="stat-value" id="sProjects2">—</div>
+            <div class="stat-hint" data-i18n="Recently accessed">Recently accessed</div>
+          </div>
+          <div class="stat c-blue">
+            <div class="stat-head"><span class="stat-label" data-i18n="Extraction queue">Extraction queue</span><button class="stat-go" data-go="memories" title="Memories"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11L11 5M6 5h5v5"/></svg></button></div>
+            <div class="stat-value" id="sPending">—</div>
+            <div class="stat-hint" id="sOllama" data-i18n="Ollama: offline">Ollama: offline</div>
           </div>
         </div>
+
+        <div class="ov-main-grid">
+          <div class="ov-col-left">
+            <div class="card chart-card">
+              <div class="chart-head">
+                <div>
+                  <h4 data-i18n="Memory activity">Memory activity</h4>
+                  <div class="card-desc" id="chartRange" data-i18n="Last 7 days, all tools">Last 7 days, all tools</div>
+                </div>
+                <div class="chart-legend"><span class="lg-dot"></span><span data-i18n="messages">messages</span></div>
+              </div>
+              <canvas id="activityChart" height="190"></canvas>
+            </div>
+
+            <div class="card" style="margin-top:16px">
+              <h4 data-i18n="Resume ready">Resume ready</h4>
+              <div class="card-desc" data-i18n="Projects whose context was injected for your next session.">Projects whose context was injected for your next session.</div>
+              <div id="resumeList" style="margin-top:8px"></div>
+            </div>
+
+            <div class="section" style="margin-top:20px">
+              <div class="section-head"><h3 data-i18n="Recent memories">Recent memories</h3><a id="linkAllMem" data-i18n="View all">View all</a></div>
+              <div id="recentList"></div>
+            </div>
+          </div>
+
+          <div class="ov-col-right">
+            <div class="card feed-card">
+              <h4 data-i18n="Recently worked on">Recently worked on</h4>
+              <div class="card-desc" data-i18n="Projects your AI tools touched most recently.">Projects your AI tools touched most recently.</div>
+              <div id="recentProjects" class="feed"></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
         <!-- Memories -->
         <div class="view" id="view-memories">

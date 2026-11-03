@@ -274,7 +274,14 @@
   "Recent projects": "Proyek terakhir",
   "Search memories… e.g. database, ERP, bug login": "Cari memori… mis. database, ERP, bug login",
   "Ollama: checking…": "Ollama: mengecek…",
-  "Engine: active": "Engine: aktif"
+  "Engine: active": "Engine: aktif",
+  "Hello, ": "Halo, ",
+  "there": "kawan",
+  "Your cross-tool memory — captured locally, ready for every new session.": "Memori lintas-tool Anda — tertangkap lokal, siap untuk setiap sesi baru.",
+  "Memory activity": "Aktivitas memori",
+  "Last 7 days, all tools": "7 hari terakhir, semua tool",
+  "Recently worked on": "Baru saja dikerjakan",
+  "Projects your AI tools touched most recently.": "Proyek yang paling baru disentuh AI tools Anda."
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
