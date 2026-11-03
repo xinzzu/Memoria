@@ -1484,6 +1484,9 @@ function wireSettingsTabs() {
 }
 wireSettingsTabs();
 
+const promoBtn = document.getElementById("promoHandoff");
+if (promoBtn) promoBtn.addEventListener("click", () => setView("handoff"));
+
 const langSel = document.querySelector("#setLang");
 if (langSel) {
   langSel.value = I18N.lang;
