@@ -9,6 +9,7 @@
  * ----------------------------------------------------------------------- */
 
 import { getSetting } from "../store/db";
+import { decryptSecret } from "../store/secure";
 
 export interface OpenAIConfig {
   baseUrl: string;
@@ -22,7 +23,8 @@ export function openaiConfig(): OpenAIConfig {
     // Default KOSONG: tier cloud/openai hanya aktif jika user eksplisit mengisi
     // URL — mode auto TIDAK PERNAH memilih tier ini (privasi).
     baseUrl: (getSetting("openaiBaseUrl", "") || "").replace(/\/+$/, ""),
-    apiKey: getSetting("openaiApiKey", ""),
+    // Nilai tersimpan bisa "enc1:..." (safeStorage) atau plaintext legacy (CLI).
+    apiKey: decryptSecret(getSetting("openaiApiKey", "")) ?? "",
     extractModel: getSetting("openaiExtractModel", "gpt-4o-mini"),
     embedModel: getSetting("openaiEmbedModel", "text-embedding-3-small"),
   };

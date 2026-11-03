@@ -209,6 +209,7 @@ async function loadProjects() {
       gr.appendChild(o.cloneNode(true));
     }
     const sp2 = $("#sProjects2"); if (sp2) sp2.textContent = state.projects.length;
+    const cm = $("#cfgMem"); if (cm) cm.textContent = state.stats.rssMB ? state.stats.rssMB + " MB" : "—";
     if (state.view === "overview") renderOverview();
     if (state.view === "projects") renderProjects();
   } catch {}
@@ -216,6 +217,23 @@ async function loadProjects() {
 
 function renderOverview() {
   const st = state.stats;
+  // Setup checklist: tampil sampai semua aman (wizard pragmatis)
+  const setupBox = document.getElementById("setupChecklist");
+  if (setupBox) {
+    const checks = st ? [
+      { ok: st.setup.toolsDetected > 0, label: t("AI tools detected"), hint: t("Use your AI tools, then run a scan") },
+      { ok: true, label: t("Engine") + ": " + st.setup.engineLabel, hint: "" },
+      { ok: st.setup.memoriesCount > 0, label: t("Memories created"), hint: t("Memories appear as sessions are extracted") },
+    ] : null;
+    if (!checks || checks.every((c) => c.ok)) {
+      setupBox.innerHTML = "";
+    } else {
+      setupBox.innerHTML = `<div class="card setup-card">
+        <h4>${t("Setup checklist")}</h4>
+        ${checks.map((c) => `<div class="setup-row"><span class="setup-dot ${c.ok ? "ok" : "wait"}"></span><div><div class="setup-label">${esc(c.label)}</div>${c.hint ? `<div class="setup-hint">${esc(c.hint)}</div>` : ""}</div></div>`).join("")}
+      </div>`;
+    }
+  }
   const hero = $("#overviewHero");
 
   // Greeting personal (ganti hero onboarding saat data mulai ada)

@@ -55,6 +55,27 @@ export async function embed(text: string): Promise<number[] | null> {
   }
 }
 
+/** Batch embedding: satu panggilan /api/embed untuk banyak teks. */
+export async function embedMany(texts: string[]): Promise<Array<number[] | null>> {
+  if (!texts.length) return [];
+  const cfg = getConfig();
+  try {
+    const res = await fetch(`${cfg.ollamaUrl}/api/embed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(90000),
+      body: JSON.stringify({ model: cfg.ollamaEmbedModel, input: texts }),
+    });
+    if (!res.ok) return texts.map(() => null);
+    const data = (await res.json()) as { embeddings?: number[][] };
+    const embs = data.embeddings;
+    if (!embs || embs.length !== texts.length) return texts.map(() => null);
+    return embs;
+  } catch {
+    return texts.map(() => null);
+  }
+}
+
 export interface ExtractPrompt {
   projectName: string;
   conversation: Array<{ role: string; content: string }>;

@@ -161,6 +161,13 @@ export function startHttpServer(): Promise<void> {
           ...s,
           ollamaOnline: ollama,
           engine,
+          setup: {
+            toolsDetected: s.perTool.length,
+            engineLabel: engine.extract,
+            llmReady: !engine.extract.startsWith("Heuristics"),
+            memoriesCount: s.memories,
+          },
+          rssMB: Math.round(process.memoryUsage().rss / 1048576),
           recent,
           config: { dataDir: cfg.dataDir, ollamaExtractModel: cfg.ollamaExtractModel, ollamaEmbedModel: cfg.ollamaEmbedModel, httpPort: cfg.httpPort },
         });
@@ -337,6 +344,14 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/settings" && req.method === "POST") {
         const body = await readBody(req);
         if (body.key && body.value !== undefined) {
+          // API key disimpan terenkripsi bila safeStorage tersedia (Keychain/DPAPI).
+          if (String(body.key) === "openaiApiKey") {
+            const { encryptSecret } = await import("./store/secure");
+            const enc = encryptSecret(String(body.value));
+            setSetting("openaiApiKey", enc ?? String(body.value));
+            sendJson(res, 200, { ok: true, encrypted: !!enc });
+            return;
+          }
           setSetting(String(body.key), String(body.value));
           sendJson(res, 200, { ok: true });
         } else {

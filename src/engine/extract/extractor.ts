@@ -1,5 +1,5 @@
 import { getDb, getPendingExtraction, markExtracted, projectSlugById, getBoolSetting } from "../store/db";
-import { getExtractProvider, getEmbedProvider } from "./provider";
+import { getExtractProvider, getEmbedProvider, embedManyVia } from "./provider";
 import { addMemoryWithDedupe } from "./dedupe";
 
 let running = false;
@@ -78,10 +78,10 @@ export async function extractQueue(force = false, opts: { order?: "asc" | "desc"
         const memories = await extractProv.extract(projectSlugById(projectId) || "unknown", conversation);
         const ids = winRows.map((r) => r.id as number).filter((x) => x != null);
         if (!memories) break; // provider bermasalah → coba siklus berikutnya
-        for (const mem of memories) {
-          if (isGenericMemory(mem.content)) continue;
-          if (mem.importance < 0.3) continue;
-          const embedding = await embedProv.embed(mem.content);
+        const kept = memories.filter((mem) => !isGenericMemory(mem.content) && mem.importance >= 0.3);
+        // Batch embedding: satu panggilan untuk seluruh window (F1C).
+        const embs = await embedManyVia(embedProv, kept.map((m) => m.content));
+        kept.forEach((mem, i) => {
           addMemoryWithDedupe({
             projectId: projectId || null,
             kind: mem.kind,
@@ -91,13 +91,13 @@ export async function extractQueue(force = false, opts: { order?: "asc" | "desc"
             lastAccessed: 0,
             accessCount: 0,
             sourceTool: tool,
-            embedding,
+            embedding: embs[i],
             status,
             origin,
-            embedModel: embedProv.embedModel,
+            embedModel: embs[i] ? embedProv.embedModel : "",
           });
           extracted++;
-        }
+        });
         for (const id of ids) markExtracted(id);
       }
       if (projectId != null) {

@@ -809,6 +809,15 @@
     .task-open-badge { font-size: 11.5px; color: var(--muted); padding: 4px 10px; border-radius: 999px;
       background: rgba(76,195,138,.1); border: 1px solid rgba(76,195,138,.25); }
 
+
+    .setup-card { margin-bottom: 18px; border-color: rgba(110,141,255,.25); }
+    .setup-row { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; }
+    .setup-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: none; }
+    .setup-dot.ok { background: #4cc38a; }
+    .setup-dot.wait { background: #d9a05b; animation: pulse 2s infinite; }
+    .setup-label { font-size: 13px; }
+    .setup-hint { font-size: 11.5px; color: var(--faint); }
+
   </style>
 </head>
 <body>
@@ -905,6 +914,7 @@
         <!-- Overview -->
         <div class="view active" id="view-overview">
         <div id="overviewHero"></div>
+          <div id="setupChecklist"></div>
 
         <div class="hi-grid">
           <div class="stat c-amber">
@@ -1146,6 +1156,7 @@
               <div class="kv"><span class="k" data-i18n="Extraction model">Extraction model</span><span class="v" id="cfgExtractModel">—</span></div>
               <div class="kv"><span class="k" data-i18n="Embedding model">Embedding model</span><span class="v" id="cfgEmbedModel">—</span></div>
               <div class="kv"><span class="k">API</span><span class="v" id="cfgApi">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Memory usage (RSS)">Memory usage (RSS)</span><span class="v" id="cfgMem">—</span></div>
             </div>
             
           </div>

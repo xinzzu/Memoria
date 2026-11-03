@@ -17,6 +17,7 @@ import { getSetting } from "../store/db";
 import {
   extractMemories as ollamaExtract,
   embed as ollamaEmbed,
+  embedMany as ollamaEmbedMany,
   ollamaAvailable,
   ExtractedMemory,
 } from "./ollama";
@@ -34,6 +35,7 @@ export interface MemoryProvider {
   describe(): string;
   extract(projectName: string, conversation: Array<{ role: string; content: string }>): Promise<ExtractedMemory[] | null>;
   embed(text: string): Promise<number[] | null>;
+  embedMany?(texts: string[]): Promise<Array<number[] | null>>;
 }
 
 /** Circuit breaker kecil: 3 kegagalan beruntun = istirahat 60 dtk (jangan gantung UI/agent). */
@@ -77,6 +79,12 @@ export const ollamaProvider: MemoryProvider = {
     if (ollamaBreaker.open) return null;
     const r = await ollamaEmbed(text);
     ollamaBreaker.record(r !== null);
+    return r;
+  },
+  async embedMany(texts) {
+    if (ollamaBreaker.open) return texts.map(() => null);
+    const r = await ollamaEmbedMany(texts);
+    ollamaBreaker.record(r.some((x) => x !== null));
     return r;
   },
 };
@@ -159,6 +167,14 @@ async function resolvePreferred(pref: string, available: () => Promise<MemoryPro
 }
 
 /** Provider ekstraksi sesuai setting `extractEngine` (auto = Ollama → heuristik). */
+/** Batch embed dengan fallback loop untuk provider tanpa embedMany. */
+export async function embedManyVia(prov: MemoryProvider, texts: string[]): Promise<Array<number[] | null>> {
+  if (prov.embedMany) return prov.embedMany(texts);
+  const out: Array<number[] | null> = [];
+  for (const t of texts) out.push(await prov.embed(t));
+  return out;
+}
+
 export async function getExtractProvider(): Promise<MemoryProvider> {
   const pref = getSetting("extractEngine", "auto");
   // PRINSIP PRIVASI: mode auto TIDAK PERNAH memilih tier openai/cloud —

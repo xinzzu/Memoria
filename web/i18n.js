@@ -331,7 +331,15 @@
   "No open tasks": "Tidak ada tugas terbuka",
   "Pending tasks captured from your AI sessions show up here.": "Tugas pending dari sesi AI Anda muncul di sini.",
   "Nothing completed yet.": "Belum ada yang selesai.",
-  "{0} open": "{0} terbuka"
+  "{0} open": "{0} terbuka",
+  "Setup checklist": "Checklist persiapan",
+  "AI tools detected": "AI tools terdeteksi",
+  "Use your AI tools, then run a scan": "Pakai AI tools Anda, lalu jalankan scan",
+  "Memories created": "Memori tercipta",
+  "Memories appear as sessions are extracted": "Memori muncul saat sesi diekstraksi",
+  "Extraction model": "Model ekstraksi",
+  "Embedding model": "Model embedding",
+  "Memory usage (RSS)": "Pemakaian memori (RSS)"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
