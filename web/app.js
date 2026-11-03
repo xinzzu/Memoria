@@ -1,6 +1,15 @@
 // Same-origin: dashboard dilayani oleh HTTP engine itu sendiri — port tidak perlu di-hardcode.
 const API = "";
 const $ = (sel) => document.querySelector(sel);
+// Slug panjang ("users-mac-documents-workspace-foo") -> tampil singkat ("foo").
+function prettySlug(slug) {
+  if (!slug) return "global";
+  let x = slug.replace(/^users-mac-documents(-workspaces?)?-?/, "").replace(/^users-mac-?/, "");
+  x = x.replace(/[-_]+/g, " ").trim();
+  if (!x) x = slug.replace(/[-_]+/g, " ");
+  return x.length > 26 ? x.slice(0, 26).trim() + "…" : x;
+}
+
 const KIND_LABEL = {
   fact: "Fact", decision: "Decision", task_done: "Done", task_pending: "Pending",
   error_fixed: "Error Fixed", preference: "Preference", context: "Context",
@@ -74,7 +83,7 @@ function memoRowRenderer(renderId) {
           <span class="mem-kind kind-${h.kind}">${t(KIND_LABEL[h.kind] || h.kind)}</span>
           ${h.status === "draft" ? '<span class="mem-kind" style="opacity:.7">Draft</span>' : ""}
           <span class="sep">·</span>
-          <span>${esc(h.projectSlug || "global")}</span>
+          <span>${esc(prettySlug(h.projectSlug))}</span>
           <span class="sep">·</span>
           <span>${esc(TOOL_LABEL[h.sourceTool] || h.sourceTool)}</span>
           <span class="sep">·</span>
@@ -275,8 +284,12 @@ function renderOverview() {
       rsl.innerHTML = `<div class="card-desc">${t("No context injected yet — it happens automatically when a session goes idle, or use the Handoff tab.")}</div>`;
     } else {
       rsl.innerHTML = ready.map((r) => `
-        <div class="resume-item"><span class="resume-dot"></span><span>${esc(r.name)}</span>
-          <span class="spacer"></span><span style="font-size:11px;color:var(--faint)">${fmtRel(r.at)}</span>
+        <div class="resume-item">
+          <span class="resume-dot"></span>
+          <div style="min-width:0">
+            <div class="feed-name">${esc(r.name)}</div>
+            <div class="feed-sub">${t("Context injected")} · ${fmtRel(r.at)}</div>
+          </div>
         </div>`).join("") +
         `<button class="btn" id="goHandoff" style="margin-top:10px">${t("Open Handoff")}</button>`;
       const g = rsl.querySelector("#goHandoff");

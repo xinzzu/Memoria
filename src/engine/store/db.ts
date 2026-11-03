@@ -142,6 +142,14 @@ function migrate(d: DatabaseSync): void {
   if (!cols.includes("embed_model")) {
     d.exec("ALTER TABLE memories ADD COLUMN embed_model TEXT DEFAULT ''");
   }
+  // Backfill nama proyek lama yang masih berupa slug path panjang.
+  const prows = d.prepare("SELECT id, path, slug, name FROM projects").all() as Array<{ id: number; path: string | null; slug: string; name: string }>;
+  for (const r of prows) {
+    const pretty = prettifyProjectName(r.path || r.slug || "");
+    if (pretty && pretty !== r.name) {
+      d.prepare("UPDATE projects SET name = ? WHERE id = ?").run(pretty, r.id);
+    }
+  }
 }
 
 export function getSetting(key: string, def: string = ""): string {
@@ -185,6 +193,13 @@ export function closeDb(): void {
     }
     db = null;
   }
+}
+
+/** Nama tampilan proyek dari path/slug: ambil segmen terakhir, rapikan jadi judul. */
+export function prettifyProjectName(src: string): string {
+  const base = src.split(/[\\/]/).filter(Boolean).pop() || src;
+  const pretty = base.replace(/^[-_]+/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  return pretty || base;
 }
 
 // Memo resolve (slug+path) -> projectId: hindari syscall realpath berulang
@@ -271,11 +286,9 @@ export function ensureProject(slug: string, projectPath?: string): number {
     }
   }
 
-  // 3) Buat proyek baru.
-  const name = clean
-    .replace(/^[-a-z]+--/i, "")
-    .replace(/[_-]+/g, " ")
-    .trim();
+  // 3) Buat proyek baru. Nama tampilan = nama folder (bukan slug path penuh
+  //    yang panjang seperti "users-mac-documents-workspace-...").
+  const name = prettifyProjectName(canon || projectPath || clean);
   const res = d
     .prepare("INSERT INTO projects (slug, path, name, last_seen) VALUES (?, ?, ?, ?)")
     .run(clean, canon || projectPath || null, name || clean, Date.now());
