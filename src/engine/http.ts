@@ -1,7 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
-import { searchMemories, projectContext, setQueryEmbedding } from "./retrieve/search";
+import { searchMemories, projectContext } from "./retrieve/search";
 import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag } from "./store/db";
 import { embed, ollamaAvailable } from "./extract/ollama";
 import { extractQueue } from "./extract/extractor";
@@ -120,8 +120,7 @@ export function startHttpServer(): Promise<void> {
         const kind = url.searchParams.get("kind") || undefined;
         const limit = Number(url.searchParams.get("limit") || 10);
         const qEmb = await embed(q);
-        if (qEmb) setQueryEmbedding(qEmb);
-        const hits = searchMemories(q, { limit, projectSlug: project, kind }).map(enrichMemory);
+        const hits = searchMemories(q, { limit, projectSlug: project, kind }, qEmb).map(enrichMemory);
         sendJson(res, 200, { hits });
       } else if (url.pathname === "/api/project" && req.method === "GET") {
         const project = url.searchParams.get("slug") || "";

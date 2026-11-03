@@ -5,7 +5,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { ensureDb } from "../ingest/manager";
-import { searchMemories, projectContext, setQueryEmbedding } from "../retrieve/search";
+import { searchMemories, projectContext } from "../retrieve/search";
 import { ensureProject, memoryById, effectiveStatus } from "../store/db";
 import { embed } from "../extract/ollama";
 import { relatedMemories } from "../graph";
@@ -93,7 +93,10 @@ export function createMcpServer(): Server {
 
     switch (name) {
       case "recall": {
-        const results = searchMemories(String(a.query || ""), { limit: Number(a.limit || 8) });
+        const query = String(a.query || "");
+        // Embed query agar skor semantik aktif — tanpa ini recall MCP hanya keyword.
+        const qEmb = await embed(query);
+        const results = searchMemories(query, { limit: Number(a.limit || 8) }, qEmb);
         if (!results.length) {
           return {
             content: [{ type: "text", text: "Tidak ada memori yang cocok. Ini sesi baru, lanjutkan tugas user seperti biasa." }],
@@ -122,8 +125,7 @@ export function createMcpServer(): Server {
         let memId = Number(a.id || 0);
         if (!memId && a.query) {
           const qEmb = await embed(String(a.query));
-          if (qEmb) setQueryEmbedding(qEmb);
-          const hits = searchMemories(String(a.query), { limit: 1 });
+          const hits = searchMemories(String(a.query), { limit: 1 }, qEmb);
           memId = hits[0]?.id ?? 0;
         }
         if (!memId) {

@@ -71,13 +71,18 @@ export function keywordScore(content: string, query: string): number {
   return hits / tokens.length;
 }
 
-export function searchMemories(query: string, opts: { limit?: number; projectSlug?: string; kind?: string } = {}): SearchHit[] {
+export function searchMemories(
+  query: string,
+  opts: { limit?: number; projectSlug?: string; kind?: string } = {},
+  queryEmbedding?: number[] | null
+): SearchHit[] {
   const limit = opts.limit ?? 10;
   const memories = allMemories();
   const hits: SearchHit[] = [];
   const now = Date.now();
   const centrality = loadCentrality();
-  const semCands = queryEmbeddingCache.length ? vecCandidates(queryEmbeddingCache, limit) : null;
+  const qEmb = queryEmbedding && queryEmbedding.length ? queryEmbedding : null;
+  const semCands = qEmb ? vecCandidates(qEmb, limit) : null;
 
   for (const m of memories) {
     if (opts.projectSlug) {
@@ -86,8 +91,8 @@ export function searchMemories(query: string, opts: { limit?: number; projectSlu
     }
     if (opts.kind && m.kind !== opts.kind) continue;
     const kw = keywordScore(m.content, query);
-    const sem = m.embedding && queryEmbeddingCache.length && (!semCands || semCands.has(m.id!))
-      ? vecCosine(m.embedding, queryEmbeddingCache)
+    const sem = m.embedding && qEmb && (!semCands || semCands.has(m.id!))
+      ? vecCosine(m.embedding, qEmb)
       : 0;
     const ageDays = (now - m.createdAt) / 86400000;
     const recency = Math.exp(-ageDays / 30);
@@ -157,9 +162,4 @@ export function projectContext(projectSlug: string, limit = 8): SearchHit[] {
     });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
-}
-
-let queryEmbeddingCache: number[] = [];
-export function setQueryEmbedding(emb: number[]): void {
-  queryEmbeddingCache = emb;
 }
