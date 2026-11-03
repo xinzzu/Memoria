@@ -225,7 +225,7 @@ function renderOverview() {
     } else {
       const name = esc(st.user || "");
       hero.innerHTML = `<div class="greet">
-        <h2>${t("Hello, ")}<span class="gname">${name || t("there")}</span> 👋</h2>
+        <h2>${t("Hello, ")}<span class="gname">${name || t("there")}</span></h2>
         <p>${t("Your cross-tool memory — captured locally, ready for every new session.")}</p>
       </div>`;
     }
