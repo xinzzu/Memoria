@@ -1677,6 +1677,9 @@ function wireSettingsTabs() {
       localStorage.setItem("memoria_settab", tab);
       nav.querySelectorAll(".stab").forEach((x) => x.classList.toggle("active", x === btn));
       document.querySelectorAll(".settings-group").forEach((g) => g.classList.toggle("active", g.dataset.stab === tab));
+      // Reset scroll: nav sticky tidak melompat saat pindah dari konten panjang ke pendek
+      const c = document.querySelector(".content");
+      if (c) c.scrollTo({ top: 0, behavior: "instant" });
     });
   });
   const saved = localStorage.getItem("memoria_settab") || "sources";
