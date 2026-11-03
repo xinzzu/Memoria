@@ -11,16 +11,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0d0e11;
-      --panel: #14161a;
-      --panel-2: #1a1d23;
-      --border: #23262e;
-      --border-soft: #1c1f26;
-      --text: #e8eaef;
-      --muted: #8b93a2;
-      --faint: #5c6472;
+      --bg: #0a0c10;
+      --panel: #12151b;
+      --panel-2: #171b22;
+      --border: #242935;
+      --border-soft: #1a1e27;
+      --text: #e9ecf3;
+      --muted: #8d95a6;
+      --faint: #5d6575;
       --accent: #6e8dff;
-      --accent-soft: rgba(110, 141, 255, 0.12);
+      --accent-2: #8b6eff;
+      --accent-soft: rgba(110, 141, 255, 0.13);
+      --grad: linear-gradient(135deg, #6e8dff 0%, #8b6eff 100%);
       --green: #4cc38a;
       --amber: #d9a05b;
       --red: #e5686b;
@@ -499,6 +501,104 @@
     .src-toggle .st-name { font-size: 12.5px; font-weight: 500; }
     .src-toggle .st-count { font-size: 11px; color: var(--faint); }
     .src-toggle .spacer { flex: 1; }
+
+    /* ================= SKIN F2 — visual refresh ================= */
+    body { background:
+      radial-gradient(1200px 500px at 80% -10%, rgba(110,141,255,.07), transparent 60%),
+      radial-gradient(900px 400px at -10% 110%, rgba(139,110,255,.05), transparent 60%),
+      var(--bg); }
+    .sidebar { background: linear-gradient(180deg, #0d1016, #0b0d12); border-right: 1px solid var(--border-soft); }
+    .nav-item {
+      border-radius: 10px; padding: 8px 10px; color: var(--muted); font-weight: 500;
+      transition: background .15s, color .15s, transform .08s; position: relative; overflow: hidden;
+    }
+    .nav-item:hover { background: rgba(110,141,255,.08); color: var(--text); }
+    .nav-item:active { transform: scale(.985); }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(110,141,255,.18), rgba(139,110,255,.10));
+      color: #fff; box-shadow: inset 0 0 0 1px rgba(110,141,255,.25);
+    }
+    .nav-item.active::before {
+      content: ""; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px;
+      border-radius: 3px; background: var(--grad);
+    }
+    .nav-label { letter-spacing: .14em; font-size: 10px; color: var(--faint); margin: 14px 10px 6px; }
+    .status-pill { font-size: 11.5px; padding: 6px 9px; border-radius: 9px; background: rgba(255,255,255,.03);
+      border: 1px solid var(--border-soft); }
+    .version { color: var(--faint); font-size: 10.5px; letter-spacing: .04em; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 5;
+      background: rgba(10,12,16,.82); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .topbar h2 { font-size: 19px; letter-spacing: -.01em; }
+    .search-box { border-radius: 12px; border: 1px solid var(--border); background: var(--panel);
+      transition: border-color .15s, box-shadow .15s; }
+    .search-box:focus-within { border-color: rgba(110,141,255,.55); box-shadow: 0 0 0 3px rgba(110,141,255,.15); }
+    .btn { border-radius: 11px; border: 1px solid var(--border); background: var(--panel);
+      transition: transform .08s, border-color .15s, background .15s; font-weight: 500; }
+    .btn:hover { border-color: #3a4152; background: var(--panel-2); }
+    .btn:active { transform: scale(.97); }
+    .btn.primary {
+      background: var(--grad); border: none; color: #fff;
+      box-shadow: 0 4px 14px rgba(110,141,255,.28);
+    }
+    .btn.primary:hover { filter: brightness(1.08); }
+
+    .stat { border-radius: 14px; background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--border-soft); padding: 14px 16px; transition: transform .12s, border-color .15s, box-shadow .15s; }
+    .stat:hover { transform: translateY(-2px); border-color: rgba(110,141,255,.35); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .stat .stat-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+    .stats-grid .stat:nth-child(1) .stat-icon { background: rgba(110,141,255,.15); color: #9db2ff; }
+    .stats-grid .stat:nth-child(2) .stat-icon { background: rgba(76,195,138,.14); color: #6fe0ac; }
+    .stats-grid .stat:nth-child(3) .stat-icon { background: rgba(217,160,91,.14); color: #eec08a; }
+    .stats-grid .stat:nth-child(4) .stat-icon { background: rgba(157,140,255,.14); color: #b9abff; }
+    .stat-value { font-size: 25px; font-weight: 700; letter-spacing: -.02em; margin-top: 8px; }
+
+    .card {
+      border-radius: 14px; background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--border-soft); padding: 16px 18px;
+      transition: border-color .15s;
+    }
+    .card:hover { border-color: #2c3240; }
+    .card h4 { font-size: 13.5px; }
+    .section-head h3 { font-size: 11.5px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+    .section-head a { font-size: 12px; color: #9db2ff; }
+    .section-head a:hover { color: #c0ccff; }
+
+    .bars { height: 140px; gap: 12px; }
+    .bars .bar { background: var(--grad); box-shadow: 0 0 12px rgba(110,141,255,.25); border-radius: 7px 7px 4px 4px; }
+    .bars .bar.zero { background: var(--border); box-shadow: none; }
+    .resume-dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(76,195,138,.5);} 50% { box-shadow: 0 0 0 5px rgba(76,195,138,0);} }
+
+    .mem, .tl-item, .project-row, .intg-row, .tool-row, .src-toggle, .toggle-row, .bup-row {
+      border-radius: 12px; transition: background .12s; }
+    .project-row.clickable:hover { background: rgba(110,141,255,.09); }
+
+    .empty { color: var(--muted); text-align: center; padding: 34px 16px; }
+    .empty svg { opacity: .35; width: 34px; height: 34px; }
+    .empty h4 { color: var(--text); margin: 8px 0 4px; }
+    .empty p { font-size: 12.5px; max-width: 420px; margin: 0 auto; }
+
+    .hero {
+      border-radius: 16px; padding: 26px 28px; margin-bottom: 20px; position: relative; overflow: hidden;
+      background: linear-gradient(120deg, rgba(110,141,255,.16), rgba(139,110,255,.08) 55%, transparent),
+                  linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid rgba(110,141,255,.28);
+    }
+    .hero h3 { font-size: 17px; margin-bottom: 5px; }
+    .hero p { color: var(--muted); font-size: 13px; max-width: 560px; margin-bottom: 14px; }
+    .hero .hero-actions { display: flex; gap: 10px; }
+    .skeleton { position: relative; overflow: hidden; background: var(--panel-2); border-radius: 10px; height: 54px; margin-bottom: 8px; border: 1px solid var(--border-soft); }
+    .skeleton::after {
+      content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.05), transparent);
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+
   </style>
 </head>
 <body>
@@ -513,12 +613,12 @@
         </div>
         <div class="nav-item" data-view="memories">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 10h4"/></svg>
-          Memori
+          <span data-i18n="Memories">Memories</span>
           <span class="count" id="navMemCount">0</span>
         </div>
         <div class="nav-item" data-view="projects">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l6-3 6 3M2 5l6 3 6-3M2 5v6l6 3 6-3V5"/><path d="M8 8v6"/></svg>
-          Proyek
+          <span data-i18n="Projects">Projects</span>
         </div>
         <div class="nav-item" data-view="timeline">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="13" cy="8" r="1.2" fill="currentColor"/><path d="M4.2 8h2.6M9.2 8h2.6"/></svg>
@@ -535,18 +635,18 @@
         <div class="nav-label">System</div>
         <div class="nav-item" data-view="integrations">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M8 2v12M2 8h12"/></svg>
-          Integrasi
+          <span data-i18n="Integrations">Integrations</span>
         </div>
         <div class="nav-item" data-view="settings">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4"/></svg>
-          Pengaturan
+          <span data-i18n="Settings">Settings</span>
         </div>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="status-pill"><span class="dot" id="ollamaDot"></span><span id="ollamaText">Ollama: mengecek…</span></div>
-        <div class="status-pill"><span class="dot on" id="engineDot"></span><span id="engineText">Engine: aktif</span></div>
-        <div class="version">v0.2.0 · lokal · privat</div>
+        <div class="status-pill"><span class="dot" id="ollamaDot"></span><span id="ollamaText" data-i18n="Ollama: checking…">Ollama: checking…</span></div>
+        <div class="status-pill"><span class="dot on" id="engineDot"></span><span id="engineText" data-i18n="Engine: active">Engine: active</span></div>
+        <div class="version">v0.2.0 · local · private</div>
       </div>
     </aside>
 
@@ -560,12 +660,12 @@
         <div class="spacer"></div>
         <div class="search-box">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-          <input type="text" id="search" placeholder="Cari memori…  mis. database, ERP, bug login" />
+          <input type="text" id="search" placeholder="Search memories… e.g. database, ERP, bug login" data-i18n-ph="Search memories… e.g. database, ERP, bug login" />
           <span class="kbd">Ctrl K</span>
         </div>
         <button class="btn" id="btnAdd">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
-          Tambah
+          <span data-i18n="Add">Add</span>
         </button>
         <button class="btn primary" id="btnScan">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2v3h-3"/></svg>
@@ -603,7 +703,8 @@
             </div>
           </div>
 
-<div class="ov-grid">
+<div id="overviewHero"></div>
+          <div class="ov-grid">
             <div class="card">
               <h4 data-i18n="7-day activity">7-day activity</h4>
               <div class="card-desc" data-i18n="Messages captured from all your AI tools, per day.">Messages captured from all your AI tools, per day.</div>
@@ -617,12 +718,12 @@
           </div>
 
           <div class="section">
-            <div class="section-head"><h3>Memori terbaru</h3><a id="linkAllMem" data-i18n="View all">View all</a></div>
+            <div class="section-head"><h3 data-i18n="Recent memories">Recent memories</h3><a id="linkAllMem" data-i18n="View all">View all</a></div>
             <div id="recentList"></div>
           </div>
 
           <div class="section">
-            <div class="section-head"><h3>Proyek terakhir</h3><a id="linkAllProj" data-i18n="View all">View all</a></div>
+            <div class="section-head"><h3 data-i18n="Recent projects">Recent projects</h3><a id="linkAllProj" data-i18n="View all">View all</a></div>
             <div id="recentProjects"></div>
           </div>
         </div>
