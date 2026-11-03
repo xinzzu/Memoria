@@ -2,8 +2,8 @@
 const API = "";
 const $ = (sel) => document.querySelector(sel);
 const KIND_LABEL = {
-  fact: t("Fact"), decision: t("Decision"), task_done: t("Done"), task_pending: t(t("Pending")),
-  error_fixed: t(t("Error Fixed")), preference: t("Preference"), context: t("Context"),
+  fact: "Fact", decision: "Decision", task_done: "Done", task_pending: "Pending",
+  error_fixed: "Error Fixed", preference: "Preference", context: "Context",
 };
 const TOOL_LABEL = {
   claude: "Claude Code", codex: "Codex CLI", opencode: "OpenCode",
@@ -93,7 +93,7 @@ function memoRowRenderer(renderId) {
         ${isArchived ? "" : `<button class="icon-btn" title=t("Archive") data-arch="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5h12M4 4.5V14h8V4.5M5.5 8h5"/><path d="M2 2.5h12"/></svg>
         </button>`}
-        <button class="icon-btn" title=t(t("Edit")) data-edit="${h.id}">
+        <button class="icon-btn" title=t("Edit")) data-edit="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.5l2.5 2.5L6 12.5l-3 .5.5-3L11 2.5z"/></svg>
         </button>
         <button class="icon-btn danger" title=t("Delete") data-del="${h.id}">
@@ -129,7 +129,7 @@ function setView(name) {
     memories: [t("Memories"), t("Search and manage stored memories")],
     projects: [t("Projects"), t("Activity by project")],
     timeline: ["Timeline", t("Per-project activity trail")],
-    handoff: [t(t("Handoff")), t("Context summary for the next AI session")],
+    handoff: ["Handoff", t("Context summary for the next AI session")],
     graph: ["Graph", t("Map of connections between memories")],
     integrations: [t("Integrations"), t("Register Memoria with your AI tools")],
     settings: [t("Settings"), t("Data sources and integrations")],
@@ -151,7 +151,7 @@ async function loadStats() {
     $("#ollamaDot").className = "dot " + (ollama || engine ? "on" : "off");
     // Chip topbar kini menampilkan mesin aktif (bukan cuma status Ollama) —
     // user tanpa Ollama tetap melihat bahwa heuristik yang bekerja.
-    $("#ollamaText").textContent = engine ? "🧠 " + engine.extract : (ollama ? t(t("Ollama: online")) : t(t("Ollama: offline")));
+    $("#ollamaText").textContent = engine ? engine.extract : (ollama ? t("Ollama: online") : t("Ollama: offline"));
     $("#sOllama").textContent = "Ollama: " + (ollama ? "online" : "offline");
     if (state.view === "overview") renderOverview();
     if (state.view === "settings") renderSettings();
@@ -1477,7 +1477,7 @@ $("#btnTopics").addEventListener("click", async () => {
     btn.disabled = true;
     btn.textContent = "Membangun…";
     const r = await api("/api/tags/rebuild", { method: "POST" });
-    toast("Tag topik dibangun: " + r.memories + " {0} → " + r.topics + " topik");
+    toast(t("Topic tags built: {0} memories → {1} topics", r.memories, r.topics));
     loadTags();
   } catch (e) {
     toast(t("Failed: ") + e.message, "err");
@@ -1493,7 +1493,7 @@ $("#btnDigest").addEventListener("click", async () => {
   try {
     const r = await api("/api/digest/generate", { method: "POST" });
     box.textContent = r.text || "";
-    toast(t("Weekly digest generated (") + r.memories + t(" memories)"));
+    toast(t("Weekly digest generated ({0} memories)", r.memories));
   } catch (e) {
     box.textContent = t("Failed: ") + e.message;
   }
@@ -1524,7 +1524,7 @@ function wireShortcutInputs() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key, value: el.value.trim() }),
         });
-        toast("Shortcut disimpan — berlaku setelah restart aplikasi");
+        toast(t("Shortcut saved — applies after app restart"));
       } catch (e) {
         toast(t("Failed to save shortcut: ") + e.message, "err");
       }
