@@ -281,7 +281,10 @@
   "Memory activity": "Aktivitas memori",
   "Last 7 days, all tools": "7 hari terakhir, semua tool",
   "Recently worked on": "Baru saja dikerjakan",
-  "Projects your AI tools touched most recently.": "Proyek yang paling baru disentuh AI tools Anda."
+  "Projects your AI tools touched most recently.": "Proyek yang paling baru disentuh AI tools Anda.",
+  "second brain": "otak kedua",
+  "Switching tools? Resume context is injected automatically when a session goes idle.": "Pindah tool? Konteks resume tersuntik otomatis begitu sesi diam.",
+  "Try Handoff": "Coba Handoff"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
