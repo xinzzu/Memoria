@@ -1390,7 +1390,7 @@ $("#btnExportJson").addEventListener("click", async () => {
 $("#btnObsidian").addEventListener("click", async () => {
   try {
     const r = await api("/api/export/obsidian", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
-    if (r.ok) toast("Vault Obsidian tersimpan: " + r.dir + " (" + r.notes + " catatan)");
+    if (r.ok) toast(t("Obsidian vault saved: ") + r.dir + " (" + r.notes + " " + t("notes") + ")");
     else toast(t("Export failed: ") + (r.error || ""), "err");
   } catch (e) {
     toast(t("Export failed: ") + e.message, "err");
@@ -1561,6 +1561,14 @@ document.addEventListener("memoria:lang", () => {
   if (state.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
   loadStats();
 });
+
+if (location.protocol === "file:") {
+  const warn = document.createElement("div");
+  warn.style.cssText = "margin:0 0 14px;padding:11px 14px;border-radius:12px;background:rgba(217,160,91,.1);border:1px solid rgba(217,160,91,.35);color:#eec08a;font-size:12.5px";
+  warn.textContent = t("Preview mode — data loads only inside the Memoria app (npm run start) or via http://127.0.0.1:48210");
+  const c = document.querySelector(".content");
+  if (c) c.prepend(warn);
+}
 
 (async function init() {
   await loadProjects();

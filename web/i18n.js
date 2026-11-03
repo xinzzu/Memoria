@@ -290,16 +290,23 @@
   "Pending approval": "Menunggu persetujuan",
   "Couldn't load memories": "Gagal memuat memori",
   "Retry": "Coba lagi",
-  "Approve memory": "Setujui memori"
+  "Approve memory": "Setujui memori",
+  "Obsidian vault saved: ": "Vault Obsidian tersimpan: ",
+  "Drag to pan · click a node for details · scroll to zoom": "Seret untuk geser · klik node untuk detail · scroll untuk zoom",
+  "Preview mode — data loads only inside the Memoria app (npm run start) or via http://127.0.0.1:48210": "Mode pratinjau — data hanya termuat di dalam aplikasi Memoria (npm run start) atau via http://127.0.0.1:48210",
+  "notes": "catatan",
+  "Memory extraction &amp; embedding. <b>Auto</b> mode uses Ollama when it is running; with no model at all, Memoria still works (heuristics → review queue). Changes apply instantly, no restart.": "Ekstraksi &amp; embedding memori. Mode <b>auto</b> memakai Ollama bila menyala; tanpa model pun Memoria tetap bekerja (heuristik → antrian tinjau). Perubahan langsung aktif tanpa restart.",
+  "Project": "Proyek",
+  "(optional)": "(opsional)"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
     id: ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"]
   };
   var lang = localStorage.getItem("memoria_lang");
-  if (lang !== "id" && lang !== "en") {
-    lang = (navigator.language || "en").toLowerCase().indexOf("id") === 0 ? "id" : "en";
-  }
+  // Default SELALU English (produk internasional). Bahasa Indonesia hanya
+  // jika dipilih eksplisit di Pengaturan -> Language.
+  if (lang !== "id" && lang !== "en") lang = "en";
   function t(key) {
     var s = lang === "id" ? (ID[key] || key) : key;
     for (var i = 1; i < arguments.length; i++) {
@@ -317,6 +324,9 @@
     });
     root.querySelectorAll("[data-i18n-title]").forEach(function (el) {
       el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
+    });
+    root.querySelectorAll("[data-i18n-html]").forEach(function (el) {
+      el.innerHTML = t(el.getAttribute("data-i18n-html"));
     });
   }
   function setLang(l) {
