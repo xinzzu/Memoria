@@ -85,7 +85,7 @@ function memoRowRenderer(renderId) {
         ${h.tags && h.tags.length ? `<div class="mem-chips">${h.tags.map((t) => `<span class="chip tag" data-tag="${esc(t)}">#${esc(t)}</span>`).join("")}</div>` : ""}
       </div>
       <div class="mem-actions">
-        ${isDraft ? `<button class="mem-approve" title="Setujui memori" data-appr="${h.id}">Approve ✓</button>` : ""}
+        ${isDraft ? `<button class="mem-approve" title="${t("Approve memory")}" data-appr="${h.id}">Approve ✓</button>` : ""}
         ${isArchived ? `<button class="mem-approve" title=t("Restore memory") data-rs="${h.id}">Restore</button>` : ""}
         <button class="icon-btn" title=t("View connections") data-rel="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="4" r="1.6"/><circle cx="12.5" cy="3" r="1.6"/><circle cx="10" cy="11" r="1.6"/><path d="M5 4.8l5.8-1.2M3.7 5.6l1 4.3M9.2 10l1-7.4"/></svg>
@@ -126,12 +126,12 @@ function setView(name) {
   $("#view-" + name).classList.add("active");
   const meta = {
     overview: ["Overview", t("Memory summary across all AI tools")],
-    memories: [t("Memorieseses"), t("Search and manage stored memories")],
+    memories: [t("Memories"), t("Search and manage stored memories")],
     projects: [t("Projects"), t("Activity by project")],
     timeline: ["Timeline", t("Per-project activity trail")],
     handoff: [t(t("Handoff")), t("Context summary for the next AI session")],
     graph: ["Graph", t("Map of connections between memories")],
-    integrations: [t("Integrations"), t("Register Memoriesesa with your AI tools")],
+    integrations: [t("Integrations"), t("Register Memoria with your AI tools")],
     settings: [t("Settings"), t("Data sources and integrations")],
   }[name];
   $("#pageTitle").textContent = meta[0];
@@ -143,7 +143,7 @@ async function loadStats() {
   try {
     state.stats = await api("/api/stats");
     $("#sTranscripts").textContent = state.stats.transcripts.toLocaleString("id-ID");
-    $("#sMemorieseses").textContent = state.stats.memories.toLocaleString("id-ID");
+    $("#sMemories").textContent = state.stats.memories.toLocaleString("id-ID");
     $("#sPending").textContent = state.stats.pending.toLocaleString("id-ID");
     $("#navMemCount").textContent = state.stats.memories > 0 ? state.stats.memories.toLocaleString("id-ID") : "";
     const ollama = state.stats.ollamaOnline;
@@ -395,7 +395,7 @@ function projectRow(p, clickable) {
 
 let memPagination = null; // { offset, hasMore } untuk tab aktif tanpa filter
 
-async function renderMemorieseses(append = false) {
+async function renderMemories(append = false) {
   const q = state.search.trim();
   const box = $("#memoriesList");
   try {
@@ -434,12 +434,17 @@ async function renderMemorieseses(append = false) {
     const d = await api("/api/search?" + params.toString());
     renderMemoryList(box, d.hits);
   } catch (e) {
-    box.innerHTML = emptyState(t("Failed to load memories"), esc(e.message) + t(" — make sure the Memoriesesa engine is running, then retry."));
+    box.innerHTML = `<div class="err-box">
+      <h4>${t("Couldn't load memories")}</h4>
+      <p>${esc(e.message)}</p>
+      <button class="btn" id="memRetry">${t("Retry")}</button>
+    </div>`;
+    box.querySelector("#memRetry")?.addEventListener("click", () => renderMemories());
   }
 }
 
 function appendMemoryList(box, items) {
-  state.lastMemorieseses = [...(state.lastMemorieseses || []), ...items];
+  state.lastMemories = [...(state.lastMemories || []), ...items];
   let list = box.querySelector(".list");
   if (!list) {
     box.innerHTML = '<div class="list"></div>';
@@ -460,13 +465,13 @@ function renderLoadMore(box) {
   btn.addEventListener("click", () => {
     btn.disabled = true;
     btn.textContent = t("Loading…");
-    renderMemorieseses(true);
+    renderMemories(true);
   });
   box.appendChild(btn);
 }
 
 function renderMemoryList(box, items) {
-  state.lastMemorieseses = items || [];
+  state.lastMemories = items || [];
   if (!items || !items.length) {
     box.innerHTML = emptyState(t("No matching memories"), t("Try different keywords, or add a memory manually."));
     return;
@@ -532,7 +537,7 @@ function bindRowActions(root) {
       state.filterTag = "";
       state.search = chip.dataset.ent;
       $("#search").value = chip.dataset.ent;
-      renderMemorieseses();
+      renderMemories();
     });
   });
   root.querySelectorAll("[data-tag]").forEach((chip) => {
@@ -540,7 +545,7 @@ function bindRowActions(root) {
       e.stopPropagation();
       state.filterTag = chip.dataset.tag;
       $("#filterTag").value = chip.dataset.tag;
-      renderMemorieseses();
+      renderMemories();
     });
   });
   root.querySelectorAll("[data-appr]").forEach((btn) => {
@@ -605,10 +610,28 @@ function bindRowActions(root) {
 function renderProjects() {
   const box = $("#projectsList");
   if (!state.projects.length) {
-    box.innerHTML = emptyState(t("No projects yet"), "Projects akan muncul otomatis saat AI tools mencatat aktivitas.");
+    box.innerHTML = emptyState(t("No projects yet"), t("Projects appear automatically as AI tools record activity."));
     return;
   }
-  box.innerHTML = state.projects.map(projectRow).join("");
+  const hues = ["#f5b942", "#a684ff", "#9fdd5f", "#6e8dff", "#ff9d6e", "#63d8e0", "#e5686b", "#9d8cff"];
+  box.innerHTML = `<div class="feed">` + state.projects.map((p, i) => `
+    <div class="feed-item" data-open-project="${esc(p.slug)}" title="${esc(p.slug)}">
+      <span class="feed-dot" style="background:${hues[i % hues.length]}"></span>
+      <div style="min-width:0">
+        <div class="feed-name">${esc(p.name)}</div>
+        <div class="feed-sub">${(p.transcripts || 0).toLocaleString("id-ID")} ${t("transcripts")} · ${fmtRel(p.last_seen)}</div>
+      </div>
+      <span class="feed-badge">${t("Open")}</span>
+    </div>`).join("") + `</div>`;
+  box.querySelectorAll("[data-open-project]").forEach((el) => {
+    el.addEventListener("click", () => {
+      setView("timeline");
+      const sel = $("#tlProject");
+      if (sel) sel.value = el.dataset.openProject;
+      tlMode = "text";
+      renderTimeline();
+    });
+  });
 }
 
 async function loadTags() {
@@ -1162,7 +1185,7 @@ function wireSettingsToggles() {
 let editingId = null;
 
 function openEditModal(id) {
-  const items = (state.lastMemorieseses || []).filter((m) => m.id === id);
+  const items = (state.lastMemories || []).filter((m) => m.id === id);
   renderEditModal(items[0], id);
 }
 
@@ -1206,7 +1229,7 @@ async function doScan() {
     if (props.length) toast(t("Scan finished — new: {0}") + props.map((r) => `${r.tool} +${r.count}`).join(", "));
     else toast(t("Scan finished — nothing new"));
     await Promise.all([loadStats(), loadProjects()]);
-    if (state.view === "memories") renderMemorieseses();
+    if (state.view === "memories") renderMemories();
   } catch (e) {
     toast(t("Scan failed: ") + e.message, "err");
   } finally {
@@ -1228,7 +1251,7 @@ async function saveMemory() {
       toast(t("Memory updated"));
       resetModal();
       loadStats();
-      if (state.view === "memories") renderMemorieseses();
+      if (state.view === "memories") renderMemories();
       return;
     }
     await api("/api/remember", {
@@ -1241,7 +1264,7 @@ async function saveMemory() {
     closeModal();
     toast(t("Memory saved"));
     loadStats();
-    if (state.view === "memories") renderMemorieseses();
+    if (state.view === "memories") renderMemories();
   } catch (e) {
     toast(t("Failed to save: ") + e.message, "err");
   }
@@ -1265,7 +1288,7 @@ function closeModal() { $("#overlay").classList.remove("show"); }
 document.querySelectorAll(".nav-item").forEach((n) => {
   n.addEventListener("click", () => {
     setView(n.dataset.view);
-    if (n.dataset.view === "memories") { loadTags(); renderMemorieseses(); }
+    if (n.dataset.view === "memories") { loadTags(); renderMemories(); }
     if (n.dataset.view === "projects") renderProjects();
     if (n.dataset.view === "timeline") renderTimeline();
     if (n.dataset.view === "graph") renderGraph();
@@ -1273,7 +1296,7 @@ document.querySelectorAll(".nav-item").forEach((n) => {
     if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
   });
 });
-$("#linkAllMem").addEventListener("click", () => { setView("memories"); renderMemorieseses(); });
+$("#linkAllMem").addEventListener("click", () => { setView("memories"); renderMemories(); });
 $("#linkAllProj").addEventListener("click", () => { setView("projects"); renderProjects(); });
 
 $("#btnScan").addEventListener("click", doScan);
@@ -1499,18 +1522,18 @@ if (langSel) {
 $("#search").addEventListener("input", debounce(async (e) => {
   state.search = e.target.value;
   if (state.view !== "memories") setView("memories");
-  renderMemorieseses();
+  renderMemories();
 }, 350));
 document.querySelectorAll(".mem-tabs .seg").forEach((b) => {
   b.addEventListener("click", () => {
     state.memTab = b.dataset.memtab;
     document.querySelectorAll(".mem-tabs .seg").forEach((x) => x.classList.toggle("active", x === b));
-    renderMemorieseses();
+    renderMemories();
   });
 }); 
-$("#filterKind").addEventListener("change", (e) => { state.filterKind = e.target.value; renderMemorieseses(); });
-$("#filterProject").addEventListener("change", (e) => { state.filterProject = e.target.value; renderMemorieseses(); });
-$("#filterTag").addEventListener("change", (e) => { state.filterTag = e.target.value; renderMemorieseses(); });
+$("#filterKind").addEventListener("change", (e) => { state.filterKind = e.target.value; renderMemories(); });
+$("#filterProject").addEventListener("change", (e) => { state.filterProject = e.target.value; renderMemories(); });
+$("#filterTag").addEventListener("change", (e) => { state.filterTag = e.target.value; renderMemories(); });
 
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -1530,7 +1553,7 @@ window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(()
 document.addEventListener("memoria:lang", () => {
   I18N.apply();
   setView(state.view);
-  if (state.view === "memories") renderMemorieses();
+  if (state.view === "memories") renderMemories();
   if (state.view === "projects") renderProjects();
   if (state.view === "timeline") renderTimeline();
   if (state.view === "graph") renderGraph();
