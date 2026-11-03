@@ -103,8 +103,8 @@ function serveStatic(url: URL, res: ServerResponse): boolean {
   try {
     const data = fs.readFileSync(file);
     const mime = MIME[path.extname(file).toLowerCase()] || "application/octet-stream";
-    // HTML tanpa cache agar update UI langsung terlihat; aset lain cache singkat.
-    const cache = mime.startsWith("text/html") ? "no-cache" : "max-age=300";
+    // HTML/JS/CSS tanpa cache agar update UI selalu terlihat; gambar boleh cache.
+    const cache = mime.startsWith("image/") ? "max-age=3600" : "no-cache";
     res.writeHead(200, { "Content-Type": mime, "Cache-Control": cache });
     res.end(data);
   } catch {

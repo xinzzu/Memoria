@@ -283,7 +283,7 @@
   "second brain": "otak kedua",
   "Switching tools? Resume context is injected automatically when a session goes idle.": "Pindah tool? Konteks resume tersuntik otomatis begitu sesi diam.",
   "Try Handoff": "Coba Handoff",
-  "The SESSION RESUME block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.": "Blok \"⏸️ LANJUTAN SESI\" disuntik ke file konteks yang dibaca tiap tool. Matikan bila tool Anda tidak memakai file tersebut. Injeksi hanya menyentuh blok ber-marker Memoria.",
+  "The SESSION RESUME block is injected into the context file each tool reads. Turn off what your tool doesn't use. Injection only touches Memoria's marked block.": "Blok \"SESSION RESUME\" disuntik ke file konteks yang dibaca tiap tool. Matikan bila tool Anda tidak memakai file tersebut. Injeksi hanya menyentuh blok ber-marker Memoria.",
   "Memory library": "Pustaka memori",
   "Register MCP server": "Daftarkan MCP server",
   "Pending approval": "Menunggu persetujuan",
