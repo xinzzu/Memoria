@@ -84,7 +84,7 @@ async function main(): Promise<void> {
     }
     case "server": {
       ensureDb();
-      startHttpServer();
+      await startHttpServer();
       startWatcher();
       const { startBackgroundJobs, stopBackgroundJobs } = await import("./lifecycle");
       startBackgroundJobs();

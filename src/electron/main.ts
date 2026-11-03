@@ -39,6 +39,10 @@ function createIcon(): Electron.NativeImage {
   return nativeImage.createFromBuffer(canvasData, { width: size, height: size });
 }
 
+function dashboardUrl(file = ""): string {
+  return `http://127.0.0.1:${getConfig().httpPort}/${file}`;
+}
+
 function showWindow(): void {
   if (!win || win.isDestroyed()) {
     win = new BrowserWindow({
@@ -49,40 +53,8 @@ function showWindow(): void {
       icon: createIcon(),
       webPreferences: { contextIsolation: true, nodeIntegration: false },
     });
-    win.loadFile(path.join(__dirname, "..", "..", "web", "index.html"));
+    win.loadURL(dashboardUrl());
     win.on("closed", () => (win = null));
-    if (process.env.PECUT_SHOT) {
-      win.webContents.on("console-message", (e, level, message, line, sourceId) => {
-        if (level >= 2) console.log("[PAGE-ERR]", message, "@", sourceId, line);
-      });
-      win.webContents.executeJavaScript(`
-        window.addEventListener('error', (ev) => console.log('[ERR-STACK]', ev.message, ev.filename + ':' + ev.lineno));
-      `).catch(() => {});
-      win.webContents.once("did-finish-load", async () => {
-        await new Promise((r) => setTimeout(r, 2500));
-        if (process.env.PECUT_SHOT_VIEW) {
-          await win!.webContents.executeJavaScript(`
-            document.querySelector('[data-view="${process.env.PECUT_SHOT_VIEW}"]')?.click();
-          `);
-          await new Promise((r) => setTimeout(r, 1800));
-        }
-        if (process.env.PECUT_SHOT_CHECK) {
-          await win!.webContents.executeJavaScript(process.env.PECUT_SHOT_CHECK);
-          await new Promise((r) => setTimeout(r, 1200));
-        }
-        if (process.env.PECUT_SHOT_MEMORIES) {
-          await win!.webContents.executeJavaScript(`
-            document.querySelector("#search").value = "ERP planning";
-            document.querySelector("#search").dispatchEvent(new Event("input", { bubbles: true }));
-          `);
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-        const img = await win!.webContents.capturePage();
-        const fs = require("node:fs") as typeof import("node:fs");
-        fs.writeFileSync(process.env.PECUT_SHOT!, img.toPNG());
-        app.quit();
-      });
-    }
   }
   win.show();
   win.focus();
@@ -131,7 +103,7 @@ function openQuickWindow(): void {
     backgroundColor: "#14161a",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
-  quickWin.loadFile(path.join(__dirname, "..", "..", "web", "quick.html"));
+  quickWin.loadURL(dashboardUrl("quick.html"));
   quickWin.on("closed", () => (quickWin = null));
 }
 
@@ -154,13 +126,14 @@ function openPaletteWindow(): void {
     backgroundColor: "#14161a",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
-  paletteWin.loadFile(path.join(__dirname, "..", "..", "web", "palette.html"));
+  paletteWin.loadURL(dashboardUrl("palette.html"));
   paletteWin.on("closed", () => (paletteWin = null));
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   ensureDb();
-  startHttpServer();
+  // Tunggu server siap dulu — semua window memuat UI dari HTTP server ini.
+  await startHttpServer();
   startWatcher();
   createTray();
   try {
@@ -176,7 +149,13 @@ app.whenReady().then(() => {
   }
   startBackgroundJobs();
 
-  app.setLoginItemSettings({ openAtLogin: true });
+  // Auto-start kini opsional (setting "autoStartLogin", default aktif).
+  // openAsHidden: macOS — mulai sebagai tray tanpa membuka window.
+  const autoStart = getBoolSetting("autoStartLogin", true);
+  app.setLoginItemSettings({
+    openAtLogin: autoStart,
+    openAsHidden: autoStart && process.platform === "darwin",
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) showWindow();

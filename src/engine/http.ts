@@ -1,4 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
@@ -61,6 +63,37 @@ function readBody(req: IncomingMessage): Promise<any> {
   });
 }
 
+// Dashboard/palette/quick dilayani dari sini agar UI tidak perlu hardcode port:
+// fetch("/api/...") same-origin bekerja di port berapa pun hasil config.
+const WEB_DIR = path.resolve(__dirname, "..", "..", "web");
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+};
+
+function serveStatic(url: URL, res: ServerResponse): boolean {
+  if (url.pathname.startsWith("/api/")) return false;
+  const rel = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
+  const file = path.resolve(path.join(WEB_DIR, rel));
+  if (!file.startsWith(WEB_DIR + path.sep)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return true;
+  }
+  try {
+    const data = fs.readFileSync(file);
+    res.writeHead(200, { "Content-Type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream" });
+    res.end(data);
+  } catch {
+    sendJson(res, 404, { error: "not found" });
+  }
+  return true;
+}
+
 export function startHttpServer(): Promise<void> {
   ensureDb();
   const port = getConfig().httpPort;
@@ -95,6 +128,7 @@ export function startHttpServer(): Promise<void> {
         res.end();
         return;
       }
+      if (req.method === "GET" && serveStatic(url, res)) return;
       if (url.pathname === "/api/stats" && req.method === "GET") {
         const s = stats();
         const ollama = await ollamaAvailable();

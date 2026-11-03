@@ -1,4 +1,5 @@
-const API = "http://localhost:48210";
+// Same-origin: dashboard dilayani oleh HTTP engine itu sendiri — port tidak perlu di-hardcode.
+const API = "";
 const $ = (sel) => document.querySelector(sel);
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const KIND_LABEL = {
