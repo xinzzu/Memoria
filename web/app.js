@@ -211,7 +211,7 @@ function renderOverview() {
   if (hero) {
     if (st && st.transcripts === 0) {
       hero.innerHTML = `<div class="hero">
-        <h3>${t("Welcome to Memoria 👋")}</h3>
+        <h3>${t("Welcome to Memoria")}</h3>
         <p>${t("Your AI tools' sessions are captured automatically — decisions, tasks and fixes become memories shared across every tool. Start with a scan, or register your tools.")}</p>
         <div class="hero-actions">
           <button class="btn primary" id="heroScan">${t("Scan now")}</button>
