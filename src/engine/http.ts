@@ -4,7 +4,8 @@ import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag } from "./store/db";
+import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject } from "./store/db";
+import { looksLikePath, projectSlugFromCwd } from "./ingest/util";
 import { embed, ollamaAvailable } from "./extract/ollama";
 import { extractQueue } from "./extract/extractor";
 import { addMemoryWithDedupe } from "./extract/dedupe";
@@ -229,8 +230,12 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/remember" && req.method === "POST") {
         const body = await readBody(req);
         const kind = ["fact", "decision", "task_done", "task_pending", "error_fixed", "preference", "context"].includes(body.kind) ? body.kind : "context";
-        const project = String(body.project || "").replace(/[\\/:]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
-        const projectId = project && project !== "_unknown" ? ensureProject(project) : null;
+        // Jangan slugify sebelum ensureProject — path mentah dibutuhkan agar
+        // proyek yang sama dari tool berbeda bisa di-merge (identitas kanonik).
+        const rawProject = String(body.project || "").trim();
+        const projectId = rawProject && rawProject !== "_unknown"
+          ? ensureProject(projectSlugFromCwd(rawProject), looksLikePath(rawProject) ? rawProject : undefined)
+          : null;
         const embedding = await embed(String(body.content || ""));
         addMemoryWithDedupe({
           projectId,
@@ -307,22 +312,26 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/resume" && req.method === "GET") {
         // Prompt lanjutan ringkas siap-paste — plan B bila injeksi file tidak terbaca tool.
         const { generateResumePrompt } = await import("./handoff");
-        const text = await generateResumePrompt(url.searchParams.get("slug") || "");
+        const proj = resolveProject(url.searchParams.get("slug") || "");
+        const text = await generateResumePrompt(proj ? proj.slug : "");
         sendJson(res, 200, { text });
       } else if (url.pathname === "/api/handoff" && req.method === "POST") {
         const body = await readBody(req);
+        const proj = resolveProject(String(body.slug || ""));
+        const slug = proj ? proj.slug : String(body.slug || "");
         if (body.file) {
           // Mode lama: satu file eksplisit (kompatibel dengan pemanggil lama).
-          const res2 = await injectHandoff(String(body.slug || ""), String(body.file));
+          const res2 = await injectHandoff(slug, String(body.file));
           sendJson(res, res2.ok ? 200 : 400, res2);
         } else {
           // Default: suntik ke semua target konvensi tool (AGENTS/CLAUDE/GEMINI).
-          const results = await injectHandoffAll(String(body.slug || ""));
+          const results = await injectHandoffAll(slug);
           sendJson(res, results.some((r) => r.ok) ? 200 : 400, { ok: results.some((r) => r.ok), results });
         }
       } else if (url.pathname === "/api/handoff/remove" && req.method === "POST") {
         const body = await readBody(req);
-        const results = removeInjectAll(String(body.slug || ""));
+        const proj = resolveProject(String(body.slug || ""));
+        const results = removeInjectAll(proj ? proj.slug : String(body.slug || ""));
         sendJson(res, results.some((r) => r.ok) ? 200 : 400, { ok: results.some((r) => r.ok), results });
       } else if (url.pathname === "/api/backup" && req.method === "POST") {
         pruneArchivedBackups();
@@ -391,10 +400,10 @@ export function startHttpServer(): Promise<void> {
         }
       } else if (url.pathname === "/api/import" && req.method === "POST") {
         const body = await readBody(req);
-        const { insertTranscript, ensureProject: _e } = await import("./store/db");
+        const { insertTranscript } = await import("./store/db");
         const text = String(body.text || "").trim();
-        const slug = String(body.project || "_import").toLowerCase().replace(/[\\/:]+/g, "-").replace(/^-+|-+$/g, "");
-        const projectId = ensureProject(slug);
+        const rawProject = String(body.project || "_import").trim();
+        const projectId = ensureProject(projectSlugFromCwd(rawProject), looksLikePath(rawProject) ? rawProject : undefined);
         const tool = String(body.tool || "import");
         let ok = false;
         if (text) {

@@ -282,7 +282,8 @@ export async function injectHandoff(slug: string, targetFile = "AGENTS.md", opts
     } else if (existing.includes("<!-- pecut-memory:start -->")) {
       existing = existing.replace(MARK_RE, block);
     } else {
-      existing = existing.trimEnd() + "\n\n" + block;
+      // File baru: jangan tambahkan baris kosong di awal.
+      existing = existing.trimEnd() ? existing.trimEnd() + "\n\n" + block : block;
     }
     fs.writeFileSync(target, existing, "utf8");
     return { ok: true, file: targetFile };
