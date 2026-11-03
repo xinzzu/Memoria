@@ -181,8 +181,10 @@ export function startHttpServer(): Promise<void> {
         if (r.ok) {
           const { invalidateVecIndex } = await import("./vecfind");
           const { invalidateCentrality } = await import("./retrieve/search");
+          const { resetProjectMemo } = await import("./store/db");
           invalidateVecIndex();
           invalidateCentrality();
+          resetProjectMemo();
         }
         sendJson(res, r.ok ? 200 : 400, r);
       } else if (url.pathname === "/api/tasks" && req.method === "GET") {

@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { extractEntities } from "../extract/entities";
+import { canonicalPath } from "../ingest/util";
 
 export interface Transcript {
   id?: number;
@@ -176,24 +177,65 @@ export function closeDb(): void {
   }
 }
 
+// Memo resolve (slug+path) -> projectId: hindari syscall realpath berulang
+// saat scan memproses ribuan pesan dengan cwd yang sama.
+const ensureProjectMemo = new Map<string, number>();
+
+export function resetProjectMemo(): void {
+  ensureProjectMemo.clear();
+}
+
 export function ensureProject(slug: string, projectPath?: string): number {
   const d = getDb();
   const clean = slug || "_unknown";
+  const memoKey = `${clean}\u0000${projectPath || ""}`;
+  const memo = ensureProjectMemo.get(memoKey);
+  if (memo) return memo;
+
+  const canon = canonicalPath(projectPath);
+  const finish = (id: number): number => {
+    if (ensureProjectMemo.size > 1000) ensureProjectMemo.clear();
+    ensureProjectMemo.set(memoKey, id);
+    return id;
+  };
+
+  // 1) Cocokkan by slug (jalur lama — kompatibel dengan DB yang sudah ada).
   const existing = d.prepare("SELECT id FROM projects WHERE slug = ?").get(clean) as
     | { id: number }
     | undefined;
   if (existing) {
-    d.prepare("UPDATE projects SET last_seen = ? WHERE id = ?").run(Date.now(), existing.id);
-    return existing.id;
+    if (canon) {
+      // Backfill path bila proyek lama belum punya — jadi bisa dicocokkan lintas tool.
+      d.prepare("UPDATE projects SET last_seen = ?, path = COALESCE(NULLIF(path, ''), ?) WHERE id = ?").run(Date.now(), canon, existing.id);
+    } else {
+      d.prepare("UPDATE projects SET last_seen = ? WHERE id = ?").run(Date.now(), existing.id);
+    }
+    return finish(existing.id);
   }
+
+  // 2) Cocokkan by path kanonik: proyek fisik yang sama yang dilaporkan tool
+  //    berbeda dengan format slug berbeda tetap menjadi SATU proyek.
+  if (canon) {
+    const rows = d
+      .prepare("SELECT id, path FROM projects WHERE path IS NOT NULL AND path != ''")
+      .all() as Array<{ id: number; path: string }>;
+    for (const r of rows) {
+      if (canonicalPath(r.path) === canon) {
+        d.prepare("UPDATE projects SET last_seen = ? WHERE id = ?").run(Date.now(), r.id);
+        return finish(r.id);
+      }
+    }
+  }
+
+  // 3) Buat proyek baru.
   const name = clean
     .replace(/^[-a-z]+--/i, "")
     .replace(/[_-]+/g, " ")
     .trim();
   const res = d
     .prepare("INSERT INTO projects (slug, path, name, last_seen) VALUES (?, ?, ?, ?)")
-    .run(clean, projectPath || null, name || clean, Date.now());
-  return Number(res.lastInsertRowid);
+    .run(clean, canon || projectPath || null, name || clean, Date.now());
+  return finish(Number(res.lastInsertRowid));
 }
 
 export function insertTranscript(t: Transcript): boolean {
