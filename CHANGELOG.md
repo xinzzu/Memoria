@@ -30,12 +30,27 @@ menjelaskan ulang konteks. Branch: `feat/f1a-resume-engine`.
   berikutnya. Ekstraksi background tetap berjalan untuk backlog lama.
 
 ### Fixed
+- **Merge identitas proyek gagal untuk simpanan dashboard/quick-note**:
+  `/api/remember` dan `/api/import` melakukan slugify sebelum `ensureProject`
+  sehingga path proyek tidak pernah diteruskan — memori dashboard masuk ke
+  proyek terpisah dari sesi Claude/Codex di direktori yang sama, dan blok
+  resume kehilangan task/keputusan. Path mentah kini diteruskan (guard
+  `looksLikePath` mencegah nama polos di-resolve jadi path palsu).
+- **`/api/resume`, `GET|POST /api/handoff`, `/api/handoff/remove` menuntut
+  slug persis** — input path/nama kini di-resolve lewat `resolveProject()`
+  (kini shared di `store/db.ts`, dipakai MCP + HTTP).
 - **`/api/remember` membalas 500 padahal memori tersimpan**: `node:sqlite`
   mengembalikan objek ber-prototype `null`, dan `Number(row)` di atasnya
   melempar TypeError — user melihat "Gagal simpan" untuk memori yang sebenarnya
   sukses. Ditemukan lewat smoke test F1A; kini `{"ok":true}` dan duplikat
   di-merge dedupe. Stack error 500 juga kini ter-log.
-- Error API 500 sebelumnya tidak meninggalkan jejak stack sama sekali.
+- File konteks yang baru dibuat injeksi tidak lagi diawali dua baris kosong.
+
+### Changed
+- Threshold idle hot-path resume kini bisa diatur via setting
+  `resumeIdleMinutes` (default 4 menit, minimum 1) — berlaku tanpa restart.
+- `ollamaUrl` bisa dioverride via env `MEMORIA_OLLAMA_URL` (testing terisolasi
+  & endpoint non-standar).
 
 ## [Unreleased] — Fase 0 (fondasi)
 
