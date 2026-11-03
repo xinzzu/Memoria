@@ -307,6 +307,7 @@ function bindRowActions(root) {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const id = btn.dataset.del;
+      if (!confirm("Hapus memori ini? Tindakan ini tidak bisa dibatalkan.")) return;
       try {
         await api("/api/memories?id=" + id, { method: "DELETE" });
         toast("Memori dihapus");
@@ -1010,7 +1011,7 @@ function download(filename, text, type = "text/markdown") {
 async function doScan() {
   const btnText = $("#btnScanText");
   const old = btnText.textContent;
-  btnText.textContent = "Menyimpan…";
+  btnText.textContent = "Memindai…";
   $("#btnScan").disabled = true;
   try {
     const d = await api("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" } });
@@ -1231,7 +1232,8 @@ document.addEventListener("keydown", (e) => {
     $("#search").focus();
   }
   if (e.key === "Escape") resetModal();
-  if (e.key === "Enter" && e.target === $("#addContent")) saveMemory();
+  // Ctrl/Cmd+Enter untuk simpan — Enter biasa tetap buat baris baru (memori bisa multiline).
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.target === $("#addContent")) saveMemory();
 });
 
 /* ---------- Init ---------- */
