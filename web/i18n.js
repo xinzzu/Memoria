@@ -297,7 +297,12 @@
   "notes": "catatan",
   "Memory extraction &amp; embedding. <b>Auto</b> mode uses Ollama when it is running; with no model at all, Memoria still works (heuristics → review queue). Changes apply instantly, no restart.": "Ekstraksi &amp; embedding memori. Mode <b>auto</b> memakai Ollama bila menyala; tanpa model pun Memoria tetap bekerja (heuristik → antrian tinjau). Perubahan langsung aktif tanpa restart.",
   "Project": "Proyek",
-  "(optional)": "(opsional)"
+  "(optional)": "(opsional)",
+  "Registered in ~/.codex/config.toml": "Terdaftar di ~/.codex/config.toml",
+  "Registered in ~/.config/opencode/opencode.json": "Terdaftar di ~/.config/opencode/opencode.json",
+  "Registered in ~/.gemini/settings.json": "Terdaftar di ~/.gemini/settings.json",
+  "Registered in ~/.copilot/mcp-config.json": "Terdaftar di ~/.copilot/mcp-config.json",
+  "Registered in ~/.gemini/config/mcp_config.json": "Terdaftar di ~/.gemini/config/mcp_config.json"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
