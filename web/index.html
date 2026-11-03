@@ -253,12 +253,23 @@
 
     /* ---------- Settings ---------- */
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .settings-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-    .settings-tabs .stab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border);
-      background: var(--bg); color: var(--muted); font-size: 12.5px; cursor: pointer; user-select: none; }
-    .settings-tabs .stab.active { background: #5b7cfa; border-color: transparent; color: #fff; }
+    .settings-wrap { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 22px; align-items: start; }
+    .settings-tabs { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 3px; }
+    .settings-tabs .stab { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 9px;
+      border: 1px solid transparent; background: transparent; color: var(--muted);
+      font-size: 12.5px; cursor: pointer; user-select: none; transition: background .12s, color .12s; }
+    .settings-tabs .stab svg { width: 14px; height: 14px; opacity: .8; flex: none; }
+    .settings-tabs .stab:hover { background: rgba(255,255,255,.04); color: var(--text); }
+    .settings-tabs .stab.active { background: rgba(110,141,255,.14); border-color: rgba(110,141,255,.3); color: #cdd6ff; }
+    .stab-lang { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid var(--border-soft); }
+    .stab-lang .t-label { font-size: 11px; color: var(--faint); }
+    .stab-lang select { width: 100%; }
     .settings-group { display: none; }
-    .settings-group.active { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 880px; }
+    .settings-group.active { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; max-width: none; }
+    .settings-group .card-desc { max-width: 74ch; }
+    .settings-group .kv { justify-content: space-between; }
+    .settings-group .kv .v { color: var(--text); }
     .card {
       background: var(--panel); border: 1px solid var(--border-soft);
       border-radius: var(--radius); padding: 18px;
@@ -1009,12 +1020,33 @@
         <!-- Settings -->
         <div class="view" id="view-settings">
           <div class="settings-grid" style="display:block">
+<div class="settings-wrap">
           <div class="settings-tabs" id="settingsTabs">
-            <div class="stab active" data-stab-btn="sources" data-i18n="Data sources">Data sources</div>
-            <div class="stab" data-stab-btn="engine" data-i18n="Engine">Engine</div>
-            <div class="stab" data-stab-btn="behavior" data-i18n="Behavior">Behavior</div>
-            <div class="stab" data-stab-btn="data" data-i18n="Backup & data">Backup & data</div>
+            <div class="stab active" data-stab-btn="sources">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="4" rx="5.5" ry="2.5"/><path d="M2.5 4v8c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5V4M2.5 8c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5V8"/></svg>
+              <span data-i18n="Data sources">Data sources</span>
+            </div>
+            <div class="stab" data-stab-btn="engine">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3" y="3" width="10" height="10" rx="2"/><path d="M6 1.5v3M10 1.5v3M6 11.5v3M10 11.5v3M1.5 6h3M1.5 10h3M11.5 6h3M11.5 10h3"/></svg>
+              <span data-i18n="Engine">Engine</span>
+            </div>
+            <div class="stab" data-stab-btn="behavior">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h8M13.5 5h-1M2.5 11h1M13.5 11h-8"/><circle cx="11.5" cy="5" r="1.8"/><circle cx="4.5" cy="11" r="1.8"/></svg>
+              <span data-i18n="Behavior">Behavior</span>
+            </div>
+            <div class="stab" data-stab-btn="data">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.8l5 2.2v3.5c0 3.2-2.1 5.5-5 6.7-2.9-1.2-5-3.5-5-6.7V4z"/></svg>
+              <span data-i18n="Backup & data">Backup & data</span>
+            </div>
+            <div class="stab-lang">
+              <span class="t-label" data-i18n="Language / Bahasa">Language / Bahasa</span>
+              <select id="setLang" class="sel">
+                <option value="en">English</option>
+                <option value="id">Indonesia</option>
+              </select>
+            </div>
           </div>
+          <div class="settings-groups-col">
           <div class="settings-group" data-stab="sources">
 <div class="card">
               <h4 data-i18n="Data sources">Data sources</h4>
@@ -1061,8 +1093,8 @@
               <h4 data-i18n="System">System</h4>
               <div class="card-desc" data-i18n="Local storage and inference — nothing leaves this computer.">Local storage and inference — nothing leaves this computer.</div>
               <div class="kv"><span class="k">Data directory</span><span class="v" id="cfgDataDir">—</span></div>
-              <div class="kv"><span class="k">Model ekstraksi</span><span class="v" id="cfgExtractModel">—</span></div>
-              <div class="kv"><span class="k">Model embedding</span><span class="v" id="cfgEmbedModel">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Extraction model">Extraction model</span><span class="v" id="cfgExtractModel">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Embedding model">Embedding model</span><span class="v" id="cfgEmbedModel">—</span></div>
               <div class="kv"><span class="k">API</span><span class="v" id="cfgApi">—</span></div>
             </div>
             
@@ -1155,16 +1187,6 @@
                 <div class="switch" data-sw="injectFile:GEMINI.md"></div>
               </div>
             </div>
-            
-<div class="card">
-              <h4>Language / Bahasa</h4>
-              <div class="card-desc" data-i18n="Dashboard language. (Engine & handoff language coming later.)">Dashboard language. (Engine & handoff language coming later.)</div>
-              <select id="setLang" style="width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; outline:none">
-                <option value="en">English</option>
-                <option value="id">Indonesia</option>
-              </select>
-            </div>
-          </div>
           <div class="settings-group" data-stab="data">
 <div class="card">
               <h4 data-i18n="Memory topics">Memory topics</h4>
@@ -1206,6 +1228,7 @@
   
           </div>
         </div>
+          </div><!-- /settings-wrap -->
       </div>
     </div>
 
