@@ -881,6 +881,7 @@ function renderGraphLegend() {
 function initGraph3D() {
   const el = document.getElementById("graph3d");
   if (!el || !window.ForceGraph3D) return;
+  if (el.clientWidth === 0) { requestAnimationFrame(() => initGraph3D()); return; }
   if (__g3d) { try { __g3d._destructor(); } catch (e) {} __g3d = null; }
   el.innerHTML = "";
 
