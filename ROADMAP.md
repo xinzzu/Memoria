@@ -19,7 +19,7 @@ Release v0.2.0 terbit (CI 3 OS hijau) ✅. Estimasi total ±65%.
 2. Sisa F2: light theme (butuh pass token warna lebih dalam), halaman detail proyek (sebagian tercakup feed→timeline)
 3. Sisa F1C (dipicu metrik — RSS terukur ±125MB, masih sehat): FTS5, embedding Float32 BLOB, virtualisasi list, SSE penuh
 4. F3: webhook, sync terenkripsi, test suite, code signing — butuh keputusan produk
-5. ✅ v0.3.0 & v0.4.0 terbit (CI 3 OS hijau) — Tasks view, engine EN, safeStorage, batch embedding, setup checklist, settings two-pane, graph obsidian, i18n penuh
+5. ✅ v0.2.0 → v0.5.0 terbit (5 rilis, CI 3 OS hijau) — Tasks view, engine EN, safeStorage, batch embedding, setup checklist, settings two-pane, graph obsidian, i18n penuh, light theme, SSE live, test suite, **project detail view**
 
 **Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
 data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).
