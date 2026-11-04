@@ -870,8 +870,12 @@
       box-shadow: inset 0 0 0 1px rgba(84, 104, 212, 0.3);
     }
     :root[data-theme="light"] .status-pill { background: #fff; border: 1px solid var(--border); }
-    :root[data-theme="light"] .search-box, :root[data-theme="light"] .btn,
+    :root[data-theme="light"] .search-box, :root[data-theme="light"] .btn:not(.primary),
     :root[data-theme="light"] .task-item { background: #fff; }
+    :root[data-theme="light"] .btn.primary {
+      background: linear-gradient(135deg, #5468d4, #7a5fd0); color: #fff;
+      border: none; box-shadow: 0 2px 8px rgba(84, 104, 212, 0.25);
+    }
     :root[data-theme="light"] .brand-mark { box-shadow: 0 4px 12px rgba(16, 24, 40, 0.15); }
     :root[data-theme="light"] .hero {
       background: linear-gradient(120deg, rgba(84, 104, 212, 0.1), rgba(122, 95, 208, 0.05) 55%, transparent),
@@ -880,6 +884,13 @@
     }
     :root[data-theme="light"] .mem, :root[data-theme="light"] .task-item,
     :root[data-theme="light"] .intg-row { background: #fff; }
+    :root[data-theme="light"] .switch { background: #e3e6ea; border-color: #c9cfd8; }
+    :root[data-theme="light"] .switch::after { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    :root[data-theme="light"] .switch.on { background: var(--accent); border-color: var(--accent); }
+    :root[data-theme="light"] .switch.on::after { background: #fff; }
+    :root[data-theme="light"] .chip.tag { color: #6b4fd8; border-color: rgba(122, 95, 208, 0.4); }
+    :root[data-theme="light"] .kbd { background: #eef0f4; border-color: #d5d9e0; color: #5d6575; }
+    :root[data-theme="light"] .gs-link-row:hover, :root[data-theme="light"] .rel-item:hover { background: rgba(16,24,40,.04); }
 
   </style>
 </head>
