@@ -909,6 +909,7 @@ function initGraph3D() {
     .height(el.clientHeight)
     .onNodeClick((n) => { graph.selected = n.id; renderGraphSide(); })
     .onNodeHover((n) => { el.style.cursor = n ? "pointer" : null; });
+  __g3d.graphData({ nodes, links });
   __g3d.d3Force("charge")?.strength(-90);
   __g3d.cameraPosition({ x: 0, y: 40, z: 620 });
   buildLabels3D();
