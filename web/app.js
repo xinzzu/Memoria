@@ -137,6 +137,7 @@ function setView(name) {
     overview: ["Overview", t("Memory summary across all AI tools")],
     memories: [t("Memories"), t("Search and manage stored memories")],
     projects: [t("Projects"), t("Activity by project")],
+    project: ["Project", t("One project - memories, tasks and activity in one place")],
     timeline: ["Timeline", t("Per-project activity trail")],
     handoff: ["Handoff", t("Context summary for the next AI session")],
     tasks: ["Tasks", t("Everything your AI sessions promised - in one checklist")],
@@ -300,13 +301,7 @@ function renderOverview() {
         </div>`;
       }).join("");
       pl.querySelectorAll("[data-open-project]").forEach((el) => {
-        el.addEventListener("click", () => {
-          setView("timeline");
-          const sel = $("#tlProject");
-          if (sel) sel.value = el.dataset.openProject;
-          tlMode = "text";
-          renderTimeline();
-        });
+        el.addEventListener("click", () => showProject(el.dataset.openProject));
       });
     }
   }
@@ -377,8 +372,13 @@ function drawActivityChart() {
 
   // isian gradien
   const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
-  grad.addColorStop(0, "rgba(139,110,255,.34)");
-  grad.addColorStop(1, "rgba(139,110,255,0)");
+  if (isLightTheme()) {
+    grad.addColorStop(0, "rgba(122, 95, 208, 0.22)");
+    grad.addColorStop(1, "rgba(122, 95, 208, 0)");
+  } else {
+    grad.addColorStop(0, "rgba(139,110,255,.34)");
+    grad.addColorStop(1, "rgba(139,110,255,0)");
+  }
   line(pts);
   ctx.lineTo(pts[pts.length - 1].x, H - padB);
   ctx.lineTo(pts[0].x, H - padB);
@@ -388,7 +388,7 @@ function drawActivityChart() {
 
   // garis utama
   line(pts);
-  ctx.strokeStyle = "#a684ff";
+  ctx.strokeStyle = isLightTheme() ? "#7a5fd0" : "#a684ff";
   ctx.lineWidth = 2.4;
   ctx.lineCap = "round";
   ctx.stroke();
@@ -398,7 +398,7 @@ function drawActivityChart() {
   pts.forEach((p, i) => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, p === pts[pts.length - 1] || p.count > 0 ? 4 : 3, 0, Math.PI * 2);
-    ctx.fillStyle = p.count > 0 ? "#c3a4ff" : "#3a4152";
+    ctx.fillStyle = p.count > 0 ? (isLightTheme() ? "#7a5fd0" : "#c3a4ff") : (isLightTheme() ? "#c8cdd6" : "#3a4152");
     ctx.fill();
     if (p === pts[pts.length - 1]) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); }
     ctx.fillStyle = "#5d6575";
@@ -672,13 +672,7 @@ function renderProjects() {
       <span class="feed-badge">${t("Open")}</span>
     </div>`).join("") + `</div>`;
   box.querySelectorAll("[data-open-project]").forEach((el) => {
-    el.addEventListener("click", () => {
-      setView("timeline");
-      const sel = $("#tlProject");
-      if (sel) sel.value = el.dataset.openProject;
-      tlMode = "text";
-      renderTimeline();
-    });
+    el.addEventListener("click", () => showProject(el.dataset.openProject));
   });
 }
 
@@ -931,7 +925,7 @@ function startGraphLoop() {
       if (!a || !b) continue;
       let alpha = e.kind === "cohort" ? 0.06 : 0.08 + e.weight * 0.28;
       if (focus != null && e.fromId !== focus && e.toId !== focus) alpha *= 0.25;
-      ctx.strokeStyle = `rgba(148, 163, 196, ${Math.min(0.4, alpha)})`;
+      ctx.strokeStyle = `rgba(${isLightTheme() ? "90, 100, 125" : "148, 163, 196"}, ${Math.min(0.4, alpha)})`;
       ctx.lineWidth = 0.7 + e.weight * 1.1;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -956,18 +950,18 @@ function startGraphLoop() {
       ctx.fill();
       ctx.globalAlpha = 1;
       if (graph.selected === n.id) {
-        ctx.strokeStyle = "#ffffff";
+        ctx.strokeStyle = isLightTheme() ? "#1f2532" : "#ffffff";
         ctx.lineWidth = 1.8;
         ctx.stroke();
       } else if (graph.hover === n.id) {
-        ctx.strokeStyle = "rgba(255,255,255,.55)";
+        ctx.strokeStyle = isLightTheme() ? "rgba(31,37,50,.5)" : "rgba(255,255,255,.55)";
         ctx.lineWidth = 1.4;
         ctx.stroke();
       }
       // Label ala Obsidian
       if (showAllLabels || graph.labeled.has(n.id) || n.id === focus) {
         ctx.globalAlpha = dimmed ? 0.12 : n.id === focus ? 0.95 : 0.7;
-        ctx.fillStyle = "#dfe3ec";
+        ctx.fillStyle = isLightTheme() ? "#3a4152" : "#dfe3ec";
         ctx.font = "10px Inter, sans-serif";
         ctx.textAlign = "center";
         const label = n.content.replace(/\s+/g, " ").slice(0, 26) + (n.content.length > 26 ? "…" : "");
@@ -1471,6 +1465,165 @@ $("#grRebuild").addEventListener("click", async () => {
 });
 wireGraphCanvas();
 
+/* ---------- Project detail ---------- */
+function showProject(slug) {
+  setView("project");
+  renderProjectDetail(slug);
+}
+
+async function renderProjectDetail(slug) {
+  const box = $("#projectDetail");
+  if (!box) return;
+  box.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="height:300px"></div>';
+  try {
+    const d = await api("/api/project-detail?slug=" + encodeURIComponent(slug));
+    const st = d.stats;
+    const git = d.git;
+    box.innerHTML = `
+      <div class="pd-head">
+        <div>
+          <h2>${esc(d.project.name)}</h2>
+          <div class="pd-path">${esc(d.project.path || d.project.slug)}${git && git.branch ? " · " + esc(git.branch) : ""}</div>
+        </div>
+        <div class="pd-actions">
+          <button class="btn" id="pdTimeline">${t("Timeline")}</button>
+          <button class="btn" id="pdTasks">${t("Tasks")}</button>
+          <button class="btn" id="pdHandoff">${t("Handoff")}</button>
+        </div>
+      </div>
+      <div class="pd-stats">
+        <div class="stat"><div class="stat-value">${st.transcripts.toLocaleString("id-ID")}</div><div class="stat-label">${t("Transcripts stored")}</div></div>
+        <div class="stat"><div class="stat-value">${st.memories.toLocaleString("id-ID")}</div><div class="stat-label">${t("Active memories")}</div></div>
+        <div class="stat"><div class="stat-value">${st.tasksOpen.toLocaleString("id-ID")}</div><div class="stat-label">${t("Open tasks")}</div></div>
+        <div class="stat"><div class="stat-value">${fmtRel(st.lastSeen)}</div><div class="stat-label">${t("Recently accessed")}</div></div>
+      </div>
+      ${git && git.dirty.length ? `<div class="pd-git"><span class="git-dot"></span>${t("Working tree changes")}: ${esc(git.dirty.slice(0, 6).join(", "))}${git.dirty.length > 6 ? " …" : ""}</div>` : ""}
+      <div class="pd-grid">
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <h4>${t("Open tasks")}</h4>
+            <div id="pdTasks" style="margin-top:8px"></div>
+          </div>
+          <div class="card">
+            <h4>${t("Recent memories")}</h4>
+            <div id="pdMemories" style="margin-top:8px"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h4>${t("7-day activity")}</h4>
+            <canvas id="pdChart" height="170" style="width:100%; display:block"></canvas>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h4>${t("Jump to")}</h4>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px">
+              <button class="btn" id="pdGoTimeline">${t("Timeline")}</button>
+              <button class="btn" id="pdGoTasks">${t("Tasks")}</button>
+              <button class="btn" id="pdGoHandoff">${t("Handoff")}</button>
+              <button class="btn" id="pdGoGraph">${t("Graph")}</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    // aksi
+    const goTimeline = () => { setView("timeline"); const sel = $("#tlProject"); if (sel) sel.value = slug; tlMode = "text"; renderTimeline(); };
+    const goTasks = () => { setView("tasks"); const sel = $("#tkProject"); if (sel) sel.value = slug; renderTasks(); };
+    const goHandoff = () => { setView("handoff"); const sel = $("#hfProject"); if (sel) sel.value = slug; };
+    $("#pdTimeline")?.addEventListener("click", goTimeline);
+    $("#pdTasks")?.addEventListener("click", goTasks);
+    $("#pdHandoff")?.addEventListener("click", goHandoff);
+    $("#pdGoTimeline")?.addEventListener("click", goTimeline);
+    $("#pdGoTasks")?.addEventListener("click", goTasks);
+    $("#pdGoHandoff")?.addEventListener("click", goHandoff);
+    $("#pdGoGraph")?.addEventListener("click", () => setView("graph"));
+    // tugas mini
+    const tk = $("#pdTasks");
+    if (d.tasks.open.length) {
+      tk.innerHTML = d.tasks.open.slice(0, 6).map((t) => `
+        <div class="task-item"><div class="task-check" data-pdtoggle="${t.id}"></div>
+          <div class="task-body"><div class="task-text">${esc(t.content)}</div>
+          <div class="task-meta">${esc(TOOL_LABEL[t.sourceTool] || t.sourceTool)} · ${fmtRel(t.createdAt)}</div></div></div>`).join("");
+      tk.querySelectorAll("[data-pdtoggle]").forEach((el) => {
+        el.addEventListener("click", async () => {
+          await api("/api/tasks/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(el.dataset.pdtoggle), resolved: true }) });
+          renderProjectDetail(slug);
+        });
+      });
+    } else {
+      tk.innerHTML = `<div class="card-desc">${t("No open tasks")}</div>`;
+    }
+    // memori terbaru
+    const mm = $("#pdMemories");
+    if (d.recentMemories.length) {
+      mm.innerHTML = d.recentMemories.map((m) => `
+        <div class="mem"><div class="mem-rail"><span class="kind-dot kind-${m.kind}"></span></div>
+          <div class="mem-body"><div class="mem-meta"><span class="mem-kind kind-${m.kind}">${t(KIND_LABEL[m.kind] || m.kind)}</span>
+          <span class="sep">·</span><span>${esc(TOOL_LABEL[m.sourceTool] || m.sourceTool)}</span><span class="sep">·</span><span>${fmtRel(m.createdAt)}</span></div>
+          <div class="mem-content">${esc(m.content)}</div></div></div>`).join("");
+    } else {
+      mm.innerHTML = `<div class="card-desc">${t("No memories yet")}</div>`;
+    }
+    drawProjectChart(d.week);
+  } catch (e) {
+    box.innerHTML = `<div class="err-box"><h4>${t("Couldn't load project")}</h4><p>${esc(e.message)}</p><button class="btn" onclick="showProject('${slug.replace(/'/g, "")}')">${t("Retry")}</button></div>`;
+  }
+}
+
+/* Area chart mini per proyek (sadar tema) */
+function drawProjectChart(week) {
+  const canvas = document.getElementById("pdChart");
+  if (!canvas || !week) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 36, H = 170;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const light = isLightTheme();
+  const max = Math.max(4, ...week.map((w) => w.count));
+  const padL = 6, padR = 6, padT = 14, padB = 22;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const pts = week.map((w, i) => ({
+    x: padL + (week.length === 1 ? iw / 2 : (i / (week.length - 1)) * iw),
+    y: padT + ih - (w.count / max) * ih * 0.9,
+    ...w,
+  }));
+  const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+  grad.addColorStop(0, light ? "rgba(122, 95, 208, 0.25)" : "rgba(139,110,255,.34)");
+  grad.addColorStop(1, light ? "rgba(122, 95, 208, 0)" : "rgba(139,110,255,0)");
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const xc = (pts[i - 1].x + pts[i].x) / 2;
+    ctx.bezierCurveTo(xc, pts[i - 1].y, xc, pts[i].y, pts[i].x, pts[i].y);
+  }
+  ctx.lineTo(pts[pts.length - 1].x, H - padB);
+  ctx.lineTo(pts[0].x, H - padB);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const xc = (pts[i - 1].x + pts[i].x) / 2;
+    ctx.bezierCurveTo(xc, pts[i - 1].y, xc, pts[i].y, pts[i].x, pts[i].y);
+  }
+  ctx.strokeStyle = light ? "#7a5fd0" : "#a684ff";
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+  ctx.font = "10px Inter, sans-serif";
+  pts.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = light ? "#7a5fd0" : "#a684ff";
+    ctx.fill();
+    ctx.fillStyle = light ? "#8b93a2" : "#5d6575";
+    ctx.textAlign = "center";
+    ctx.fillText(p.day.slice(3), p.x, H - 6);
+  });
+}
+
 /* ---------- Tasks ---------- */
 async function renderTasks() {
   const slug = $("#tkProject") ? $("#tkProject").value : "";
@@ -1751,6 +1904,8 @@ if (location.protocol === "file:") {
   const c = document.querySelector(".content");
   if (c) c.prepend(warn);
 }
+
+function isLightTheme() { return document.documentElement.dataset.theme === "light"; }
 
 /* ---------- SSE: sinyal live dari engine ---------- */
 let sseLastRefresh = 0;
