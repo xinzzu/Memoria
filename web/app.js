@@ -1020,7 +1020,8 @@ function buildLabels3D() {
     .map((n) => {
       const d = document.createElement("div");
       d.className = "label3d";
-      d.textContent = n.name.slice(0, 34) + (n.name.length > 34 ? "…" : "");
+      const labelSrc = n.name || n.content || "";
+      d.textContent = labelSrc.replace(/\s+/g, " ").slice(0, 34) + (labelSrc.replace(/\s+/g, " ").length > 34 ? "…" : "");
       layer.appendChild(d);
       return { node: n, el: d };
     });
