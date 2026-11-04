@@ -1050,9 +1050,12 @@ function wireSettingsToggles() {
 
 let editingId = null;
 
-function openEditModal(id) {
-  const items = (state.lastMemories || []).filter((m) => m.id === id);
-  renderEditModal(items[0], id);
+async function openEditModal(id) {
+  let m = (state.lastMemories || []).find((x) => x.id === id);
+  if (!m) {
+    try { m = (await api("/api/memories/one?id=" + id)).memory; } catch (e) {}
+  }
+  renderEditModal(m, id);
 }
 
 async function renderEditModal(m, id) {
