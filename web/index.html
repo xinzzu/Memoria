@@ -31,6 +31,14 @@
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
       --font: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
       --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+      --sidebar-bg: linear-gradient(180deg, #0d1016, #0b0d12);
+      --topbar-bg: rgba(10, 12, 16, 0.82);
+      --hover-wash: rgba(255, 255, 255, 0.04);
+      --pill-bg: rgba(255, 255, 255, 0.03);
+      --scroll-thumb: #2a2e37;
+      --scroll-thumb-hover: #363b47;
+      --brand-tile-bg: #3d4657;
+      --brand-tile-text: #fff;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; }
@@ -45,8 +53,8 @@
     ::selection { background: rgba(110, 141, 255, 0.3); }
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #2a2e37; border-radius: 6px; border: 2px solid var(--bg); }
-    ::-webkit-scrollbar-thumb:hover { background: #363b47; }
+    ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 6px; border: 2px solid var(--bg); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 
     .layout { display: flex; height: 100vh; }
 
@@ -261,8 +269,8 @@
       border: 1px solid transparent; background: transparent; color: var(--muted);
       font-size: 12.5px; cursor: pointer; user-select: none; transition: background .12s, color .12s; }
     .settings-tabs .stab svg { width: 14px; height: 14px; opacity: .8; flex: none; }
-    .settings-tabs .stab:hover { background: rgba(255,255,255,.04); color: var(--text); }
-    .settings-tabs .stab.active { background: rgba(110,141,255,.14); border-color: rgba(110,141,255,.3); color: #cdd6ff; }
+    .settings-tabs .stab:hover { background: var(--hover-wash); color: var(--text); }
+    .settings-tabs .stab.active { background: var(--accent-soft); border-color: rgba(110,141,255,.3); color: var(--accent); }
     .stab-lang { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px;
       border-top: 1px solid var(--border-soft); }
     .stab-lang .t-label { font-size: 11px; color: var(--faint); }
@@ -521,7 +529,7 @@
       radial-gradient(1200px 500px at 80% -10%, rgba(110,141,255,.07), transparent 60%),
       radial-gradient(900px 400px at -10% 110%, rgba(139,110,255,.05), transparent 60%),
       var(--bg); }
-    .sidebar { background: linear-gradient(180deg, #0d1016, #0b0d12); border-right: 1px solid var(--border-soft); }
+    .sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--border-soft); }
     .nav-item {
       border-radius: 10px; padding: 8px 10px; color: var(--muted); font-weight: 500;
       transition: background .15s, color .15s, transform .08s; position: relative; overflow: hidden;
@@ -537,13 +545,13 @@
       border-radius: 3px; background: var(--grad);
     }
     .nav-label { letter-spacing: .14em; font-size: 10px; color: var(--faint); margin: 14px 10px 6px; }
-    .status-pill { font-size: 11.5px; padding: 6px 9px; border-radius: 9px; background: rgba(255,255,255,.03);
+    .status-pill { font-size: 11.5px; padding: 6px 9px; border-radius: 9px; background: var(--pill-bg);
       border: 1px solid var(--border-soft); }
     .version { color: var(--faint); font-size: 10.5px; letter-spacing: .04em; }
 
     .topbar {
       position: sticky; top: 0; z-index: 5;
-      background: rgba(10,12,16,.82); backdrop-filter: blur(10px);
+      background: var(--topbar-bg); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border-soft);
     }
     .topbar h2 { font-size: 19px; letter-spacing: -.01em; }
@@ -693,15 +701,15 @@
       border-radius: 9px; font-size: 13px; color: var(--muted);
       transition: background .12s, color .12s;
     }
-    .nav-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+    .nav-item:hover { background: var(--hover-wash); color: var(--text); }
     .nav-item:active { background: rgba(255,255,255,.06); }
-    .nav-item.active { background: rgba(255,255,255,.055); color: #fff; }
-    .nav-item.active > span:not(.nav-ic):not(.count) { font-weight: 600; color: #fff; }
+    .nav-item.active { background: var(--hover-wash); color: var(--text); }
+    .nav-item.active > span:not(.nav-ic):not(.count) { font-weight: 600; color: var(--text); }
 
     .nav-ic { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; color: inherit; }
     .nav-ic svg { width: 16px; height: 16px; }
 
-    .nav-item.active { box-shadow: inset 2px 0 0 #6e8dff; }
+    .nav-item.active { box-shadow: inset 2px 0 0 var(--accent); }
 
     .side-promo {
       margin: auto 8px 14px; padding: 13px 13px 12px; border-radius: 12px;
@@ -712,11 +720,11 @@
     .side-promo p { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
     .sp-btn {
       width: 100%; padding: 6px 0; border-radius: 8px; cursor: pointer;
-      background: rgba(255,255,255,.05); color: var(--text); font-size: 12px; font-weight: 550;
+      background: var(--pill-bg); color: var(--text); font-size: 12px; font-weight: 550;
       border: 1px solid var(--border);
       transition: background .12s, border-color .12s; font-family: inherit;
     }
-    .sp-btn:hover { background: rgba(255,255,255,.09); border-color: #3a4152; }
+    .sp-btn:hover { background: var(--hover-wash); border-color: #3a4152; }
 
     /* ===== POLISH: komponen lintas fitur ===== */
     .seg { padding: 6px 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel);
@@ -820,6 +828,58 @@
     .setup-dot.wait { background: #d9a05b; animation: pulse 2s infinite; }
     .setup-label { font-size: 13px; }
     .setup-hint { font-size: 11.5px; color: var(--faint); }
+
+
+    /* ================= TEMA TERANG ================= */
+    :root[data-theme="light"] {
+      --bg: #f3f4f6;
+      --panel: #ffffff;
+      --panel-2: #fafbfc;
+      --border: #e2e5ea;
+      --border-soft: #eaecef;
+      --text: #1a1d23;
+      --muted: #5d6575;
+      --faint: #8b93a2;
+      --accent: #5468d4;
+      --accent-2: #7a5fd0;
+      --accent-soft: rgba(84, 104, 212, 0.1);
+      --grad: linear-gradient(135deg, #5468d4 0%, #7a5fd0 100%);
+      --green: #1f9d63;
+      --amber: #b97a1f;
+      --red: #d5454a;
+      --purple: #7a5fd0;
+      --shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+      --sidebar-bg: linear-gradient(180deg, #fbfcfd, #f5f6f8);
+      --topbar-bg: rgba(255, 255, 255, 0.85);
+      --hover-wash: rgba(16, 24, 40, 0.045);
+      --pill-bg: rgba(16, 24, 40, 0.04);
+      --scroll-thumb: #c8cdd6;
+      --scroll-thumb-hover: #b0b6c2;
+      --brand-tile-bg: #1f2532;
+      --brand-tile-text: #fff;
+    }
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(1200px 500px at 80% -10%, rgba(84, 104, 212, 0.06), transparent 60%),
+        radial-gradient(900px 400px at -10% 110%, rgba(122, 95, 208, 0.05), transparent 60%),
+        var(--bg);
+    }
+    :root[data-theme="light"] .nav-item:hover { background: rgba(16, 24, 40, 0.05); }
+    :root[data-theme="light"] .nav-item.active {
+      background: rgba(84, 104, 212, 0.1); color: #1f2532;
+      box-shadow: inset 0 0 0 1px rgba(84, 104, 212, 0.3);
+    }
+    :root[data-theme="light"] .status-pill { background: #fff; border: 1px solid var(--border); }
+    :root[data-theme="light"] .search-box, :root[data-theme="light"] .btn,
+    :root[data-theme="light"] .task-item { background: #fff; }
+    :root[data-theme="light"] .brand-mark { box-shadow: 0 4px 12px rgba(16, 24, 40, 0.15); }
+    :root[data-theme="light"] .hero {
+      background: linear-gradient(120deg, rgba(84, 104, 212, 0.1), rgba(122, 95, 208, 0.05) 55%, transparent),
+                  linear-gradient(180deg, #fff, var(--panel));
+      border: 1px solid rgba(84, 104, 212, 0.3);
+    }
+    :root[data-theme="light"] .mem, :root[data-theme="light"] .task-item,
+    :root[data-theme="light"] .intg-row { background: #fff; }
 
   </style>
 </head>
@@ -1213,6 +1273,14 @@
                 <div><div class="t-label" data-i18n="Weekly digest">Weekly digest</div><div class="t-desc" data-i18n="Generate a report automatically every 7 days">Generate a report automatically every 7 days</div></div>
                 <div class="spacer"></div>
                 <div class="switch" data-sw="weeklyDigest"></div>
+              </div>
+              <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
+                <label class="t-label" for="setTheme" data-i18n="Theme">Theme</label>
+                <select id="setTheme" class="sel" style="margin-top:6px">
+                  <option value="auto" data-i18n="Auto (follow system)">Auto (follow system)</option>
+                  <option value="dark" data-i18n="Dark">Dark</option>
+                  <option value="light" data-i18n="Light">Light</option>
+                </select>
               </div>
               <div class="toggle-row" data-key="autoStartLogin">
                 <div><div class="t-label" data-i18n="Run at login">Run at login</div><div class="t-desc" data-i18n="Start Memoria automatically at login (applies after app restart)">Start Memoria automatically at login (applies after app restart)</div></div>
