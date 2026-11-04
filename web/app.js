@@ -1727,6 +1727,7 @@ function applyTheme() {
   document.documentElement.dataset.theme = pref;
 }
 applyTheme();
+window.addEventListener("memoria:theme", () => { if (window.graph) graph.dirty = true; if (state.view === "overview") drawActivityChart(); });
 window.matchMedia("(prefers-color-scheme: light)")?.addEventListener?.("change", () => { if ((localStorage.getItem("memoria_theme") || "auto") === "auto") applyTheme(); });
 I18N.apply();
 let rzT;
