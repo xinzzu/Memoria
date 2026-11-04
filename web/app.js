@@ -894,7 +894,7 @@ function startGraphLoop() {
     const w = box.clientWidth, h = box.clientHeight;
     if (canvas.width !== Math.floor(w * dpr)) { canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr); graph.dirty = true; }
 
-    if (graph.alpha > 0.01) {
+    if (graph.alpha > 0.01 && !graph.paused) {
       simulate(w, h);
       graph.alpha *= 0.985;
       graph.dirty = true;
@@ -933,8 +933,10 @@ function startGraphLoop() {
       ctx.stroke();
     }
 
-    // label tampil bila node sedikit, zoom besar, atau node terpilih/hover/penting
-    const showAllLabels = graph.nodes.length <= 40 || graph.zoom > 1.6;
+    // label: mayoritas node (ala peta ChatHPT-3D), semua saat zoom besar
+    const showAllLabels = graph.nodes.length <= 120 || graph.zoom > 1.4;
+    const panelBg = isLightTheme() ? "rgba(255,255,255,.85)" : "rgba(18,21,27,.85)";
+    const labelFill = isLightTheme() ? "#3a4152" : "#dfe3ec";
 
     for (let i = 0; i < graph.nodes.length; i++) {
       const n = graph.nodes[i];
@@ -958,14 +960,17 @@ function startGraphLoop() {
         ctx.lineWidth = 1.4;
         ctx.stroke();
       }
-      // Label ala Obsidian
+      // Label dengan halo — selalu terbaca di atas jaringan edge
       if (showAllLabels || graph.labeled.has(n.id) || n.id === focus) {
-        ctx.globalAlpha = dimmed ? 0.12 : n.id === focus ? 0.95 : 0.7;
-        ctx.fillStyle = isLightTheme() ? "#3a4152" : "#dfe3ec";
-        ctx.font = "10px Inter, sans-serif";
+        const label = n.content.replace(/\s+/g, " ").slice(0, 30) + (n.content.length > 30 ? "…" : "");
+        ctx.font = "600 10.5px Inter, sans-serif";
         ctx.textAlign = "center";
-        const label = n.content.replace(/\s+/g, " ").slice(0, 26) + (n.content.length > 26 ? "…" : "");
-        ctx.fillText(label, p.x, p.y + r + 12);
+        ctx.globalAlpha = dimmed ? 0.15 : 1;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = panelBg;
+        ctx.strokeText(label, p.x, p.y + r + 13);
+        ctx.fillStyle = labelFill;
+        ctx.fillText(label, p.x, p.y + r + 13);
         ctx.globalAlpha = 1;
       }
     }
@@ -1454,6 +1459,21 @@ $("#tlGitBtn").addEventListener("click", () => {
 });
 
 $("#grProject").addEventListener("change", renderGraph);
+$("#grPause")?.addEventListener("click", (e) => {
+  graph.paused = !graph.paused;
+  e.currentTarget.classList.toggle("primary", graph.paused);
+  if (!graph.paused) { graph.alpha = Math.max(graph.alpha, 0.3); }
+  graph.dirty = true;
+});
+$("#grZoomIn")?.addEventListener("click", () => { graph.zoom = Math.min(3, graph.zoom * 1.25); graph.dirty = true; });
+$("#grZoomOut")?.addEventListener("click", () => { graph.zoom = Math.max(0.25, graph.zoom / 1.25); graph.dirty = true; });
+$("#grReset")?.addEventListener("click", () => {
+  graph.zoom = 1; graph.offX = 0; graph.offY = 0; graph.alpha = 1; graph.paused = false;
+  $("#grPause")?.classList.remove("primary");
+  graph.pos = graph.nodes.map(() => ({ x: (Math.random() - 0.5) * 400, y: (Math.random() - 0.5) * 300 }));
+  graph.vel = graph.nodes.map(() => ({ x: 0, y: 0 }));
+  graph.dirty = true;
+});
 $("#grRebuild").addEventListener("click", async () => {
   try {
     const r = await api("/api/graph/rebuild", { method: "POST" });
@@ -1828,6 +1848,11 @@ wireSettingsTabs();
 const promoBtn = document.getElementById("promoHandoff");
 if (promoBtn) promoBtn.addEventListener("click", () => setView("handoff"));
 
+$("#btnTheme")?.addEventListener("click", () => {
+  const next = (document.documentElement.dataset.theme || "dark") === "light" ? "dark" : "light";
+  localStorage.setItem("memoria_theme", next);
+  applyTheme();
+});
 const themeSel = document.querySelector("#setTheme");
 if (themeSel) {
   themeSel.value = localStorage.getItem("memoria_theme") || "auto";
@@ -1878,6 +1903,13 @@ function applyTheme() {
   let pref = localStorage.getItem("memoria_theme") || "auto";
   if (pref === "auto") pref = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   document.documentElement.dataset.theme = pref;
+  const tb = document.getElementById("btnTheme");
+  if (tb) {
+    const sun = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1"/></svg>';
+    const moon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z"/></svg>';
+    tb.innerHTML = pref === "light" ? moon : sun;
+    tb.title = pref === "light" ? "Switch to dark" : "Switch to light";
+  }
 }
 applyTheme();
 window.addEventListener("memoria:theme", () => { if (window.graph) graph.dirty = true; if (state.view === "overview") drawActivityChart(); });
