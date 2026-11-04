@@ -871,6 +871,59 @@ let __g3d = null;
 let __labels = [];
 let __labelRaf = 0;
 
+
+
+const INTEGRATION_LOGOS = {
+  claude: "logos/claude.png", codex: "logos/codex.png", opencode: "logos/opencode.ico",
+  gemini: "logos/gemini.png", copilot: "logos/copilot.svg", antigravity: "logos/antigravity.png",
+};
+const INTEGRATIONS = [
+  ["claude", "Claude Code", t("MCP stdio — mirrors context into every `/memory` session")],
+  ["codex", "Codex CLI", t("Registered in ~/.codex/config.toml")],
+  ["opencode", "opencode", t("Registered in ~/.config/opencode/opencode.json")],
+  ["gemini", "Gemini CLI", t("Registered in ~/.gemini/settings.json")],
+  ["copilot", "Copilot", t("Registered in ~/.copilot/mcp-config.json")],
+  ["antigravity", "Antigravity", t("Registered in ~/.gemini/config/mcp_config.json")],
+];
+
+async function renderIntegrations() {
+  const box = $("#integrationsBox");
+  try {
+    const d = await api("/api/integrations");
+    const map = Object.fromEntries((d.integrations || []).map((x) => [x.key, x]));
+    box.innerHTML = INTEGRATIONS.map(([key, name, desc]) => {
+      const st = map[key];
+      const configured = st && st.configured;
+      const logo = INTEGRATION_LOGOS[key];
+      const initials = esc(name.slice(0, 2).toUpperCase());
+      return `<div class="intg-row">
+        <div class="intg-icon">${logo ? `<img src="${logo}" alt="${initials}" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</div>
+        <div><div class="intg-name">${esc(name)}</div><div class="intg-desc">${esc(desc)}</div></div>
+        <div class="spacer"></div>
+        <span class="badge ${configured ? "ok" : "no"}">${configured ? t("Registered") : t("Not yet")}</span>
+        <button class="btn primary" data-intg="${key}" ${configured ? "style='opacity:0.55'" : ""}>${configured ? t("Register again") : t("Register")}</button>
+      </div>`;
+    }).join("");
+    box.querySelectorAll("[data-intg]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        b.textContent = t("Working…");
+        try {
+          const r = await api("/api/integrate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool: b.dataset.intg }) });
+          if (r.ok) toast(b.dataset.intg + t(" registered"));
+          else toast(t("Failed: ") + r.message, "err");
+        } catch (e) {
+          toast(t("Failed: ") + e.message, "err");
+        }
+        b.disabled = false;
+        renderIntegrations();
+      });
+    });
+  } catch (e) {
+    box.innerHTML = emptyState(t("Failed to load"), esc(e.message));
+  }
+}
+
 async function renderGraph() {
   const project = $("#grProject").value || undefined;
   const params = new URLSearchParams({ limit: "250" });
