@@ -1675,6 +1675,14 @@ wireSettingsTabs();
 const promoBtn = document.getElementById("promoHandoff");
 if (promoBtn) promoBtn.addEventListener("click", () => setView("handoff"));
 
+const themeSel = document.querySelector("#setTheme");
+if (themeSel) {
+  themeSel.value = localStorage.getItem("memoria_theme") || "auto";
+  themeSel.addEventListener("change", () => {
+    localStorage.setItem("memoria_theme", themeSel.value);
+    applyTheme();
+  });
+}
 const langSel = document.querySelector("#setLang");
 if (langSel) {
   langSel.value = I18N.lang;
@@ -1712,6 +1720,14 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- Init ---------- */
 
+// Tema: setting uiTheme (auto/dark/light) -> attribute data-theme di <html>
+function applyTheme() {
+  let pref = localStorage.getItem("memoria_theme") || "auto";
+  if (pref === "auto") pref = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  document.documentElement.dataset.theme = pref;
+}
+applyTheme();
+window.matchMedia("(prefers-color-scheme: light)")?.addEventListener?.("change", () => { if ((localStorage.getItem("memoria_theme") || "auto") === "auto") applyTheme(); });
 I18N.apply();
 let rzT;
 window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { if (state.view === "overview") drawActivityChart(); }, 150); });

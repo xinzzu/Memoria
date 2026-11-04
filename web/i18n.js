@@ -339,7 +339,11 @@
   "Memories appear as sessions are extracted": "Memori muncul saat sesi diekstraksi",
   "Extraction model": "Model ekstraksi",
   "Embedding model": "Model embedding",
-  "Memory usage (RSS)": "Pemakaian memori (RSS)"
+  "Memory usage (RSS)": "Pemakaian memori (RSS)",
+  "Theme": "Tema",
+  "Auto (follow system)": "Otomatis (ikuti sistem)",
+  "Dark": "Gelap",
+  "Light": "Terang"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
