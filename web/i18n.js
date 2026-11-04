@@ -343,7 +343,13 @@
   "Theme": "Tema",
   "Auto (follow system)": "Otomatis (ikuti sistem)",
   "Dark": "Gelap",
-  "Light": "Terang"
+  "Light": "Terang",
+  "One project - memories, tasks and activity in one place": "Satu proyek - memori, tugas, dan aktivitas dalam satu tempat",
+  "Working tree changes": "Perubahan working tree",
+  "Jump to": "Lompat ke",
+  "Couldn't load project": "Gagal memuat proyek",
+  "Timeline": "Timeline",
+  "Graph": "Graph"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],

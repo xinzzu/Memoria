@@ -892,6 +892,22 @@
     :root[data-theme="light"] .kbd { background: #eef0f4; border-color: #d5d9e0; color: #5d6575; }
     :root[data-theme="light"] .gs-link-row:hover, :root[data-theme="light"] .rel-item:hover { background: rgba(16,24,40,.04); }
 
+
+    /* ===== Project detail ===== */
+    .pd-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+    .pd-head h2 { font-size: 21px; letter-spacing: -.02em; margin: 0; }
+    .pd-path { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 3px; word-break: break-all; }
+    .pd-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .pd-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .pd-stats .stat { padding: 12px 14px; }
+    .pd-stats .stat-value { font-size: 21px; }
+    .pd-git { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted);
+      background: var(--pill-bg); border: 1px solid var(--border-soft); border-radius: 10px; padding: 7px 11px; }
+    .pd-git .git-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); flex: none; }
+    .pd-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    @media (max-width: 1000px) { .pd-grid { grid-template-columns: 1fr; } }
+    .pd-sec-title { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+
   </style>
 </head>
 <body>
@@ -1123,6 +1139,11 @@
               <div id="tasksDone" class="task-list done" style="margin-top:10px"></div>
             </div>
           </div>
+        </div>
+
+        <!-- Project detail -->
+        <div class="view" id="view-project">
+          <div id="projectDetail"></div>
         </div>
 
         <!-- Graph -->

@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject } from "./store/db";
+import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject } from "./store/db";
 import { looksLikePath, projectSlugFromCwd } from "./ingest/util";
 import { ollamaAvailable } from "./extract/ollama";
 import { getEmbedProvider, engineStatus } from "./extract/provider";
@@ -17,6 +17,7 @@ import { runGitLog } from "./git";
 import { graphSnapshot, relatedMemories, rebuildAllLinks } from "./graph";
 import { countOpen } from "./extract/tasklife";
 import { addListener, removeListener, emitEvent } from "./events";
+import { runGitStatus } from "./git";
 
 function sendJson(res: ServerResponse, code: number, data: unknown): void {
   const body = JSON.stringify(data);
@@ -251,6 +252,41 @@ export function startHttpServer(): Promise<void> {
           resetProjectMemo();
         }
         sendJson(res, r.ok ? 200 : 400, r);
+      } else if (url.pathname === "/api/project-detail" && req.method === "GET") {
+        // Agregat satu panggilan untuk halaman detail proyek.
+        const slug = url.searchParams.get("slug") || "";
+        const proj = resolveProject(slug);
+        if (!proj) { sendJson(res, 404, { error: "project not found" }); return; }
+        const rec = projectRecord(proj.slug);
+        if (!rec) { sendJson(res, 404, { error: "project not found" }); return; }
+        const db = getDb();
+        const lastSeen = (db.prepare("SELECT MAX(last_seen) AS m FROM projects WHERE id = ?").get(rec.id) as { m: number | null }).m ?? 0;
+        const DAY = 86400000;
+        const today = Math.floor(Date.now() / DAY);
+        const weekRows = db
+          .prepare("SELECT CAST(ts / ? AS INTEGER) AS d, COUNT(*) AS c FROM transcripts WHERE project_id = ? AND ts >= ? GROUP BY d")
+          .all(DAY, rec.id, Date.now() - 7 * DAY) as Array<{ d: number; c: number }>;
+        const byDay = new Map(weekRows.map((r) => [Number(r.d), r.c]));
+        const week: Array<{ day: string; count: number }> = [];
+        for (let i = 6; i >= 0; i--) {
+          const dd = today - i;
+          week.push({ day: new Date(dd * DAY).toISOString().slice(5, 10), count: byDay.get(dd) || 0 });
+        }
+        const transcripts = (db.prepare("SELECT COUNT(*) AS c FROM transcripts WHERE project_id = ?").get(rec.id) as { c: number }).c;
+        const memCount = (db.prepare("SELECT COUNT(*) AS c FROM memories WHERE project_id = ? AND archived = 0 AND status = 'active'").get(rec.id) as { c: number }).c;
+        const tasksOpen = (db.prepare("SELECT COUNT(*) AS c FROM memories WHERE project_id = ? AND kind = 'task_pending' AND archived = 0 AND status = 'active' AND COALESCE(resolved_at, 0) = 0").get(rec.id) as { c: number }).c;
+        const { listTasks } = await import("./store/db");
+        const tasks = listTasks(rec.id, 60);
+        const slim = (m: any) => ({ id: m.id, content: m.content, importance: m.importance, createdAt: m.createdAt, resolvedAt: m.resolvedAt, sourceTool: m.sourceTool });
+        const git = rec.path && fs.existsSync(rec.path) ? await runGitStatus(rec.path) : null;
+        const recentMemories = allMemories().filter((m) => m.projectId === rec.id).slice(0, 8)
+          .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool }));
+        sendJson(res, 200, {
+          project: { slug: rec.slug, name: rec.name, path: rec.path },
+          stats: { transcripts, memories: memCount, tasksOpen, lastSeen },
+          week, git, tasks: { open: tasks.open.map(slim), done: tasks.done.map(slim) },
+          recentMemories,
+        });
       } else if (url.pathname === "/api/tasks" && req.method === "GET") {
         const slug = url.searchParams.get("slug") || "";
         const proj = slug ? resolveProject(slug) : null;
