@@ -225,6 +225,15 @@ export function startHttpServer(): Promise<void> {
             archived: countArchived(),
           },
         });
+      } else if (url.pathname === "/api/memories/one" && req.method === "GET") {
+        // Satu memori lengkap (untuk modal edit dari konteks mana pun)
+        const id = Number(url.searchParams.get("id") || 0);
+        const { memoryById } = await import("./store/db");
+        const m = memoryById(id);
+        if (!m) { sendJson(res, 404, { error: "not found" }); return; }
+        sendJson(res, 200, {
+          memory: { id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, projectSlug: projectSlugById(m.projectId), tags: tagsForMemory(id), status: m.status || "active" },
+        });
       } else if (url.pathname === "/api/memories/list" && req.method === "GET") {
         const status = url.searchParams.get("status") || "active";
         let mems: import("./store/db").Memory[];
