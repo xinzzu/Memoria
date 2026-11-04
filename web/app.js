@@ -77,7 +77,7 @@ function memoRowRenderer(renderId) {
   const isArchived = state.memTab === "archived";
   return (h, i) => `
     <div class="mem" data-id="${h.id}">
-      <div class="mem-rail"><span class="kind-dot kind-${h.kind}"></span></div>
+      <div class="mem-rail">${isDraft ? `<input type="checkbox" class="mem-select" data-sel="${h.id}" />` : `<span class="kind-dot kind-${h.kind}"></span>`}</div>
       <div class="mem-body">
         <div class="mem-meta">
           <span class="mem-kind kind-${h.kind}">${t(KIND_LABEL[h.kind] || h.kind)}</span>
@@ -526,6 +526,42 @@ function renderMemoryList(box, items) {
   }
   box.innerHTML = `<div class="list">${items.map(memoRowRenderer()).join("")}</div>`;
   bindRowActions(box);
+  if (state.memTab === "draft") wireDraftBatch(box);
+}
+
+/* ---------- Batch kurasi (Pending approval) ---------- */
+function wireDraftBatch(box) {
+  const bar = document.getElementById("draftBatchBar");
+  if (!bar) return;
+  bar.style.display = "flex";
+  const upd = () => {
+    const n = box.querySelectorAll(".mem-select:checked").length;
+    const ba = document.getElementById("batchApprove");
+    const bd = document.getElementById("batchDelete");
+    if (ba) { ba.style.display = n ? "" : "none"; ba.textContent = `${t("Approve")} ${n}`; }
+    if (bd) { bd.style.display = n ? "" : "none"; bd.textContent = `${t("Delete")} ${n}`; }
+    const hint = document.getElementById("batchHint");
+    if (hint) hint.textContent = n ? "" : t("Select drafts to approve or delete them in one go");
+  };
+  box.querySelectorAll(".mem-select").forEach((cb) => cb.addEventListener("change", upd));
+  upd();
+  const ids = () => [...box.querySelectorAll(".mem-select:checked")].map((c) => Number(c.dataset.sel));
+  document.getElementById("batchApprove").onclick = async () => {
+    const list = ids();
+    if (!list.length) return;
+    const r = await api("/api/memories/batch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "approve", ids: list }) });
+    toast(`${t("Approved")} ${r.affected}`);
+    loadStats();
+    renderMemories();
+  };
+  document.getElementById("batchDelete").onclick = async () => {
+    const list = ids();
+    if (!list.length || !confirm(t("Delete this memory? This cannot be undone."))) return;
+    const r = await api("/api/memories/batch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", ids: list }) });
+    toast(`${t("Deleted")} ${r.affected}`);
+    loadStats();
+    renderMemories();
+  };
 }
 
 function bindRowActions(root) {
@@ -1033,6 +1069,10 @@ async function renderEditModal(m, id) {
   $("#addKind").value = m.kind || "context";
   $("#addProject").value = m.projectSlug || "";
   $("#addContent").value = m.content || "";
+  const ft = $("#fieldTags");
+  if (ft) ft.style.display = "";
+  const at = $("#addTags");
+  if (at) at.value = (m.tags || []).join(", ");
   $("#btnSave").textContent = t("Save changes");
   openModal();
 }
@@ -1073,10 +1113,11 @@ async function saveMemory() {
   if (!content) { toast(t("Memory content cannot be empty"), "err"); return; }
   try {
     if (editingId) {
+      const tags = $("#addTags").value.split(",").map((x) => x.trim()).filter(Boolean);
       await api("/api/memories", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingId, kind: $("#addKind").value, content }),
+        body: JSON.stringify({ id: editingId, kind: $("#addKind").value, content, project: $("#addProject").value.trim(), tags }),
       });
       toast(t("Memory updated"));
       resetModal();
@@ -1102,6 +1143,8 @@ async function saveMemory() {
 
 function resetModal() {
   editingId = null;
+  const ftx = $("#fieldTags");
+  if (ftx) ftx.style.display = "none";
   $("#addContent").value = "";
   $("#addProject").value = "";
   $("#overlay h3").textContent = t("Add memory");
@@ -1110,7 +1153,10 @@ function resetModal() {
   closeModal();
 }
 
-function openModal() { $("#overlay").classList.add("show"); setTimeout(() => $("#addContent").focus(), 60); }
+function openModal() {
+  $("#overlay").classList.add("show");
+  setTimeout(() => $("#addContent").focus(), 60);
+}
 function closeModal() { $("#overlay").classList.remove("show"); }
 
 /* ---------- Events ---------- */

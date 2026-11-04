@@ -349,7 +349,12 @@
   "Jump to": "Lompat ke",
   "Couldn't load project": "Gagal memuat proyek",
   "Timeline": "Timeline",
-  "Graph": "Graph"
+  "Graph": "Graph",
+  "Tags (comma separated)": "Tag (pisah koma)",
+  "Approve": "Setujui",
+  "Deleted": "Dihapus",
+  "Approved": "Disetujui",
+  "Select drafts to approve or delete them in one go": "Pilih draft untuk menyetujui atau menghapusnya sekaligus"
 };
   var MONTHS = {
     en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],

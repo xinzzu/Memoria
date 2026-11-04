@@ -920,6 +920,11 @@
       color: var(--text); text-shadow: 0 0 3px var(--canvas-bg), 0 0 6px var(--canvas-bg);
       white-space: nowrap; pointer-events: none; will-change: transform; opacity: .92; }
     
+
+    .mem-select { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; margin-top: 2px; flex: none; }
+    .danger-ghost { color: var(--red); border-color: rgba(229,104,107,.4); }
+    .danger-ghost:hover { background: rgba(229,104,107,.08); }
+
   </style>
 </head>
 <body>
@@ -1107,6 +1112,11 @@
             <select id="filterTag" class="sel">
               <option value="" data-i18n="All topics">All topics</option>
             </select>
+          </div>
+          <div id="draftBatchBar" class="toolbar" style="display:none; align-items:center">
+            <button class="btn" id="batchApprove" style="display:none"></button>
+            <button class="btn danger-ghost" id="batchDelete" style="display:none"></button>
+            <span class="muted" style="font-size:11.5px" id="batchHint"></span>
           </div>
           <div id="memoriesList"></div>
         </div>
@@ -1438,6 +1448,10 @@
       <div class="field">
         <label data-i18n="Memory content">Memory content</label>
         <textarea id="addContent" placeholder="Write the memory to save… (Ctrl/Cmd+Enter to save)" data-i18n-ph="Write the memory to save… (Ctrl/Cmd+Enter to save)"></textarea>
+      </div>
+      <div class="field" id="fieldTags" style="display:none">
+        <label data-i18n="Tags (comma separated)">Tags (comma separated)</label>
+        <input type="text" id="addTags" placeholder="database, neon, auth" data-i18n-ph="database, neon, auth" />
       </div>
       <div class="modal-actions">
         <button class="btn" id="btnCancel" data-i18n="Cancel">Cancel</button>

@@ -333,12 +333,40 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/memories" && req.method === "PUT") {
         const body = await readBody(req);
         const id = Number(body.id || 0);
+        // Pindah proyek: raw string diselesaikan seperti alur remember
+        let projectId: number | null | undefined = undefined;
+        if (body.project !== undefined) {
+          const raw = String(body.project || "").trim();
+          if (!raw || raw === "_unknown") projectId = null;
+          else {
+            const resolved = resolveProject(raw);
+            projectId = resolved ? resolved.id : ensureProject(projectSlugFromCwd(raw), looksLikePath(raw) ? raw : undefined);
+          }
+        }
         const ok = updateMemory(id, {
           content: body.content !== undefined ? String(body.content) : undefined,
           kind: body.kind !== undefined ? String(body.kind) : undefined,
           importance: body.importance !== undefined ? Math.min(1, Math.max(0, Number(body.importance))) : undefined,
+          projectId,
         });
+        if (ok && Array.isArray(body.tags)) {
+          const { replaceMemoryTags } = await import("./store/db");
+          replaceMemoryTags(id, body.tags.map((t: unknown) => String(t)));
+        }
         sendJson(res, ok ? 200 : 404, { ok });
+      } else if (url.pathname === "/api/memories/batch" && req.method === "POST") {
+        // Aksi massal untuk antrian kurasi: approve / delete / archive
+        const body = await readBody(req);
+        const ids = (Array.isArray(body.ids) ? body.ids : []).map((x: unknown) => Number(x)).filter((x: number) => x > 0);
+        const action = String(body.action || "");
+        let affected = 0;
+        for (const id of ids) {
+          if (action === "approve") affected += approveMemory(id) ? 1 : 0;
+          else if (action === "delete") affected += deleteMemory(id) ? 1 : 0;
+          else if (action === "archive") affected += archiveMemory(id, true) ? 1 : 0;
+        }
+        emitEvent("tasks", { batch: action, affected });
+        sendJson(res, 200, { ok: true, affected });
       } else if (url.pathname === "/api/memories/archive" && req.method === "POST") {
         const body = await readBody(req);
         const id = Number(body.id || 0);

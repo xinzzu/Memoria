@@ -406,6 +406,14 @@ export function clearMemoryTags(memoryId?: number): void {
   }
 }
 
+/** Ganti seluruh tag sebuah memori (untuk kurasi manual). */
+export function replaceMemoryTags(memoryId: number, tags: string[]): void {
+  const d = getDb();
+  d.prepare("DELETE FROM memory_tags WHERE memory_id = ?").run(memoryId);
+  const stmt = d.prepare("INSERT OR IGNORE INTO memory_tags (memory_id, tag) VALUES (?, ?)");
+  for (const t of tags.map((t) => t.trim().toLowerCase()).filter(Boolean)) stmt.run(memoryId, t);
+}
+
 export function tagsForMemory(memoryId: number): string[] {
   const rows = getDb()
     .prepare("SELECT tag FROM memory_tags WHERE memory_id = ?")
