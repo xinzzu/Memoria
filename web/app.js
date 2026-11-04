@@ -828,11 +828,12 @@ const KIND_COLOR = {
 };
 
 const graph = {
-  nodes: [], edges: [], pos: [], vel: [], idx: new Map(),
-  zoom: 1, offX: 0, offY: 0, selected: null,
-  drag: null, lastX: 0, lastY: 0, running: false, alpha: 0,
-  hover: null, degree: new Map(), dirty: true, labeled: new Set(),
+  nodes: [], edges: [], idx: new Map(), selected: null,
+  degree: new Map(), labeled: new Set(),
 };
+let __g3d = null;
+let __labels = [];
+let __labelRaf = 0;
 
 async function renderGraph() {
   const project = $("#grProject").value || undefined;
@@ -844,12 +845,7 @@ async function renderGraph() {
     graph.nodes = d.nodes || [];
     graph.edges = (d.edges || []).filter((e) => graph.nodes.some((n) => n.id === e.fromId) && graph.nodes.some((n) => n.id === e.toId));
     graph.idx = new Map(graph.nodes.map((n, i) => [n.id, i]));
-    graph.pos = graph.nodes.map(() => ({ x: (Math.random() - 0.5) * 400, y: (Math.random() - 0.5) * 300 }));
-    graph.vel = graph.nodes.map(() => ({ x: 0, y: 0 }));
     graph.selected = null;
-    graph.hover = null;
-    graph.alpha = 1;
-    graph.dirty = true;
     // degree (jumlah koneksi) -> ukuran node & prioritas label
     graph.degree = new Map();
     for (const e of graph.edges) {
@@ -858,7 +854,7 @@ async function renderGraph() {
     }
     const labeled = [...graph.nodes]
       .sort((a, b) => (graph.degree.get(b.id) || 0) - (graph.degree.get(a.id) || 0))
-      .slice(0, Math.max(20, Math.min(30, Math.ceil(graph.nodes.length * 0.25))))
+      .slice(0, Math.min(80, Math.ceil(graph.nodes.length * 0.5)))
       .map((n) => n.id);
     graph.labeled = new Set(labeled);
     $("#grCount").textContent = graph.nodes.length + t(" nodes · ") + graph.edges.length + t(" connections");
@@ -868,7 +864,7 @@ async function renderGraph() {
       $("#graphSide").innerHTML = '<div class="gs-title">Details</div><div class="gs-empty">Click a node on the canvas to see its details and connections.</div>';
     }
     renderGraphLegend();
-    startGraphLoop();
+    initGraph3D();
   } catch (e) {
     $("#graphSide").innerHTML = '<div class="gs-empty">Failed to load graph: ' + esc(e.message) + "</div>";
   }
@@ -881,165 +877,77 @@ function renderGraphLegend() {
   ).join("");
 }
 
-function startGraphLoop() {
-  if (graph.running) return;
-  graph.running = true;
-  const canvas = $("#graphCanvas");
-  const ctx = canvas.getContext("2d");
+/* ---------- Mesin 3D (3d-force-graph, vendor lokal) ---------- */
+function initGraph3D() {
+  const el = document.getElementById("graph3d");
+  if (!el || !window.ForceGraph3D) return;
+  if (__g3d) { try { __g3d._destructor(); } catch (e) {} __g3d = null; }
+  el.innerHTML = "";
 
-  function frame() {
-    if (!graph.running) return;
-    const box = canvas.parentElement;
-    const dpr = window.devicePixelRatio || 1;
-    const w = box.clientWidth, h = box.clientHeight;
-    if (canvas.width !== Math.floor(w * dpr)) { canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr); graph.dirty = true; }
+  const nodes = graph.nodes.map((n) => {
+    const deg = graph.degree.get(n.id) || 0;
+    return {
+      id: n.id,
+      name: n.content.replace(/\s+/g, " ").slice(0, 44),
+      color: KIND_COLOR[n.kind] || "#8b93a2",
+      val: 2 + n.importance * 5 + Math.min(10, deg * 1.3),
+    };
+  });
+  const links = graph.edges.map((e) => ({ source: e.fromId, target: e.toId }));
 
-    if (graph.alpha > 0.01 && !graph.paused) {
-      simulate(w, h);
-      graph.alpha *= 0.985;
-      graph.dirty = true;
-    }
-    // Dirty-flag: simulasi stabil + tanpa interaksi = tidak menggambar apa-apa (hemat CPU/baterai).
-    if (!graph.dirty) { requestAnimationFrame(frame); return; }
-    graph.dirty = false;
+  __g3d = ForceGraph3D()(el)
+    .backgroundColor("rgba(0,0,0,0)")
+    .showNavInfo(false)
+    .nodeColor((n) => n.color)
+    .nodeVal((n) => n.val)
+    .nodeOpacity(0.92)
+    .nodeLabel((n) => n.name)
+    .linkColor(() => (isLightTheme() ? "rgba(90,100,125,0.35)" : "rgba(148,163,196,0.3)"))
+    .linkOpacity(0.35)
+    .width(el.clientWidth)
+    .height(el.clientHeight)
+    .onNodeClick((n) => { graph.selected = n.id; renderGraphSide(); })
+    .onNodeHover((n) => { el.style.cursor = n ? "pointer" : null; });
+  __g3d.d3Force("charge")?.strength(-90);
+  __g3d.cameraPosition({ x: 0, y: 40, z: 620 });
+  buildLabels3D();
+}
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
-    ctx.save();
-    ctx.translate(w / 2 + graph.offX, h / 2 + graph.offY);
-    ctx.scale(graph.zoom, graph.zoom);
-
-    const focus = graph.hover != null ? graph.hover : graph.selected;
-    const neighbors = new Set();
-    if (focus != null) {
-      for (const e of graph.edges) {
-        if (e.fromId === focus) neighbors.add(e.toId);
-        if (e.toId === focus) neighbors.add(e.fromId);
+/* Label DOM mengikuti koordinat 3D (graph2ScreenCoords) — teks tajam & sadar tema */
+function buildLabels3D() {
+  document.querySelectorAll(".label3d-layer").forEach((e) => e.remove());
+  const el = document.getElementById("graph3d");
+  if (!el) return;
+  const layer = document.createElement("div");
+  layer.className = "label3d-layer";
+  el.appendChild(layer);
+  __labels = graph.nodes
+    .slice()
+    .sort((p, q) => (graph.degree.get(q.id) || 0) - (graph.degree.get(p.id) || 0))
+    .slice(0, Math.min(90, Math.ceil(graph.nodes.length * 0.55)))
+    .map((n) => {
+      const d = document.createElement("div");
+      d.className = "label3d";
+      d.textContent = n.name.slice(0, 34) + (n.name.length > 34 ? "…" : "");
+      layer.appendChild(d);
+      return { node: n, el: d };
+    });
+  if (!__labelRaf) {
+    const loop = () => {
+      if (__g3d && state.view === "graph") {
+        for (const it of __labels) {
+          const n = it.node;
+          if (n.x === undefined) continue;
+          const c = __g3d.graph2ScreenCoords(n.x, n.y, n.z);
+          if (c.x === null || c.x === undefined) { it.el.style.opacity = 0; continue; }
+          it.el.style.transform = "translate(" + (c.x - 50).toFixed(1) + "px, " + (c.y + 6).toFixed(1) + "px)";
+        }
       }
-    }
-
-    for (const e of graph.edges) {
-      const a = graph.pos[graph.idx.get(e.fromId)];
-      const b = graph.pos[graph.idx.get(e.toId)];
-      if (!a || !b) continue;
-      let alpha = e.kind === "cohort" ? 0.06 : 0.08 + e.weight * 0.28;
-      if (focus != null && e.fromId !== focus && e.toId !== focus) alpha *= 0.25;
-      ctx.strokeStyle = `rgba(${isLightTheme() ? "90, 100, 125" : "148, 163, 196"}, ${Math.min(0.4, alpha)})`;
-      ctx.lineWidth = 0.7 + e.weight * 1.1;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
-
-    // label: mayoritas node (ala peta ChatHPT-3D), semua saat zoom besar
-    const showAllLabels = graph.nodes.length <= 120 || graph.zoom > 1.4;
-    const panelBg = isLightTheme() ? "rgba(255,255,255,.85)" : "rgba(18,21,27,.85)";
-    const labelFill = isLightTheme() ? "#3a4152" : "#dfe3ec";
-
-    for (let i = 0; i < graph.nodes.length; i++) {
-      const n = graph.nodes[i];
-      const p = graph.pos[i];
-      const deg = graph.degree.get(n.id) || 0;
-      const r = 5 + n.importance * 4 + Math.min(6, deg * 0.8);
-      const isFocus = focus != null && (n.id === focus || neighbors.has(n.id));
-      const dimmed = focus != null && !isFocus;
-      ctx.globalAlpha = dimmed ? 0.15 : 0.9;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = KIND_COLOR[n.kind] || "#8b93a2";
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      if (graph.selected === n.id) {
-        ctx.strokeStyle = isLightTheme() ? "#1f2532" : "#ffffff";
-        ctx.lineWidth = 1.8;
-        ctx.stroke();
-      } else if (graph.hover === n.id) {
-        ctx.strokeStyle = isLightTheme() ? "rgba(31,37,50,.5)" : "rgba(255,255,255,.55)";
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-      }
-      // Label dengan halo — selalu terbaca di atas jaringan edge
-      if (showAllLabels || graph.labeled.has(n.id) || n.id === focus) {
-        const label = n.content.replace(/\s+/g, " ").slice(0, 30) + (n.content.length > 30 ? "…" : "");
-        ctx.font = "600 10.5px Inter, sans-serif";
-        ctx.textAlign = "center";
-        ctx.globalAlpha = dimmed ? 0.15 : 1;
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = panelBg;
-        ctx.strokeText(label, p.x, p.y + r + 13);
-        ctx.fillStyle = labelFill;
-        ctx.fillText(label, p.x, p.y + r + 13);
-        ctx.globalAlpha = 1;
-      }
-    }
-    ctx.restore();
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-}
-
-function simulate(w, h) {
-  const n = graph.nodes.length;
-  const k = 90;
-  const nodes = graph.nodes, pos = graph.pos, vel = graph.vel;
-
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      let dx = pos[i].x - pos[j].x;
-      let dy = pos[i].y - pos[j].y;
-      let d2 = dx * dx + dy * dy || 1;
-      let f = (k * k) / d2;
-      if (f > 40) f = 40;
-      dx /= Math.sqrt(d2); dy /= Math.sqrt(d2);
-      vel[i].x += dx * f; vel[i].y += dy * f;
-      vel[j].x -= dx * f; vel[j].y -= dy * f;
-    }
-  }
-
-  for (const e of graph.edges) {
-    const a = graph.idx.get(e.fromId), b = graph.idx.get(e.toId);
-    if (a == null || b == null) continue;
-    let dx = pos[b].x - pos[a].x;
-    let dy = pos[b].y - pos[a].y;
-    let d = Math.sqrt(dx * dx + dy * dy) || 1;
-    const rest = 70 + (1 - e.weight) * 40;
-    const f = (d - rest) * 0.012;
-    dx /= d; dy /= d;
-    vel[a].x += dx * f; vel[a].y += dy * f;
-    vel[b].x -= dx * f; vel[b].y -= dy * f;
-  }
-
-  for (let i = 0; i < n; i++) {
-    vel[i].x -= pos[i].x * 0.002;
-    vel[i].y -= pos[i].y * 0.002;
-    vel[i].x *= 0.85; vel[i].y *= 0.85;
-    pos[i].x += vel[i].x;
-    pos[i].y += vel[i].y;
+      __labelRaf = requestAnimationFrame(loop);
+    };
+    __labelRaf = requestAnimationFrame(loop);
   }
 }
-
-function graphPointer(e) {
-  const canvas = $("#graphCanvas");
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left - rect.width / 2 - graph.offX) / graph.zoom,
-    y: (e.clientY - rect.top - rect.height / 2 - graph.offY) / graph.zoom,
-  };
-}
-
-function graphHit(p) {
-  let best = -1, bestD = 22;
-  for (let i = 0; i < graph.nodes.length; i++) {
-    const q = graph.pos[i];
-    const r = 5 + graph.nodes[i].importance * 5;
-    const d = Math.hypot(q.x - p.x, q.y - p.y);
-    if (d < r + 4 && d < bestD) { bestD = d; best = i; }
-  }
-  return best;
-}
-
 function renderGraphSide() {
   const side = $("#graphSide");
   if (graph.selected == null) return;
@@ -1076,192 +984,6 @@ function renderGraphSide() {
     });
   });
   side.querySelector("#gsEdit")?.addEventListener("click", () => openEditModal(graph.selected));
-}
-
-function wireGraphCanvas() {
-  const canvas = $("#graphCanvas");
-  let moved = false;
-  canvas.addEventListener("pointerdown", (e) => {
-    canvas.setPointerCapture(e.pointerId);
-    moved = false;
-    graph.drag = { x: e.clientX, y: e.clientY, startOffX: graph.offX, startOffY: graph.offY };
-    graph.lastX = e.clientX;
-    graph.lastY = e.clientY;
-  });
-  canvas.addEventListener("pointermove", (e) => {
-    if (!graph.drag) {
-      // Hover ala Obsidian: sorot node + tetangga, redupkan sisanya
-      const p = graphPointer(e);
-      const hit = graphHit(p);
-      const hv = hit >= 0 ? graph.nodes[hit].id : null;
-      if (graph.hover !== hv) {
-        graph.hover = hv;
-        graph.dirty = true;
-        canvas.style.cursor = hv != null ? "pointer" : "grab";
-      }
-      return;
-    }
-    const dx = e.clientX - graph.drag.x;
-    const dy = e.clientY - graph.drag.y;
-    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-    graph.offX = graph.drag.startOffX + dx;
-    graph.offY = graph.drag.startOffY + dy;
-    graph.alpha = Math.max(graph.alpha, 0.15);
-    graph.dirty = true;
-  });
-  canvas.addEventListener("pointerup", (e) => {
-    if (!graph.drag) return;
-    graph.drag = null;
-    if (!moved) {
-      const p = graphPointer(e);
-      const hit = graphHit(p);
-      graph.selected = hit >= 0 ? graph.nodes[hit].id : null;
-      graph.dirty = true;
-      renderGraphSide();
-    }
-  });
-  canvas.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    graph.zoom = Math.min(3, Math.max(0.25, graph.zoom * factor));
-    graph.dirty = true;
-  }, { passive: false });
-}
-
-/* ---------- Integrations ---------- */
-
-const INTEGRATION_LOGOS = {
-  claude: "logos/claude.png", codex: "logos/codex.png", opencode: "logos/opencode.ico",
-  gemini: "logos/gemini.png", copilot: "logos/copilot.svg", antigravity: "logos/antigravity.png",
-};
-const INTEGRATIONS = [
-  ["claude", "Claude Code", t("MCP stdio — mirrors context into every `/memory` session")],
-  ["codex", "Codex CLI", t("Registered in ~/.codex/config.toml")],
-  ["opencode", "opencode", t("Registered in ~/.config/opencode/opencode.json")],
-  ["gemini", "Gemini CLI", t("Registered in ~/.gemini/settings.json")],
-  ["copilot", "Copilot", t("Registered in ~/.copilot/mcp-config.json")],
-  ["antigravity", "Antigravity", t("Registered in ~/.gemini/config/mcp_config.json")],
-];
-
-async function renderIntegrations() {
-  const box = $("#integrationsBox");
-  try {
-    const d = await api("/api/integrations");
-    const map = Object.fromEntries((d.integrations || []).map((x) => [x.key, x]));
-    box.innerHTML = INTEGRATIONS.map(([key, name, desc]) => {
-      const st = map[key];
-      const configured = st && st.configured;
-      const logo = INTEGRATION_LOGOS[key];
-      const initials = esc(name.slice(0, 2).toUpperCase());
-      return `<div class="intg-row">
-        <div class="intg-icon">${logo ? `<img src="${logo}" alt="${initials}" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</div>
-        <div><div class="intg-name">${esc(name)}</div><div class="intg-desc">${esc(desc)}</div></div>
-        <div class="spacer"></div>
-        <span class="badge ${configured ? "ok" : "no"}">${configured ? t("Registered") : t("Not yet")}</span>
-        <button class="btn primary" data-intg="${key}" ${configured ? "style='opacity:0.55'" : ""}>${configured ? t("Register again") : t("Register")}</button>
-      </div>`;
-    }).join("");
-    box.querySelectorAll("[data-intg]").forEach((b) => {
-      b.addEventListener("click", async () => {
-        b.disabled = true;
-        b.textContent = t("Working…");
-        try {
-          const r = await api("/api/integrate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool: b.dataset.intg }) });
-          if (r.ok) toast(b.dataset.intg + t(" registered"));
-          else toast(t("Failed: ") + r.message, "err");
-        } catch (e) {
-          toast(t("Failed: ") + e.message, "err");
-        }
-        b.disabled = false;
-        renderIntegrations();
-      });
-    });
-  } catch (e) {
-    box.innerHTML = emptyState(t("Failed to load"), esc(e.message));
-  }
-}
-
-/* ---------- Settings: toggles & transfer ---------- */
-
-async function loadSettingsToggles() {
-  try {
-    const d = await api("/api/settings");
-    const s = d.settings || {};
-    const keys = ["autoStartOllama", "autoBackup", "autoArchive", "reviewMode", "autoInjectProjectFiles", "quickInbox", "globalPalette", "autoTopics", "weeklyDigest", "autoStartLogin", "injectFile:AGENTS.md", "injectFile:CLAUDE.md", "injectFile:GEMINI.md"];
-    for (const k of keys) {
-      const sw = document.querySelector(`[data-sw="${k}"]`);
-      if (sw) sw.classList.toggle("on", String(s[k]) === "1" || s[k] === true);
-    }
-    const sq = $("#setShortcutQuick");
-    const sp = $("#setShortcutPalette");
-    if (sq) sq.value = s.shortcutQuick || "";
-    if (sp) sp.value = s.shortcutPalette || "";
-    // Intelligence engine
-    const ee = $("#setExtractEngine"), de = $("#setEmbedEngine");
-    if (ee) ee.value = s.extractEngine || "auto";
-    if (de) de.value = s.embedEngine || "auto";
-    const ob = $("#setOpenaiBaseUrl"), om1 = $("#setOpenaiExtractModel"), om2 = $("#setOpenaiEmbedModel"), ok = $("#setOpenaiApiKey");
-    if (ob) ob.value = s.openaiBaseUrl || "";
-    if (om1) om1.value = s.openaiExtractModel || "";
-    if (om2) om2.value = s.openaiEmbedModel || "";
-    if (ok) ok.value = ""; // key tidak dikirim balik ke UI — hanya indikator
-    if (ok) ok.placeholder = s.openaiHasKey === "1" ? t("API key stored — refill to replace") : t("API key (optional for local LM Studio)");
-    try {
-      const dg = await api("/api/digest");
-      const box = $("#digestBox");
-      if (box && dg.text) box.textContent = dg.text;
-    } catch {}
-  } catch {}
-}
-
-async function saveSettings(key, on) {
-  try {
-    await api("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, value: on ? "1" : "0" }) });
-    toast(key + (on ? " — " + t("enabled") : " — " + t("disabled")));
-  } catch (e) {
-    toast(t("Failed to save setting: ") + e.message, "err");
-  }
-}
-
-async function loadBackups() {
-  const box = $("#backupList");
-  if (!box) return;
-  try {
-    const d = await api("/api/backups");
-    const b = d.backups || [];
-    if (!b.length) {
-      box.innerHTML = '<div class="card-desc" style="margin-top:6px">Not yet ada cadangan. Klik t("Back up now") untuk membuat yang pertama.</div>';
-      return;
-    }
-    box.innerHTML = '<div class="card-desc" style="margin-top:2px">Stored backups:</div>' +
-      b.map((x) => `
-        <div class="bup-row">
-          <div>
-            <div class="bup-name">${esc(x.name)}</div>
-            <div class="bup-meta">${(x.size / 1024 / 1024).toFixed(1)} MB · ${fmtDate(x.createdAt)}</div>
-          </div>
-          <div class="spacer"></div>
-          <button class="btn" data-restore="${esc(x.path)}">Restore</button>
-        </div>`).join("");
-    box.querySelectorAll("[data-restore]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        if (!confirm(t("Restore this backup? Current memories & settings will be replaced from the backup."))) return;
-        btn.disabled = true;
-        btn.textContent = t("Restoring…");
-        try {
-          const r = await api("/api/backup/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: btn.dataset.restore }) });
-          toast(r.ok ? t("Backup restored") : t("Failed: ") + (r.error || ""), r.ok ? "ok" : "err");
-          if (r.ok) { await Promise.all([loadStats(), loadProjects(), loadBackups()]); }
-        } catch (e) {
-          toast(t("Failed to restore: ") + e.message, "err");
-        }
-        btn.disabled = false;
-        btn.textContent = t("Restore");
-      });
-    });
-  } catch (e) {
-    box.innerHTML = '<div class="card-desc" style="margin-top:6px">Failed to load backups: ' + esc(e.message) + "</div>";
-  }
 }
 
 function wireSettingsToggles() {
@@ -1460,19 +1182,25 @@ $("#tlGitBtn").addEventListener("click", () => {
 
 $("#grProject").addEventListener("change", renderGraph);
 $("#grPause")?.addEventListener("click", (e) => {
+  if (!__g3d) return;
   graph.paused = !graph.paused;
   e.currentTarget.classList.toggle("primary", graph.paused);
-  if (!graph.paused) { graph.alpha = Math.max(graph.alpha, 0.3); }
-  graph.dirty = true;
+  graph.paused ? __g3d.pauseAnimation() : __g3d.resumeAnimation();
 });
-$("#grZoomIn")?.addEventListener("click", () => { graph.zoom = Math.min(3, graph.zoom * 1.25); graph.dirty = true; });
-$("#grZoomOut")?.addEventListener("click", () => { graph.zoom = Math.max(0.25, graph.zoom / 1.25); graph.dirty = true; });
+$("#grZoomIn")?.addEventListener("click", () => {
+  if (!__g3d) return;
+  const p = __g3d.cameraPosition();
+  __g3d.cameraPosition({ x: p.x * 0.78, y: p.y * 0.78, z: p.z * 0.78 });
+});
+$("#grZoomOut")?.addEventListener("click", () => {
+  if (!__g3d) return;
+  const p = __g3d.cameraPosition();
+  __g3d.cameraPosition({ x: p.x * 1.28, y: p.y * 1.28, z: p.z * 1.28 });
+});
 $("#grReset")?.addEventListener("click", () => {
-  graph.zoom = 1; graph.offX = 0; graph.offY = 0; graph.alpha = 1; graph.paused = false;
-  $("#grPause")?.classList.remove("primary");
-  graph.pos = graph.nodes.map(() => ({ x: (Math.random() - 0.5) * 400, y: (Math.random() - 0.5) * 300 }));
-  graph.vel = graph.nodes.map(() => ({ x: 0, y: 0 }));
-  graph.dirty = true;
+  if (!__g3d) return;
+  __g3d.cameraPosition({ x: 0, y: 40, z: 620 });
+  __g3d.d3ReheatSimulation();
 });
 $("#grRebuild").addEventListener("click", async () => {
   try {
@@ -1483,7 +1211,6 @@ $("#grRebuild").addEventListener("click", async () => {
     toast(t("Failed: ") + e.message, "err");
   }
 });
-wireGraphCanvas();
 
 /* ---------- Project detail ---------- */
 function showProject(slug) {
@@ -1912,7 +1639,10 @@ function applyTheme() {
   }
 }
 applyTheme();
-window.addEventListener("memoria:theme", () => { if (window.graph) graph.dirty = true; if (state.view === "overview") drawActivityChart(); });
+window.addEventListener("memoria:theme", () => {
+  if (window.__g3d) __g3d.linkColor(() => (isLightTheme() ? "rgba(90,100,125,0.35)" : "rgba(148,163,196,0.3)"));
+  if (state.view === "overview") drawActivityChart();
+});
 window.matchMedia("(prefers-color-scheme: light)")?.addEventListener?.("change", () => { if ((localStorage.getItem("memoria_theme") || "auto") === "auto") applyTheme(); });
 I18N.apply();
 let rzT;
