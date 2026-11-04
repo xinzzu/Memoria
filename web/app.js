@@ -1828,6 +1828,11 @@ wireSettingsTabs();
 const promoBtn = document.getElementById("promoHandoff");
 if (promoBtn) promoBtn.addEventListener("click", () => setView("handoff"));
 
+$("#btnTheme")?.addEventListener("click", () => {
+  const next = (document.documentElement.dataset.theme || "dark") === "light" ? "dark" : "light";
+  localStorage.setItem("memoria_theme", next);
+  applyTheme();
+});
 const themeSel = document.querySelector("#setTheme");
 if (themeSel) {
   themeSel.value = localStorage.getItem("memoria_theme") || "auto";
@@ -1878,6 +1883,13 @@ function applyTheme() {
   let pref = localStorage.getItem("memoria_theme") || "auto";
   if (pref === "auto") pref = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   document.documentElement.dataset.theme = pref;
+  const tb = document.getElementById("btnTheme");
+  if (tb) {
+    const sun = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M12.5 3.5l-1.1 1.1M4.6 11.4l-1.1 1.1"/></svg>';
+    const moon = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z"/></svg>';
+    tb.innerHTML = pref === "light" ? moon : sun;
+    tb.title = pref === "light" ? "Switch to dark" : "Switch to light";
+  }
 }
 applyTheme();
 window.addEventListener("memoria:theme", () => { if (window.graph) graph.dirty = true; if (state.view === "overview") drawActivityChart(); });
