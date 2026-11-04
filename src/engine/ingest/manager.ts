@@ -9,6 +9,7 @@ import { scanCopilot } from "./copilot";
 import { scanAntigravity } from "./antigravity";
 import { scanVscdb } from "./vscdb";
 import { extractQueue } from "../extract/extractor";
+import { emitEvent } from "../events";
 
 export interface ScanResult {
   tool: string;
@@ -94,6 +95,7 @@ export async function scanAll(log?: (msg: string) => void): Promise<ScanResult[]
   }
   await extractQueue();
   lastScanFinishedAt = Date.now();
+  emitEvent("scan", { tools: results.filter((r) => r.ok && r.count > 0).map((r) => `${r.tool}+${r.count}`) });
   return results;
 }
 

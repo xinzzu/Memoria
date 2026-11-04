@@ -1751,6 +1751,30 @@ if (location.protocol === "file:") {
   if (c) c.prepend(warn);
 }
 
+/* ---------- SSE: sinyal live dari engine ---------- */
+let sseLastRefresh = 0;
+function setupLiveEvents() {
+  if (!window.EventSource) return;
+  const es = new EventSource("/api/events");
+  const throttled = (fn) => () => {
+    const now = Date.now();
+    if (now - sseLastRefresh < 2500) return;
+    sseLastRefresh = now;
+    fn();
+  };
+  const refreshCounts = throttled(() => {
+    loadStats();
+    if (state.view === "memories") renderMemories();
+    if (state.view === "tasks") renderTasks();
+    if (state.view === "overview") loadProjects();
+  });
+  es.addEventListener("memory", refreshCounts);
+  es.addEventListener("tasks", refreshCounts);
+  es.addEventListener("scan", refreshCounts);
+  es.onerror = () => { /* engine restart — EventSource reconnect otomatis */ };
+}
+setupLiveEvents();
+
 (async function init() {
   await loadProjects();
   await loadStats();
