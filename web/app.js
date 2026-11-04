@@ -955,6 +955,7 @@ async function renderGraph() {
     renderGraphLegend();
     initGraph3D();
   } catch (e) {
+    console.error("[memoria] renderGraph error:", e);
     $("#graphSide").innerHTML = '<div class="gs-empty">Failed to load graph: ' + esc(e.message) + "</div>";
   }
 }
