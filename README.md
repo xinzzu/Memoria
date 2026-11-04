@@ -18,7 +18,7 @@ No cloud. No account. Nothing leaves your computer.
 ![Electron](https://img.shields.io/badge/Electron-37-47848f)
 ![Inference](https://img.shields.io/badge/inference-optional%20%28Ollama%20%2F%20OpenAI%20compat%29-529fff)
 ![Data](https://img.shields.io/badge/data-100%25%20local-4cc38a)
-![Status](https://img.shields.io/badge/status-0.4.1--beta-7f6eff)
+![Status](https://img.shields.io/badge/status-0.5.0--beta-7f6eff)
 [![Release](https://img.shields.io/github/v/release/xinzzu/Memoria?label=Release)](https://github.com/xinzzu/Memoria/releases)
 [![Build](https://github.com/xinzzu/Memoria/actions/workflows/build.yml/badge.svg?label=Build)](https://github.com/xinzzu/Memoria/actions)
 [![License](https://img.shields.io/github/license/xinzzu/Memoria)](LICENSE)
@@ -108,9 +108,9 @@ Built for the **limit-hopping** workflow: hit your limit at 14:30, open a differ
 
 | OS | Package |
 |---|---|
-| Windows | `Memoria Setup 0.4.1.exe` from [Releases](https://github.com/xinzzu/Memoria/releases) |
-| Linux | `memoria_0.4.1_amd64.deb` (`sudo dpkg -i`) or `Memoria-0.4.1.AppImage` |
-| macOS | `Memoria-0.4.1.dmg` (drag to Applications; right-click → Open if gated) |
+| Windows | `Memoria Setup 0.5.0.exe` from [Releases](https://github.com/xinzzu/Memoria/releases) |
+| Linux | `memoria_0.5.0_amd64.deb` (`sudo dpkg -i`) or `Memoria-0.5.0.AppImage` |
+| macOS | `Memoria-0.5.0.dmg` (drag to Applications; right-click → Open if gated) |
 
 Memoria lives in the tray and starts capturing automatically.
 
