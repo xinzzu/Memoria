@@ -1,4 +1,5 @@
 import { allMemories, insertMemory, updateMemory, Memory, effectiveStatus, getDb } from "../store/db";
+import { emitEvent } from "../events";
 
 export function cosine(a: number[], b: number[]): number {
   if (!a.length || !b.length || a.length !== b.length) return 0;
@@ -73,6 +74,7 @@ export function addMemoryWithDedupe(m: Memory): DedupeResult {
   insertMemory(m);
   const newId = lastInsertId();
   if (newId != null) linkNew(newId);
+  emitEvent("memory", { kind: m.kind });
   return { inserted: true };
 }
 

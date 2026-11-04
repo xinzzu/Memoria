@@ -16,6 +16,7 @@ import { registerIntegration, integrationStatus } from "./integrate";
 import { runGitLog } from "./git";
 import { graphSnapshot, relatedMemories, rebuildAllLinks } from "./graph";
 import { countOpen } from "./extract/tasklife";
+import { addListener, removeListener, emitEvent } from "./events";
 
 function sendJson(res: ServerResponse, code: number, data: unknown): void {
   const body = JSON.stringify(data);
@@ -261,6 +262,7 @@ export function startHttpServer(): Promise<void> {
         const body = await readBody(req);
         const { setTaskResolved } = await import("./store/db");
         const ok = setTaskResolved(Number(body.id || 0), body.resolved !== false);
+        if (ok) emitEvent("tasks", { id: Number(body.id || 0), resolved: body.resolved !== false });
         sendJson(res, ok ? 200 : 404, { ok });
       } else if (url.pathname === "/api/remember" && req.method === "POST") {
         const body = await readBody(req);
@@ -488,6 +490,23 @@ export function startHttpServer(): Promise<void> {
             linkKind: r.linkKind,
             linkWeight: r.weight,
           })),
+        });
+      } else if (url.pathname === "/api/events" && req.method === "GET") {
+        // SSE: sinyal live (memory/scan/tasks) — client yang memutuskan refresh-nya.
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        });
+        res.write("event: hello\ndata: {}\n\n");
+        const listener = (type: string, data?: unknown) => {
+          res.write(`event: ${type}\ndata: ${JSON.stringify(data ?? {})}\n\n`);
+        };
+        addListener(listener);
+        const hb = setInterval(() => res.write(": hb\n\n"), 25000);
+        req.on("close", () => {
+          clearInterval(hb);
+          removeListener(listener);
         });
       } else {
         sendJson(res, 404, { error: "not found" });
