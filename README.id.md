@@ -52,9 +52,9 @@ sudah tahu Anda sedang mengerjakan apa.
 
 | OS | Paket |
 |---|---|
-| Windows | `Memoria Setup 0.4.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
-| Linux | `memoria_0.4.0_amd64.deb` atau `Memoria-0.4.0.AppImage` |
-| macOS | `Memoria-0.4.0.dmg` |
+| Windows | `Memoria Setup 0.5.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
+| Linux | `memoria_0.5.0_amd64.deb` atau `Memoria-0.5.0.AppImage` |
+| macOS | `Memoria-0.5.0.dmg` |
 
 Tanpa Ollama pun langsung bekerja (mode heuristik). Untuk ekstraksi kelas LLM:
 

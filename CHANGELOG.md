@@ -4,6 +4,22 @@ Semua perubahan penting pada Memoria didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/);
 versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [Unreleased]
+
+### Added
+- **Guard struktural di audit UI** (`scripts/audit-ui.js`, via `npm run check:ui`):
+  selain cek selector, kini struktur HTML divalidasi — semua elemen harus
+  tertutup dan elemen global (`#overlay`, `#toast-wrap`) wajib anak langsung
+  `<body>`. Mencegah regresi bug modal di bawah terulang diam-diam.
+
+### Fixed
+- **Modal Add/Edit memory tidak muncul di luar tab Settings**: `web/index.html`
+  kekurangan 4 `</div>` penutup di akhir blok Settings, sehingga `#overlay`
+  (dan `#toast-wrap`) menjadi anak `#view-settings` yang `display:none` saat
+  tidak aktif. Klik Edit di Graph/Memories seolah tidak bereaksi, lalu modal
+  tiba-tiba muncul saat Settings dibuka. Modal & toast kini di `<body>` dan
+  tampil normal di semua tab.
+
 ## [0.2.0] — 2026-11-04 — Fase 1B: Tiered Intelligence (Ollama opsional)
 
 **User tanpa Ollama/API key kini mendapatkan memori sejak menit pertama** —
@@ -41,7 +57,10 @@ dan yang punya Ollama tidak merasakan perubahan.
 - Search sebelum approve: draft memang tidak ikut pencarian (by design) —
   tidak ada perubahan perilaku; dicatat agar tidak salah paham saat menguji.
 
-## [0.2.0] — Fase 1A: Resume Engine (limit-hopping)
+## Fase 1A — Resume Engine (limit-hopping)
+
+_Bagian dari rilis [0.2.0] di atas: F0, F1A, dan F1B dirilis bersama sebagai
+satu versi 0.2.0 — bukan tiga rilis terpisah yang sama-sama bernama 0.2.0._
 
 Fitur inti untuk skenario **limit-hopping**: pindah tool AI di tengah tugas tanpa
 menjelaskan ulang konteks. Branch: `feat/f1a-resume-engine`.
@@ -89,7 +108,7 @@ menjelaskan ulang konteks. Branch: `feat/f1a-resume-engine`.
 - `ollamaUrl` bisa dioverride via env `MEMORIA_OLLAMA_URL` (testing terisolasi
   & endpoint non-standar).
 
-## [0.2.0] — Fase 0 (fondasi)
+## Fase 0 — Fondasi
 
 Bagian pertama dari rencana eksekusi di `ROADMAP.md`. Branch: `feat/f0-foundation`.
 
