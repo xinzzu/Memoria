@@ -6,6 +6,12 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-11 — Fase 1C: Retrieval & Skala
+
+**Pustaka besar tetap ngebut** — keyword search pindah ke index FTS5, vektor
+embedding disimpan sebagai BLOB Float32, dan seluruh list dashboard
+terpagination. Acceptance: 5.000 memori → search < 100 ms.
+
 ### Added
 - **FTS5 keyword search** (F1C 5.1): kandidat keyword kini dipilih index FTS5
   (`memories_fts`, external-content + trigger INSERT/DELETE/UPDATE, tokenizer
