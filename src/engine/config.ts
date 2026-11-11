@@ -43,7 +43,9 @@ const legacyDataDir = path.join(home, ".pecut-memory");
 const defaultDataDir = path.join(home, ".memoria");
 
 export function getConfig(): AppConfig {
-  const dataDir = fs.existsSync(legacyDataDir) ? legacyDataDir : defaultDataDir;
+  // MEMORIA_DATA_DIR: override untuk testing terisolasi (server/bench pada DB
+  // sementara) — default tetap ~/.memoria (atau legacy ~/.pecut-memory).
+  const dataDir = process.env.MEMORIA_DATA_DIR || (fs.existsSync(legacyDataDir) ? legacyDataDir : defaultDataDir);
   const opencodeDataDir = isWin
     ? path.join(localShare, "opencode")
     : isMac

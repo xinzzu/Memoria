@@ -1,4 +1,4 @@
-import { getDb, allMemories, projectSlugById } from "../store/db";
+import { getDb, allMemories, projectSlugById, readMemories, Memory } from "../store/db";
 import { vecCandidates } from "../vecfind";
 import { cosine as vecCosine } from "../vecindex";
 
@@ -71,13 +71,67 @@ export function keywordScore(content: string, query: string): number {
   return hits / tokens.length;
 }
 
+/* ---------- Kandidat keyword via FTS5 (F1C 5.1) ----------
+ * Dulu: keywordScore dijalankan atas SEMUA memori aktif (allMemories()).
+ * Kini FTS5 memilih kandidat (bm25, maks 200), lalu keywordScore yang sama
+ * dirun ulang HANYA di atas kandidat sebagai rerank — formula blend final
+ * tidak berubah. Tokenizer trigram dipilih agar MATCH '"tok"' bersifat
+ * substring — setara text.includes() di keywordScore; token legacy difilter
+ * length > 2 sehingga selalu ≥3 char (syarat minimum trigram). */
+
+function ftsQuery(query: string, mode: "and" | "or"): string {
+  const tokens = query.toLowerCase().split(TOKEN_RE).filter((t) => t.length > 2);
+  if (!tokens.length) return "";
+  // Quote tiap token (escape " ganda) agar karakter spesial FTS diabaikan.
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(mode === "and" ? " " : " OR ");
+}
+
+function ftsSelect(match: string, kind?: string): Memory[] {
+  const where = [
+    "id IN (SELECT rowid FROM memories_fts WHERE memories_fts MATCH ? ORDER BY bm25(memories_fts) LIMIT 200)",
+    "archived = 0",
+    "status = 'active'",
+  ];
+  const params: Array<string | number> = [match];
+  if (kind) {
+    where.push("kind = ?");
+    params.push(kind);
+  }
+  return readMemories(`WHERE ${where.join(" AND ")}`, params);
+}
+
+/** null = fallback ke jalur legacy (token kosong / query FTS error / FTS tak
+ * menemukan apa pun — menjaga recall typo fuzzy editDistance yang tak bisa
+ * dilakukan FTS, dengan biaya scan penuh hanya pada query yang kosong). */
+function ftsCandidates(query: string, kind?: string): Memory[] | null {
+  const qAnd = ftsQuery(query, "and");
+  const qOr = ftsQuery(query, "or");
+  if (!qAnd && !qOr) return null;
+  try {
+    if (qAnd) {
+      const rows = ftsSelect(qAnd, kind);
+      if (rows.length) return rows;
+    }
+    // Semua token wajib hadir terlalu ketat → longgarkan ke OR.
+    if (qOr) {
+      const rows = ftsSelect(qOr, kind);
+      if (rows.length) return rows;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function searchMemories(
   query: string,
   opts: { limit?: number; projectSlug?: string; kind?: string; embedModel?: string } = {},
   queryEmbedding?: number[] | null
 ): SearchHit[] {
   const limit = opts.limit ?? 10;
-  const memories = allMemories();
+  // Kandidat dari FTS5; null (token kosong/query error) → scan legacy penuh,
+  // jadi hasil tidak pernah lebih buruk dari implementasi lama.
+  const memories = ftsCandidates(query, opts.kind) ?? allMemories();
   const hits: SearchHit[] = [];
   const now = Date.now();
   const centrality = loadCentrality();

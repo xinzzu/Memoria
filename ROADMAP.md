@@ -5,25 +5,32 @@
 
 ---
 
-## ⏭️ POSI TERKINI (2026-11-04) — untuk melanjutkan kerja
+## ⏭️ POSI TERKINI (2026-11-11) — untuk melanjutkan kerja
 
-**Selesai & ter-push (main @ 7ac6e20):** F0 ✅ · F1A ✅ (acceptance 12/12) · F1B ✅ (smoke 6/6) ·
-F2 batch-1 & 1b: i18n EN default (310 entri) ✅ · Settings sub-tab ✅ · Overview Polysure (greeting,
-kartu pastel, area chart, feed "Recently worked on") ✅ · Sidebar v3 monokrom + logo asli ✅ ·
-Graph ala Obsidian (label, hover-focus, dirty-flag, tombol Edit) ✅ · Memories kartu + badge jumlah ✅ ·
-Nama proyek pretty (basename + backfill) ✅ · Cache policy (HTML/JS/CSS no-cache) ✅ ·
-Release v0.2.0 terbit (CI 3 OS hijau) ✅. Estimasi total ±65%.
+**Selesai & ter-push (main):** F0 ✅ · F1A ✅ (acceptance 12/12) · F1B ✅ (smoke 6/6) ·
+**F1C ✅ (2026-11-11, `feat/f1c-retrieval-scale`)**: FTS5 keyword search (trigram, rerank
+keywordScore, fallback legacy untuk recall typo) · embedding Float32 BLOB (migrasi
+`user_version` v2 otomatis) · dedupe kandidat via SQL · pagination `/api/memories/list` &
+`/api/memories/tag` + "Load more" di semua tab Memories · event delegation (tanpa re-bind
+O(n)) · `content-visibility` menggantikan virtualisasi JS (tinggi baris variabel aman).
+Acceptance F1C: 5.000 memori sintetis → search median 5,4–58,0 ms, semua < 100 ms
+(`scripts/bench-f1c.mjs`). Test suite 18/18 (`node --test tests/`). · F2 ✅ (v0.5.0):
+Tasks view, engine EN, safeStorage, batch embedding, setup checklist, settings two-pane,
+graph obsidian + 3D, i18n penuh, light theme, SSE live, test suite, project detail view.
 
 **Backlog eksekusi berikutnya (urut):**
-1. ~~F2-2b Tab Tugas~~ ✅ · ~~F2-2c metrik RAM + batch embedding~~ ✅ · ~~F2-2d wizard~~ ✅ (setup checklist) · ~~safeStorage~~ ✅ · ~~engine-side English~~ ✅
-2. Sisa F2: light theme (butuh pass token warna lebih dalam), halaman detail proyek (sebagian tercakup feed→timeline)
-3. Sisa F1C (dipicu metrik — RSS terukur ±125MB, masih sehat): FTS5, embedding Float32 BLOB, virtualisasi list, SSE penuh
-4. F3: webhook, sync terenkripsi, test suite, code signing — butuh keputusan produk
-5. ✅ v0.2.0 → v0.5.0 terbit (5 rilis, CI 3 OS hijau) — Tasks view, engine EN, safeStorage, batch embedding, setup checklist, settings two-pane, graph obsidian, i18n penuh, light theme, SSE live, test suite, **project detail view**
+1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~test suite inti~~ ✅ (10→18 kasus)
+2. F3: webhook (Slack/Discord/Telegram), sync terenkripsi, code signing — butuh keputusan produk
+3. Sisa kecil F1B/F1C: `embedMany` untuk provider OpenAI-compat (kini fallback per-teks),
+   SQL-level LIMIT untuk `/api/memories/list` (kini slice JS setelah materialisasi)
+4. Rilis berikutnya: bump v0.6.0 + tag → CI 3 OS; migrasi FTS5/BLOB jalan otomatis di
+   first-run user lama (test: `tests/migration.test.mjs`)
 
 **Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
 data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).
-Static asset HTML/JS/CSS = no-cache; gambar cache 1 jam. `npm run check:ui` = audit selector.
+Untuk pengujian terisolasi pakai `MEMORIA_DATA_DIR=$(mktemp -d) node dist/engine/index.js server`
+(JANGAN migrasi DB asli di luar app). Static asset HTML/JS/CSS = no-cache; gambar cache 1 jam.
+`npm run check:ui` = audit selector + struktur. `node scripts/bench-f1c.mjs` = benchmark search.
 
 ---
 
