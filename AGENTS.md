@@ -1,17 +1,67 @@
 <!-- memoria:start -->
-# Handoff Proyek: d ngoding personal project pecut ai memory
-> Dibuat oleh Memoria — 2026-08-05T16:30
+# Handoff Proyek: Memoria — second brain offline untuk AI coding tools
+> Diperbarui manual — 2026-11-11 (repo: github.com/xinzzu/Memoria, MIT)
 
-## Memori (3)
-- **Rename brand → "Memoria" + logo tunggal `logo.png`**: name/productName/appId di package.json, semua referensi source/web/README/AGENTS diubah; `win.icon` → `logo.png` (electronics-builder auto-konversi), `createIcon()` di `src/electron/main.ts` baca `../..\logo.png` (fallback kotak biru), `logo.png` masuk `build.files`, favicon di index/palette/quick.html. Installer `dist-installer\Memoria Setup 0.1.0.exe` dibangun ulang.
-- **Tier 1 selesai**: `vscdb.ts` (scan state.vscdb VS Code/Cursor/Windsurf), palette global, entity extraction (`memory_entities`), auto-topic k-means+TF-IDF (`memory_tags`), fuzzy search, ekspor Obsidian (`POST /api/export/obsidian`).
-- **Ringkasan mingguan otomatis**: modul `src/engine/summary/weekly.ts` — `generateWeeklyDigest()`/`nextWeeklyDigestDue()`, tulis `weekly-digest.md` di dataDir + simpan teks di setting; `/api/digest` (GET) & `/api/digest/generate` (POST); auto di `dailyMaintenance` via toggle `weeklyDigest`; UI toggle + card `btnDigest`/`#digestBox` di settings; README roadmap update.
-- **Dukungan Linux & macOS**: `config.ts` kini per-OS — `appdata` (win: APPDATA, mac: `~/Library/Application Support`, linux: XDG_CONFIG_HOME), `localShare` (win: LOCALAPPDATA, mac: App Support, linux: XDG_DATA_HOME); Ollama path (win: `ollama.exe`, mac: `/Applications/Ollama.app/Contents/Resources/ollama`, linux: `ollama` via PATH); paths tool (antigravity/vscode/cursor/windsurf) pakai appdata per-OS; opencode db per-OS. electron-builder: blok `linux` (AppImage+deb, icon build/icon.png 512px, category Utility, desktopName Memoria) + `mac` (dmg+zip, productivity); `homepage` di package.json (wajib untuk deb); scripts `dist:linux`/`dist:mac`; `.github/workflows/build.yml` matrix 3 OS. Build AppImage & deb gagal dari Windows (symlink EPERM & fpm ENOENT) — harus runner Linux/macOS/CI; `linux-unpacked/` tetap dihasilkan. Windows installer OK 91.8MB, smoke test server OK.
-- **Fix window tidak terbuka saat start**: `main.ts` hanya memanggil `showWindow()` bila `PECUT_SHOW_ON_START=1` (env tes) — app jadi diam di tray saat dibuka pertama kali. Kini: `if (PECUT_SHOW_ON_START) showWindow(); else if (!app.getLoginItemSettings().wasOpenedAtLogin) showWindow();` — launch normal langsung buka dashboard, auto-start login tetap di tray. Verifikasi: screenshot terhasil tanpa env, 0 PAGE-ERR. Installer rebuild.
-- **Sidebar brand dihapus**: blok `.brand` (SVG + "Memoria Second brain AI tools") + CSS-nya dihapus dari `web/index.html`.
-- **README siap GitHub + repo dipublish**: repo publik `xinzzu/Memoria` (github.com/xinzzu/Memoria). README: hero `banner.png` (dibuat user), badge Release/Build/License, link Releases nyata, perbaikan CLI path (`dist/cli` → `dist/engine`), struktur proyek disinkronkan dengan realita. `LICENSE` MIT ditambahkan. `.github/workflows/build.yml` diupgrade: trigger tag `v*` + `workflow_dispatch`, build 3 OS, lalu job `release` (permission `contents: write`, `softprops/action-gh-release@v2`) yang generate changelog dari git log antar-tag + publish GitHub Release dengan asset installer. Git: init `main`, commit "Initial release v0.1.0" (64 file), remote origin, tag `v0.1.0` pushed — workflow #1 In Progress. **Catatan**: `npm run dist` lokal di Windows hanya menghasilkan exe (Linux/macOS butuh runner mereka sendiri/CI).
-- **Binaries**: installer `dist-installer\Memoria Setup 0.1.0.exe` (91.8MB). Server tes `node dist/engine/index.js server` port 48210; UI check via `PECUT_SHOT`/`PECUT_SHOT_CHECK` env (log ada di build\e-out.log, cari `[PAGE-ERR]`).
+## Apa ini
+App Electron + engine Node/TS yang menangkap transkrip sesi AI coding tools
+(Claude Code, Codex, Gemini CLI, opencode, Copilot, dll.) lalu mengubahnya jadi
+memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-hopping**
+— pindah tool AI tanpa menjelaskan ulang konteks.
+
+## Sumber kebenaran (jangan andalkan dokumen lain)
+- `CHANGELOG.md` — riwayat rilis per fase.
+- `ROADMAP.md` — rencana fase + bagian **"POSI TERKINI"** (diupdate per fase; mulai
+  dari sini saat lanjut kerja).
+- `git log` — konvensi commit: conventional commits; fitur via branch
+  `feat/...`/`fix/...` lalu `git merge --no-ff` ke `main`.
+
+## Status (v0.7.0, 2026-11-11)
+- Rilis: v0.2.0 (F0+F1A resume engine+F1B tiered intelligence) → v0.5.0 (F2 UX:
+  light theme, tasks view, project detail, graph 2D/3D, i18n) → v0.6.0 (**F1C**:
+  FTS5 keyword search, embedding Float32 BLOB, dedupe via SQL, list pagination)
+  → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
+  `POST /api/notify/test`, secret terenkripsi safeStorage).
+- Rilis otomatis: push tag `v*` → `.github/workflows/build.yml` build 3 OS +
+  publish GitHub Release (changelog dari git log antar-tag).
+- Sisa backlog: sync terenkripsi antar mesin, code signing (butuh keputusan biaya),
+  `embedMany` provider OpenAI-compat, SQL LIMIT di `/api/memories/list`.
+
+## Arsitektur singkat
+- `src/engine/` — inti (tsc, commonjs, output `dist/engine/`): `store/db.ts`
+  (node:sqlite `DatabaseSync`, WAL, migrasi `PRAGMA user_version` + ALTER kolom),
+  `retrieve/search.ts` (FTS5 external-content trigram `memories_fts` + trigger
+  sync; rerank `keywordScore`; fallback scan legacy bila FTS 0 hasil),
+  `vecfind.ts`/`vecindex.ts` (LSH per dialek embedding), `extract/` (provider
+  heuristik/Ollama/OpenAI-compat), `ingest/` (watcher chokidar + scanner per tool),
+  `handoff.ts` (injeksi blok ber-marker ke AGENTS/CLAUDE/GEMINI.md),
+  `notify/webhook.ts` (listener event bus), `events.ts` (bus sync untuk SSE).
+- `web/` — dashboard vanilla JS (app.js + i18n.js, tanpa framework); SSE live
+  update; event delegation untuk aksi baris; `content-visibility` untuk list panjang.
+- `src/electron/` — main process (tray, global shortcut, safeStorage).
+- Embedding on-disk: **Float32 BLOB** (bukan JSON); codec: `f32ToBlob`/`decodeEmbedding`
+  di db.ts. Search membandingkan vektor lintas dialek? JANGAN — guard `embed_model`.
+
+## Perintah penting
+- `npm run build` (tsc) · `npm test` (= build + `node --test`, **test jalan terhadap
+  dist/, bukan src**) · `npm run check:ui` (audit selector + struktur HTML web/)
+- Server lokal: `node dist/engine/index.js server` (port 48210).
+- **Server terisolasi (JANGAN sentuh ~/.memoria asli):**
+  `HOME=$(mktemp -d) MEMORIA_DATA_DIR=$(mktemp -d) node dist/engine/index.js server`
+  — MEMORIA_DATA_DIR = env override resmi; HOME palsu menetralkan watcher chokidar
+  (folder sesi besar bisa EMFILE).
+- Benchmark search: `node scripts/bench-f1c.mjs 5000` (acceptance: <100 ms).
+
+## Gotcha yang sudah pernah menggigit
+- node:sqlite balikin objek null-prototype — akses properti eksplisit, jangan
+  `Number(row)` (bug 500 dulu).
+- Toggle Settings statis butuh `saveSettings()`/`loadSettingsToggles()` di app.js —
+  dulu pernah dipanggil tanpa didefinisi (tidak persist).
+- Elemen global `#overlay`/`#toast-wrap` WAJIB anak langsung `<body>` — dijaga
+  guard struktural `check:ui` (dulu modal ketelan view hidden).
+- String UI: English sebagai kunci `t()`, terjemahan ID di kamus `web/i18n.js`;
+  **tanpa emoji** di UI chrome; string engine-facing English-first.
 
 ## Next
-- Webhook & notifikasi (Slack/Discord/Telegram) — toggle + POST global pada digest/scan.
+- Verifikasi installer di mesin asli (migrasi FTS5/BLOB `~/.memoria` jalan otomatis).
+- Lanjut backlog F3 sisa di atas; detail posisi terkini selalu di `ROADMAP.md`.
 <!-- memoria:end -->
