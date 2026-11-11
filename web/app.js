@@ -448,19 +448,30 @@ async function renderMemories(append = false) {
   const box = $("#memoriesList");
   try {
     if (state.filterTag && state.memTab === "active") {
-      memPagination = null;
-      const d = await api("/api/memories/tag?tag=" + encodeURIComponent(state.filterTag));
-      renderMemoryList(box, (d.memories || []).map((m) => ({ ...m, score: 1 })));
+      const offset = append && memPagination ? memPagination.offset : 0;
+      const d = await api(`/api/memories/tag?tag=${encodeURIComponent(state.filterTag)}&limit=50&offset=${offset}`);
+      const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
+      memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
+      if (append) appendMemoryList(box, items);
+      else renderMemoryList(box, items);
+      renderLoadMore(box);
       return;
     }
     if (state.memTab !== "active") {
-      memPagination = null;
-      const d = await api("/api/memories/list?status=" + state.memTab);
-      let items = d.memories || [];
+      const offset = append && memPagination ? memPagination.offset : 0;
+      const d = await api(`/api/memories/list?status=${state.memTab}&limit=50&offset=${offset}`);
+      const raw = d.memories || [];
+      let items = raw;
       if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
       if (state.filterProject) items = items.filter((m) => m.projectSlug === state.filterProject);
       if (q) items = items.filter((m) => m.content.toLowerCase().includes(q.toLowerCase()));
-      renderMemoryList(box, items.map((m) => ({ ...m, score: 1 })));
+      // Offset maju per halaman mentah (bukan hasil filter) agar tidak ada
+      // halaman yang terlewati; filter tetap bekerja pada halaman termuat.
+      memPagination = { offset: offset + raw.length, hasMore: !!d.hasMore };
+      const mapped = items.map((m) => ({ ...m, score: 1 }));
+      if (append) appendMemoryList(box, mapped);
+      else renderMemoryList(box, mapped);
+      renderLoadMore(box);
       return;
     }
     const params = new URLSearchParams({ limit: "50" });
@@ -530,21 +541,23 @@ function renderMemoryList(box, items) {
 }
 
 /* ---------- Batch kurasi (Pending approval) ---------- */
+function updateDraftBar(box) {
+  const n = box.querySelectorAll(".mem-select:checked").length;
+  const ba = document.getElementById("batchApprove");
+  const bd = document.getElementById("batchDelete");
+  if (ba) { ba.style.display = n ? "" : "none"; ba.textContent = `${t("Approve")} ${n}`; }
+  if (bd) { bd.style.display = n ? "" : "none"; bd.textContent = `${t("Delete")} ${n}`; }
+  const hint = document.getElementById("batchHint");
+  if (hint) hint.textContent = n ? "" : t("Select drafts to approve or delete them in one go");
+}
+
 function wireDraftBatch(box) {
   const bar = document.getElementById("draftBatchBar");
   if (!bar) return;
   bar.style.display = "flex";
-  const upd = () => {
-    const n = box.querySelectorAll(".mem-select:checked").length;
-    const ba = document.getElementById("batchApprove");
-    const bd = document.getElementById("batchDelete");
-    if (ba) { ba.style.display = n ? "" : "none"; ba.textContent = `${t("Approve")} ${n}`; }
-    if (bd) { bd.style.display = n ? "" : "none"; bd.textContent = `${t("Delete")} ${n}`; }
-    const hint = document.getElementById("batchHint");
-    if (hint) hint.textContent = n ? "" : t("Select drafts to approve or delete them in one go");
-  };
-  box.querySelectorAll(".mem-select").forEach((cb) => cb.addEventListener("change", upd));
-  upd();
+  // Perubahan checkbox mengalir lewat delegasi `change` di bindRowActions;
+  // di sini cukup set jumlah awal bar.
+  updateDraftBar(box);
   const ids = () => [...box.querySelectorAll(".mem-select:checked")].map((c) => Number(c.dataset.sel));
   document.getElementById("batchApprove").onclick = async () => {
     const list = ids();
@@ -564,131 +577,145 @@ function wireDraftBatch(box) {
   };
 }
 
+/* ---------- Aksi baris memori via event delegation (F1C) ----------
+ * Dulu: setiap render memasang ulang listener per tombol (O(n) tiap refresh,
+ * listener menumpuk di list panjang). Kini satu pasang listener delegated per
+ * kontainer list, dipasang sekali (guard WeakSet) — konten list boleh
+ * berganti sesering apapun tanpa re-bind. */
+const delegatedRoots = new WeakSet();
+
 function bindRowActions(root) {
-  root.querySelectorAll("[data-del]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.del;
-      if (!confirm(t("Delete this memory? This cannot be undone."))) return;
-      try {
-        await api("/api/memories?id=" + id, { method: "DELETE" });
-        toast(t("Memory deleted"));
-        const row = btn.closest(".mem");
-        if (row) row.remove();
-        loadStats();
-      } catch (err) {
-        toast(t("Failed to delete: ") + err.message, "err");
-      }
-    });
+  if (!root || delegatedRoots.has(root)) return;
+  delegatedRoots.add(root);
+  root.addEventListener("click", onMemListClick);
+  root.addEventListener("change", (e) => {
+    if (e.target.classList && e.target.classList.contains("mem-select")) updateDraftBar(root);
   });
-  root.querySelectorAll("[data-rel]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.rel);
-      const row = btn.closest(".mem");
-      if (!row) return;
-      let panel = row.querySelector(".rel-panel");
-      if (panel) { panel.remove(); return; }
-      panel = document.createElement("div");
-      panel.className = "rel-panel";
-      panel.innerHTML = '<div class="rel-title">Loading connections…</div>';
-      row.appendChild(panel);
-      try {
-        const d = await api("/api/related?id=" + id);
-        const rel = d.related || [];
-        if (!rel.length) { panel.innerHTML = '<div class="rel-title">No related connections</div>'; return; }
-        panel.innerHTML = '<div class="rel-title">Connected to (' + rel.length + ')</div>' + rel.map((r) => `
-          <div class="rel-item" data-goto="${r.id}">
-            <span class="rel-k">${r.linkKind}</span>
-            <span class="rel-t">${esc(r.content)}</span>
-          </div>`).join("");
-        panel.querySelectorAll("[data-goto]").forEach((it) => {
-          it.addEventListener("click", (ev) => {
-            ev.stopPropagation();
-            openEditModal(Number(it.dataset.goto));
-          });
-        });
-      } catch (err) {
-        panel.innerHTML = '<div class="rel-title">Failed: ' + esc(err.message) + '</div>';
-      }
-    });
-  });
-  root.querySelectorAll("[data-ent]").forEach((chip) => {
-    chip.addEventListener("click", (e) => {
-      e.stopPropagation();
-      state.memTab = "active";
-      document.querySelectorAll(".mem-tabs .seg").forEach((x) => x.classList.toggle("active", x.dataset.memtab === "active"));
-      state.filterTag = "";
-      state.search = chip.dataset.ent;
-      $("#search").value = chip.dataset.ent;
-      renderMemories();
-    });
-  });
-  root.querySelectorAll("[data-tag]").forEach((chip) => {
-    chip.addEventListener("click", (e) => {
-      e.stopPropagation();
-      state.filterTag = chip.dataset.tag;
-      $("#filterTag").value = chip.dataset.tag;
-      renderMemories();
-    });
-  });
-  root.querySelectorAll("[data-appr]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.appr);
-      try {
-        await api("/api/memories/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-        toast(t("Memory approved"));
-        const row = btn.closest(".mem");
-        if (row) row.remove();
-        loadStats();
-      } catch (err) {
-        toast(t("Failed to approve: ") + err.message, "err");
-      }
-    });
-  });
-  root.querySelectorAll("[data-rs]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.rs);
-      try {
-        await api("/api/memories/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, archived: false }) });
-        toast(t("Memory restored"));
-        const row = btn.closest(".mem");
-        if (row) row.remove();
-        loadStats();
-      } catch (err) {
-        toast(t("Failed to restore: ") + err.message, "err");
-      }
-    });
-  });
-  root.querySelectorAll("[data-arch]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.arch;
-      try {
-        await api("/api/memories/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(id), archived: true }) });
-        toast(t("Memory archived"));
-        const row = btn.closest(".mem");
-        if (row) row.remove();
-        loadStats();
-      } catch (err) {
-        toast(t("Failed to archive: ") + err.message, "err");
-      }
-    });
-  });
-  root.querySelectorAll("[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      openEditModal(Number(btn.dataset.edit));
-    });
-  });
-  root.querySelectorAll(".mem").forEach((row) => {
-    row.addEventListener("click", (e) => {
-      if (e.target.closest("[data-del], [data-arch], [data-edit], [data-rel], [data-appr], [data-rs], .rel-panel")) return;
-      row.classList.toggle("open");
-    });
-  });
+}
+
+async function onMemListClick(e) {
+  const root = e.currentTarget;
+  const goto = e.target.closest("[data-goto]");
+  if (goto) {
+    e.stopPropagation();
+    openEditModal(Number(goto.dataset.goto));
+    return;
+  }
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    e.stopPropagation();
+    const id = del.dataset.del;
+    if (!confirm(t("Delete this memory? This cannot be undone."))) return;
+    try {
+      await api("/api/memories?id=" + id, { method: "DELETE" });
+      toast(t("Memory deleted"));
+      const row = del.closest(".mem");
+      if (row) row.remove();
+      loadStats();
+    } catch (err) {
+      toast(t("Failed to delete: ") + err.message, "err");
+    }
+    return;
+  }
+  const relBtn = e.target.closest("[data-rel]");
+  if (relBtn) {
+    e.stopPropagation();
+    const id = Number(relBtn.dataset.rel);
+    const row = relBtn.closest(".mem");
+    if (!row) return;
+    let panel = row.querySelector(".rel-panel");
+    if (panel) { panel.remove(); return; }
+    panel = document.createElement("div");
+    panel.className = "rel-panel";
+    panel.innerHTML = '<div class="rel-title">Loading connections…</div>';
+    row.appendChild(panel);
+    try {
+      const d = await api("/api/related?id=" + id);
+      const rel = d.related || [];
+      if (!rel.length) { panel.innerHTML = '<div class="rel-title">No related connections</div>'; return; }
+      panel.innerHTML = '<div class="rel-title">Connected to (' + rel.length + ')</div>' + rel.map((r) => `
+        <div class="rel-item" data-goto="${r.id}">
+          <span class="rel-k">${r.linkKind}</span>
+          <span class="rel-t">${esc(r.content)}</span>
+        </div>`).join("");
+    } catch (err) {
+      panel.innerHTML = '<div class="rel-title">Failed: ' + esc(err.message) + '</div>';
+    }
+    return;
+  }
+  const ent = e.target.closest("[data-ent]");
+  if (ent) {
+    e.stopPropagation();
+    state.memTab = "active";
+    document.querySelectorAll(".mem-tabs .seg").forEach((x) => x.classList.toggle("active", x.dataset.memtab === "active"));
+    state.filterTag = "";
+    state.search = ent.dataset.ent;
+    $("#search").value = ent.dataset.ent;
+    renderMemories();
+    return;
+  }
+  const tag = e.target.closest("[data-tag]");
+  if (tag) {
+    e.stopPropagation();
+    state.filterTag = tag.dataset.tag;
+    $("#filterTag").value = tag.dataset.tag;
+    renderMemories();
+    return;
+  }
+  const appr = e.target.closest("[data-appr]");
+  if (appr) {
+    e.stopPropagation();
+    const id = Number(appr.dataset.appr);
+    try {
+      await api("/api/memories/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      toast(t("Memory approved"));
+      const row = appr.closest(".mem");
+      if (row) row.remove();
+      loadStats();
+    } catch (err) {
+      toast(t("Failed to approve: ") + err.message, "err");
+    }
+    return;
+  }
+  const rs = e.target.closest("[data-rs]");
+  if (rs) {
+    e.stopPropagation();
+    const id = Number(rs.dataset.rs);
+    try {
+      await api("/api/memories/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, archived: false }) });
+      toast(t("Memory restored"));
+      const row = rs.closest(".mem");
+      if (row) row.remove();
+      loadStats();
+    } catch (err) {
+      toast(t("Failed to restore: ") + err.message, "err");
+    }
+    return;
+  }
+  const arch = e.target.closest("[data-arch]");
+  if (arch) {
+    e.stopPropagation();
+    const id = arch.dataset.arch;
+    try {
+      await api("/api/memories/archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: Number(id), archived: true }) });
+      toast(t("Memory archived"));
+      const row = arch.closest(".mem");
+      if (row) row.remove();
+      loadStats();
+    } catch (err) {
+      toast(t("Failed to archive: ") + err.message, "err");
+    }
+    return;
+  }
+  const edit = e.target.closest("[data-edit]");
+  if (edit) {
+    e.stopPropagation();
+    openEditModal(Number(edit.dataset.edit));
+    return;
+  }
+  // Toggle expand row: hanya bila klik tidak mengenai aksi/panel di atas.
+  const row = e.target.closest(".mem");
+  if (row && root.contains(row) && !e.target.closest(".rel-panel")) row.classList.toggle("open");
 }
 
 function renderProjects() {

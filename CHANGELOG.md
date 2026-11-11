@@ -7,10 +7,46 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **FTS5 keyword search** (F1C 5.1): kandidat keyword kini dipilih index FTS5
+  (`memories_fts`, external-content + trigger INSERT/DELETE/UPDATE, tokenizer
+  trigram → semantik substring setara `includes()`), direrank `keywordScore`
+  lama di atas maks 200 kandidat — formula blend final tak berubah. Query yang
+  tak menemukan apa pun di FTS otomatis fallback ke scan penuh, sehingga
+  recall typo fuzzy (editDistance) tetap seperti sebelumnya. Index baru:
+  `memories(archived, status)` & `transcripts(extracted, ts)`.
+- **Migrasi skema berversi** (`PRAGMA user_version`) di `store/db.ts` —
+  pertama kali ada; migrasi lama berbasis `PRAGMA table_info` tetap dipertahankan.
 - **Guard struktural di audit UI** (`scripts/audit-ui.js`, via `npm run check:ui`):
   selain cek selector, kini struktur HTML divalidasi — semua elemen harus
   tertutup dan elemen global (`#overlay`, `#toast-wrap`) wajib anak langsung
   `<body>`. Mencegah regresi bug modal di bawah terulang diam-diam.
+- `MEMORIA_DATA_DIR` env override di `config.ts` — jalankan server/bench pada
+  DB sementara tanpa menyentuh `~/.memoria` (pola `MEMORIA_OLLAMA_URL`).
+
+### Changed
+- **Embedding disimpan sebagai BLOB Float32** (F1C 5.2, migrasi v2 otomatis
+  saat pertama kali jalan): hemat ±50% vs JSON TEXT dan tidak ada lagi
+  `JSON.parse` vektor per baris di jalur baca manapun (`readMemories`,
+  `vecfind`). On-disk: little-endian raw float32; baris JSON lama dikonversi.
+- **Dedupe kandidat via SQL** (F1C 5.4): bukan lagi full-scan `allMemories()` —
+  kandidat diambil langsung dari DB (proyek/dialek/aktif, 500 terbaru). Perilaku
+  similarity & merge tidak berubah.
+- **Pagination penuh di dashboard** (F1C): `/api/memories/list` (draft/archive)
+  dan `/api/memories/tag` kini menerima `limit`/`offset` dan membalas bentuk
+  yang sama dengan `/api/memories` (`total`/`hasMore`); semua tab Memories
+  memakai pola "Load more", offset maju per halaman mentah agar filter
+  client-side tidak melompati halaman.
+- **Event delegation untuk aksi baris memori**: listener per tombol yang
+  dipasang ulang di setiap render diganti satu pasang listener delegated per
+  kontainer (guard WeakSet) — re-render list O(1), bukan O(n).
+- `.mem` cards memakai `content-visibility: auto` + `contain-intrinsic-size`
+  — card di luar viewport di-skip render browser (windowing murah untuk
+  list panjang; menggantikan virtualisasi JS yang rawan dengan tinggi variabel).
+
+### Perf
+- Acceptance F1C terpenuhi (`scripts/bench-f1c.mjs`, 5.000 memori sintetis):
+  median search kata umum **11,3 ms**, kata jarang **5,4 ms**, substring
+  **58,0 ms** — semua < 100 ms.
 
 ### Fixed
 - **Modal Add/Edit memory tidak muncul di luar tab Settings**: `web/index.html`

@@ -763,6 +763,11 @@
       border: 1px solid var(--border-soft); border-radius: 13px;
       padding: 12px 14px; margin-bottom: 10px; position: relative;
       transition: border-color .13s, transform .1s;
+      /* Windowing murah (F1C): card di luar viewport di-skip render browser.
+       * 72px = estimasi tinggi card ter-clamp 2 baris; `auto` menjaga ukuran
+       * terukur untuk card yang pernah tampil. Aman utk tinggi variabel. */
+      content-visibility: auto;
+      contain-intrinsic-size: auto 72px;
     }
     .mem:hover { border-color: rgba(110,141,255,.35); }
     .mem.open { border-color: rgba(110,141,255,.5); }

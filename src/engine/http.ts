@@ -235,14 +235,20 @@ export function startHttpServer(): Promise<void> {
           memory: { id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, projectSlug: projectSlugById(m.projectId), tags: tagsForMemory(id), status: m.status || "active" },
         });
       } else if (url.pathname === "/api/memories/list" && req.method === "GET") {
+        // Pagination F1C: bentuk respons menyamai /api/memories.
         const status = url.searchParams.get("status") || "active";
+        const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
+        const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
         let mems: import("./store/db").Memory[];
-        if (status === "draft") mems = listDraft();
-        else if (status === "archived") mems = listArchived();
-        else mems = allMemories();
-        sendJson(res, 200, {
-          memories: mems.map((m) => ({ ...m, embedding: undefined, projectSlug: projectSlugById(m.projectId) })).map(enrichMemory),
-        });
+        let total: number;
+        if (status === "draft") { mems = listDraft(); total = countDraft(); }
+        else if (status === "archived") { mems = listArchived(); total = countArchived(); }
+        else { mems = allMemories(); total = countMemories(); }
+        const page = mems
+          .slice(offset, offset + limit)
+          .map((m) => ({ ...m, embedding: undefined, projectSlug: projectSlugById(m.projectId) }))
+          .map(enrichMemory);
+        sendJson(res, 200, { memories: page, total, offset, limit, hasMore: offset + page.length < total });
       } else if (url.pathname === "/api/memories/approve" && req.method === "POST") {
         const body = await readBody(req);
         const ok = approveMemory(Number(body.id || 0));
@@ -497,10 +503,23 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, 200, r);
       } else if (url.pathname === "/api/memories/tag" && req.method === "GET") {
         const tag = url.searchParams.get("tag") || "";
+        const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
+        const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
         const ids = memoriesByTag(tag);
+        const total = ids.length;
         const byId = new Map(allMemories().map((m) => [m.id as number, m]));
-        const mems = ids.map((id) => byId.get(id)).filter(Boolean).map((m) => enrichMemory({ ...m, type: undefined, projectSlug: projectSlugById(m!.projectId) }));
-        sendJson(res, 200, { memories: mems.map((m: any) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, status: m.status, projectSlug: m.projectSlug, entities: m.entities, tags: m.tags })) });
+        const mems = ids
+          .slice(offset, offset + limit)
+          .map((id) => byId.get(id))
+          .filter(Boolean)
+          .map((m) => enrichMemory({ ...m, type: undefined, projectSlug: projectSlugById(m!.projectId) }));
+        sendJson(res, 200, {
+          memories: mems.map((m: any) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, status: m.status, projectSlug: m.projectSlug, entities: m.entities, tags: m.tags })),
+          total,
+          offset,
+          limit,
+          hasMore: offset + mems.length < total,
+        });
       } else if (url.pathname === "/api/digest" && req.method === "GET") {
         const { latestDigestText } = await import("./summary/weekly");
         sendJson(res, 200, { text: latestDigestText() });

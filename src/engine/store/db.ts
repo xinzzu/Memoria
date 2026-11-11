@@ -71,7 +71,8 @@ export function initDb(dataDir: string): DatabaseSync {
       UNIQUE(tool, session_id, seq)
     );
     CREATE INDEX IF NOT EXISTS idx_transcripts_project ON transcripts(project_id);
-    CREATE INDEX IF NOT EXISTS idx_transcripts_extracted ON transcripts(extracted);
+    CREATE INDEX IF NOT EXISTS idx_transcripts_pending ON transcripts(extracted, ts);
+    DROP INDEX IF EXISTS idx_transcripts_extracted;
     CREATE TABLE IF NOT EXISTS memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER,
@@ -119,6 +120,7 @@ export function initDb(dataDir: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_tags_memory ON memory_tags(memory_id);
   `);
   migrate(db);
+  runMigrations(db);
   return db;
 }
 
@@ -150,6 +152,91 @@ function migrate(d: DatabaseSync): void {
       d.prepare("UPDATE projects SET name = ? WHERE id = ?").run(pretty, r.id);
     }
   }
+}
+
+/* ---------- Migrasi berversi (PRAGMA user_version) ----------
+ * Dipicu F1C: FTS5 butuh virtual table + trigger + backfill sekali jalan,
+ * kolom embedding pindah dari JSON TEXT ke Float32 BLOB. migrate() di atas
+ * tetap dipertahankan untuk penambahan kolom inkremental. */
+type Migration = { version: number; name: string; up: (d: DatabaseSync) => void };
+
+const MIGRATIONS: Migration[] = [
+  { version: 1, name: "fts5-keyword-index", up: m1Fts5 },
+  { version: 2, name: "embedding-float32-blob", up: m2EmbeddingBlob },
+];
+
+function runMigrations(d: DatabaseSync): void {
+  const row = d.prepare("PRAGMA user_version").get() as { user_version: number | null };
+  let v = Number(row.user_version) || 0;
+  for (const m of MIGRATIONS) {
+    if (m.version <= v) continue;
+    m.up(d);
+    d.exec(`PRAGMA user_version = ${m.version}`);
+    v = m.version;
+  }
+}
+
+/** M1: index FTS5 keyword + sync trigger + index (archived,status).
+ * Index memories diletakkan di sini (bukan blok DDL utama) karena kolom
+ * archived/status baru ada setelah migrate() pada DB lama. */
+function m1Fts5(d: DatabaseSync): void {
+  d.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(content, content='memories', content_rowid='id');
+    CREATE TRIGGER IF NOT EXISTS memories_fts_ai AFTER INSERT ON memories BEGIN
+      INSERT INTO memories_fts(rowid, content) VALUES (new.id, new.content);
+    END;
+    CREATE TRIGGER IF NOT EXISTS memories_fts_ad AFTER DELETE ON memories BEGIN
+      INSERT INTO memories_fts(memories_fts, rowid, content) VALUES ('delete', old.id, old.content);
+    END;
+    CREATE TRIGGER IF NOT EXISTS memories_fts_au AFTER UPDATE OF content ON memories BEGIN
+      INSERT INTO memories_fts(memories_fts, rowid, content) VALUES ('delete', old.id, old.content);
+      INSERT INTO memories_fts(rowid, content) VALUES (new.id, new.content);
+    END;
+    CREATE INDEX IF NOT EXISTS idx_memories_active ON memories(archived, status);
+  `);
+  // 'rebuild' mengisi FTS dari tabel content — backfill DB yang sudah berisi data.
+  d.exec(`INSERT INTO memories_fts(memories_fts) VALUES('rebuild')`);
+}
+
+/** M2: kolom embedding JSON TEXT → Float32 BLOB (hemat ±50% + tanpa JSON.parse
+ * per baris). typeof='text' membuat migrasi idempotent: baris BLOB di-skip. */
+function m2EmbeddingBlob(d: DatabaseSync): void {
+  const rows = d
+    .prepare("SELECT id, embedding FROM memories WHERE embedding IS NOT NULL AND typeof(embedding) = 'text'")
+    .all() as Array<{ id: number; embedding: string }>;
+  const upd = d.prepare("UPDATE memories SET embedding = ? WHERE id = ?");
+  for (const r of rows) {
+    try {
+      const arr = JSON.parse(r.embedding) as unknown;
+      if (!Array.isArray(arr)) continue;
+      upd.run(f32ToBlob(arr.map(Number)), r.id);
+    } catch {
+      continue; // vektor rusak: biarkan, jalur baca juga menoleransi ini
+    }
+  }
+}
+
+/* ---------- Codec embedding Float32 ----------
+ * On-disk: BLOB raw bytes Float32 little-endian. In-memory: number[] biasa. */
+
+export function f32ToBlob(v: number[]): Buffer {
+  return Buffer.from(Float32Array.from(v).buffer);
+}
+
+export function decodeEmbedding(raw: unknown): number[] | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    // Sisa baris lama yang terlewat migrasi (JSON rusak dsb.) — toleran.
+    try {
+      const a = JSON.parse(raw) as unknown;
+      return Array.isArray(a) ? a.map(Number) : null;
+    } catch {
+      return null;
+    }
+  }
+  const buf = raw as Buffer;
+  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  return Array.from(new Float32Array(ab));
 }
 
 export function getSetting(key: string, def: string = ""): string {
@@ -359,7 +446,7 @@ export function insertMemory(m: Memory): void {
     m.importance,
     m.createdAt,
     m.sourceTool,
-    m.embedding ? JSON.stringify(m.embedding) : null,
+    m.embedding ? f32ToBlob(m.embedding) : null,
     m.status || "active",
     m.origin || "user",
     m.embedModel || ""
@@ -561,7 +648,7 @@ export function memoryById(id: number): Memory | null {
   return rows[0] ?? null;
 }
 
-function readMemories(whereClause: string, params: Array<number | string | null>): Memory[] {
+export function readMemories(whereClause: string, params: Array<number | string | null>): Memory[] {
   const rows = getDb()
     .prepare(`SELECT * FROM memories ${whereClause}`)
     .all(...params) as unknown as Array<{
@@ -574,7 +661,7 @@ function readMemories(whereClause: string, params: Array<number | string | null>
     last_accessed: number;
     access_count: number;
     source_tool: string;
-    embedding: string | null;
+    embedding: Buffer | string | null;
     status: string | null;
     resolved_at: number;
     origin: string | null;
@@ -590,7 +677,7 @@ function readMemories(whereClause: string, params: Array<number | string | null>
     lastAccessed: r.last_accessed,
     accessCount: r.access_count,
     sourceTool: r.source_tool,
-    embedding: r.embedding ? JSON.parse(r.embedding) : null,
+    embedding: decodeEmbedding(r.embedding),
     status: r.status || "active",
     resolvedAt: r.resolved_at || 0,
     origin: r.origin || "user",
