@@ -6,6 +6,29 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+### Added
+- **Webhook & notifikasi (F3)** — Discord, Telegram, dan generic JSON webhook
+  (`src/engine/notify/webhook.ts`): modul jadi listener tambahan di event bus
+  internal, gagal-kirim tidak pernah mengganggu pemanggil. Empat event opt-in
+  (default mati): weekly digest, scan selesai (dengan jumlah transkrip/memori
+  baru), memory approved (approve massal = satu ringkasan), dan draft menunggu
+  kurasi (cek harian, maks sekali per 24 jam, ambang bisa diatur). Isi pesan
+  English. Tab Settings baru **Notifications**: toggle per event, konfigurasi
+  platform, dan tombol **Send test** per platform (endpoint `POST
+  /api/notify/test`). Secret (URL webhook Discord/generic, token Telegram)
+  disimpan terenkripsi via safeStorage bila tersedia — sama seperti API key.
+- Scan event kini membawa `newTranscripts` & `newMemories` (return
+  `extractQueue()` yang tadinya dibuang kini ditangkap) — payload notifikasi
+  scan berisi ringkasan nyata; klien SSE lama tetap kompatibel.
+
+### Fixed
+- **Toggle Settings statis tidak pernah tersimpan / dimuat**: fungsi
+  `saveSettings()` dan `loadSettingsToggles()` dipanggil di `web/app.js` tapi
+  tidak pernah didefinisi — setiap toggle di Behavior/Data tidak pernah
+  persist dan tidak pernah menampilkan status tersimpan saat halaman dibuka.
+  Keduanya kini didefinisikan (POST `{key, value}` + muat dari GET
+  `/api/settings`).
+
 ## [0.6.0] — 2026-11-11 — Fase 1C: Retrieval & Skala
 
 **Pustaka besar tetap ngebut** — keyword search pindah ke index FTS5, vektor

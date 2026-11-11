@@ -93,9 +93,13 @@ export async function scanAll(log?: (msg: string) => void): Promise<ScanResult[]
       results.push({ tool: src.tool, ok: false, detail: String(e), count: 0 });
     }
   }
-  await extractQueue();
+  // F3: tangkap jumlah memori baru (return extractQueue tadinya dibuang)
+  // agar event scan membawa ringkasan lengkap untuk notifikasi webhook.
+  const newMemories = await extractQueue();
   lastScanFinishedAt = Date.now();
-  emitEvent("scan", { tools: results.filter((r) => r.ok && r.count > 0).map((r) => `${r.tool}+${r.count}`) });
+  const tools = results.filter((r) => r.ok && r.count > 0).map((r) => `${r.tool}+${r.count}`);
+  const newTranscripts = results.reduce((a, r) => a + (r.ok ? r.count : 0), 0);
+  emitEvent("scan", { tools, newTranscripts, newMemories });
   return results;
 }
 

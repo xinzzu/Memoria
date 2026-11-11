@@ -1229,6 +1229,10 @@
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.8l5 2.2v3.5c0 3.2-2.1 5.5-5 6.7-2.9-1.2-5-3.5-5-6.7V4z"/></svg>
               <span data-i18n="Backup & data">Backup & data</span>
             </div>
+            <div class="stab" data-stab-btn="notify">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2a4 4 0 0 0-4 4c0 3-1.5 4-1.5 4h11S12 9 12 6a4 4 0 0 0-4-4z"/><path d="M6.8 13a1.3 1.3 0 0 0 2.4 0"/></svg>
+              <span data-i18n="Notifications">Notifications</span>
+            </div>
             <div class="stab-lang">
               <span class="t-label" data-i18n="Language / Bahasa">Language / Bahasa</span>
               <select id="setLang" class="sel">
@@ -1424,6 +1428,69 @@
               <h4 data-i18n="MCP integration">MCP integration</h4>
               <div class="card-desc" data-i18n="Register this server with your AI tools so every new session pulls relevant context and stores new memories.">Register this server with your AI tools so every new session pulls relevant context and stores new memories.</div>
               <div class="code" id="mcpCode" data-i18n="loading…">loading…</div>
+            </div>
+          </div>
+          <div class="settings-group" data-stab="notify">
+<div class="card">
+              <h4 data-i18n="Notification events">Notification events</h4>
+              <div class="card-desc" data-i18n="Off by default — pick events, then configure at least one platform below. Payloads may contain short memory snippets.">Off by default — pick events, then configure at least one platform below. Payloads may contain short memory snippets.</div>
+              <div class="toggle-row" data-key="notifyDigest">
+                <div><div class="t-label" data-i18n="Weekly digest">Weekly digest</div><div class="t-desc" data-i18n="When the weekly digest is generated (automatic or manual)">When the weekly digest is generated (automatic or manual)</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="notifyDigest"></div>
+              </div>
+              <div class="toggle-row" data-key="notifyScan">
+                <div><div class="t-label" data-i18n="Scan finished">Scan finished</div><div class="t-desc" data-i18n="New transcripts and memories found by a scan">New transcripts and memories found by a scan</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="notifyScan"></div>
+              </div>
+              <div class="toggle-row" data-key="notifyApprove">
+                <div><div class="t-label" data-i18n="Memory approved">Memory approved</div><div class="t-desc" data-i18n="Each approval from the curation inbox; batch approvals send one summary">Each approval from the curation inbox; batch approvals send one summary</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="notifyApprove"></div>
+              </div>
+              <div class="toggle-row" data-key="notifyDrafts">
+                <div><div class="t-label" data-i18n="Drafts waiting">Drafts waiting</div><div class="t-desc" data-i18n="Daily check — notify when drafts have been waiting for review (max once per day)">Daily check — notify when drafts have been waiting for review (max once per day)</div></div>
+                <div class="spacer"></div>
+                <div class="switch" data-sw="notifyDrafts"></div>
+              </div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setNotifyDraftMin" data-i18n="Notify when pending drafts reach">Notify when pending drafts reach</label>
+                <input type="number" id="setNotifyDraftMin" min="1" max="500" style="width:90px; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 11px; color:var(--text); font-size:12px; outline:none" />
+              </div>
+            </div>
+
+<div class="card">
+              <h4 data-i18n="Platforms">Platforms</h4>
+              <div class="card-desc" data-i18n="Secrets are stored encrypted (Keychain/DPAPI) when available. Use Send test to verify.">Secrets are stored encrypted (Keychain/DPAPI) when available. Use Send test to verify.</div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setNotifyDiscord" data-i18n="Discord webhook URL">Discord webhook URL</label>
+                <input type="password" id="setNotifyDiscord" autocomplete="off" placeholder="https://discord.com/api/webhooks/…" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <div style="display:flex; gap:8px; align-items:center; margin-top:8px">
+                  <span class="card-desc" id="stNotifyDiscord" data-i18n="Not set">Not set</span>
+                  <div class="spacer"></div>
+                  <button class="btn" id="btnTestDiscord" data-i18n="Send test">Send test</button>
+                </div>
+              </div>
+              <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
+                <label class="t-label" for="setNotifyTelegramToken" data-i18n="Telegram bot token">Telegram bot token</label>
+                <input type="password" id="setNotifyTelegramToken" autocomplete="off" placeholder="123456:ABC-DEF…" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <input type="text" id="setNotifyTelegramChat" autocomplete="off" placeholder="chat ID" data-i18n-ph="chat ID" style="width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <div style="display:flex; gap:8px; align-items:center; margin-top:8px">
+                  <span class="card-desc" id="stNotifyTelegram" data-i18n="Not set">Not set</span>
+                  <div class="spacer"></div>
+                  <button class="btn" id="btnTestTelegram" data-i18n="Send test">Send test</button>
+                </div>
+              </div>
+              <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border)">
+                <label class="t-label" for="setNotifyGeneric" data-i18n="Generic JSON webhook URL">Generic JSON webhook URL</label>
+                <input type="password" id="setNotifyGeneric" autocomplete="off" placeholder="https://…" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <div style="display:flex; gap:8px; align-items:center; margin-top:8px">
+                  <span class="card-desc" id="stNotifyGeneric" data-i18n="Not set">Not set</span>
+                  <div class="spacer"></div>
+                  <button class="btn" id="btnTestGeneric" data-i18n="Send test">Send test</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

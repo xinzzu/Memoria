@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { getConfig } from "../config";
 import { allMemories, allTags, getSetting, setSetting, projectSlugById } from "../store/db";
+import { emitEvent } from "../events";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const DIGEST_FILE = "weekly-digest.md";
@@ -88,6 +89,12 @@ export function generateWeeklyDigest(): WeeklyDigest {
   fs.writeFileSync(filePath, text, "utf-8");
   setSetting("weeklyDigestLast", String(until));
   setSetting("weeklyDigestText", text);
+  // Satu titik emit untuk webhook notifikasi (menutup jalur auto + manual).
+  emitEvent("digest", {
+    memories: mems.length,
+    perTool: topTool.map((t) => ({ tool: t.key, count: t.count })),
+    topProjects: topProj.map((p) => ({ slug: p.key, count: p.count })),
+  });
 
   return {
     ok: true,

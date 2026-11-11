@@ -1106,6 +1106,49 @@ function renderGraphSide() {
   side.querySelector("#gsEdit")?.addEventListener("click", () => openEditModal(graph.selected));
 }
 
+/* ---------- Settings: toggle statis (persist + muat) ----------
+ * saveSettings/loadSettingsToggles dulu DIPANGGIL tapi tidak pernah
+ * didefinisi — toggle statis tidak pernah tersimpan & tidak pernah dimuat
+ * dari GET /api/settings. Kini didefinisikan; call site lama tetap cocok. */
+function saveSettings(key, on) {
+  api("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value: on ? "1" : "0" }),
+  }).catch(() => {
+    /* simpan gagal — load berikutnya akan menyelaraskan visual */
+  });
+}
+
+async function loadSettingsToggles() {
+  try {
+    const d = await api("/api/settings");
+    const s = (d && d.settings) || {};
+    document.querySelectorAll(".toggle-row[data-key]").forEach((row) => {
+      const v = s[row.dataset.key];
+      if (v === undefined) return;
+      const sw = row.querySelector(".switch");
+      if (sw) sw.classList.toggle("on", v === "1" || v === true);
+    });
+    // Field webhook: isi nilai non-secret + status secret tersimpan.
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== "") el.value = val;
+    };
+    setVal("setNotifyTelegramChat", s.notifyTelegramChat);
+    setVal("setNotifyDraftMin", s.notifyDraftMin);
+    const mark = (hasKey, stId) => {
+      const st = document.getElementById(stId);
+      if (st) st.textContent = s[hasKey] === "1" ? t("Saved") : t("Not set");
+    };
+    mark("notifyDiscordHas", "stNotifyDiscord");
+    mark("notifyTelegramHas", "stNotifyTelegram");
+    mark("notifyGenericHas", "stNotifyGeneric");
+  } catch {
+    /* non-blokir */
+  }
+}
+
 function wireSettingsToggles() {
   document.querySelectorAll(".toggle-row[data-key]").forEach((row) => {
     const key = row.dataset.key;
@@ -1687,6 +1730,79 @@ function wireEngineSettings() {
   }
 }
 wireEngineSettings();
+
+/* ---------- Settings: webhook notifications (F3) ---------- */
+function wireNotifySettings() {
+  const post = (key, value) =>
+    api("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, value }),
+    });
+  // Secret: hanya dikirim bila diisi (tidak menimpa yang tersimpan dengan kosong);
+  // setelah tersimpan, input dikosongkan & badge diperbarui.
+  const wireSecret = (sel, key, stId) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.addEventListener("change", async () => {
+      const v = el.value.trim();
+      if (!v) return;
+      try {
+        await post(key, v);
+        el.value = "";
+        const st = document.getElementById(stId);
+        if (st) st.textContent = t("Saved");
+        toast(t("Saved — encrypted"));
+      } catch (e) {
+        toast(t("Failed to save: ") + e.message, "err");
+      }
+    });
+  };
+  const wireField = (sel, key) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.addEventListener("change", async () => {
+      try {
+        await post(key, el.value.trim());
+        toast(t("Saved"));
+      } catch (e) {
+        toast(t("Failed to save: ") + e.message, "err");
+      }
+    });
+  };
+  const wireTest = (btnId, platform) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = t("Sending…");
+      try {
+        const r = await api("/api/notify/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform }),
+        });
+        if (r.ok) toast(t("Test notification sent"));
+        else toast(t("Failed: ") + (r.error || "not configured"), "err");
+      } catch (e) {
+        toast(t("Failed: ") + e.message, "err");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = old;
+      }
+    });
+  };
+  wireSecret("#setNotifyDiscord", "notifyDiscordUrl", "stNotifyDiscord");
+  wireSecret("#setNotifyTelegramToken", "notifyTelegramToken", "stNotifyTelegram");
+  wireSecret("#setNotifyGeneric", "notifyGenericUrl", "stNotifyGeneric");
+  wireField("#setNotifyTelegramChat", "notifyTelegramChat");
+  wireField("#setNotifyDraftMin", "notifyDraftMin");
+  wireTest("btnTestDiscord", "discord");
+  wireTest("btnTestTelegram", "telegram");
+  wireTest("btnTestGeneric", "generic");
+}
+wireNotifySettings();
 
 function wireSettingsTabs() {
   const nav = document.querySelector("#settingsTabs");

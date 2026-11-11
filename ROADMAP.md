@@ -19,12 +19,13 @@ Tasks view, engine EN, safeStorage, batch embedding, setup checklist, settings t
 graph obsidian + 3D, i18n penuh, light theme, SSE live, test suite, project detail view.
 
 **Backlog eksekusi berikutnya (urut):**
-1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~test suite inti~~ ✅ (10→18 kasus)
-2. F3: webhook (Slack/Discord/Telegram), sync terenkripsi, code signing — butuh keputusan produk
+1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
+   Discord/Telegram/generic + 4 event + Send test + secret terenkripsi; test suite 18→23 kasus)
+2. Sisa F3: sinkronisasi terenkripsi antar mesin, code signing/notarization (butuh keputusan
+   biaya: Apple Developer + cert Windows)
 3. Sisa kecil F1B/F1C: `embedMany` untuk provider OpenAI-compat (kini fallback per-teks),
    SQL-level LIMIT untuk `/api/memories/list` (kini slice JS setelah materialisasi)
-4. Rilis berikutnya: bump v0.6.0 + tag → CI 3 OS; migrasi FTS5/BLOB jalan otomatis di
-   first-run user lama (test: `tests/migration.test.mjs`)
+4. Rilis berikutnya: bump v0.7.0 + tag → CI 3 OS (isi [Unreleased] CHANGELOG: F3 webhook)
 
 **Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
 data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).

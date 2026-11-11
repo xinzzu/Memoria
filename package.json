@@ -23,7 +23,7 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:mac": "npm run build && electron-builder --mac",
     "check:ui": "node scripts/audit-ui.js",
-    "test": "npm run build && node --test tests/core.test.mjs tests/migration.test.mjs"
+    "test": "npm run build && node --test tests/core.test.mjs tests/migration.test.mjs tests/webhook.test.mjs"
   },
   "engines": {
     "node": ">=22.5.0"
