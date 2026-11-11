@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject } from "./store/db";
+import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject, memoryById } from "./store/db";
 import { looksLikePath, projectSlugFromCwd } from "./ingest/util";
 import { ollamaAvailable } from "./extract/ollama";
 import { getEmbedProvider, engineStatus } from "./extract/provider";
@@ -251,7 +251,13 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, 200, { memories: page, total, offset, limit, hasMore: offset + page.length < total });
       } else if (url.pathname === "/api/memories/approve" && req.method === "POST") {
         const body = await readBody(req);
-        const ok = approveMemory(Number(body.id || 0));
+        const approveId = Number(body.id || 0);
+        const ok = approveMemory(approveId);
+        // F3: event notifikasi (webhook) — satu memori di-approve.
+        if (ok) {
+          const m = memoryById(approveId);
+          if (m) emitEvent("memory_approved", { count: 1, items: [{ kind: m.kind, project: projectSlugById(m.projectId), content: m.content }] });
+        }
         sendJson(res, ok ? 200 : 404, { ok });
       } else if (url.pathname === "/api/backups" && req.method === "GET") {
         sendJson(res, 200, { backups: listBackups() });
@@ -380,8 +386,10 @@ export function startHttpServer(): Promise<void> {
           else if (action === "delete") affected += deleteMemory(id) ? 1 : 0;
           else if (action === "archive") affected += archiveMemory(id, true) ? 1 : 0;
         }
-        emitEvent("tasks", { batch: action, affected });
-        sendJson(res, 200, { ok: true, affected });
+    emitEvent("tasks", { batch: action, affected });
+    // F3: notifikasi batch approve = satu notif ringkas berisi jumlah.
+    if (action === "approve" && affected > 0) emitEvent("memory_approved", { count: affected, batch: true });
+    sendJson(res, 200, { ok: true, affected });
       } else if (url.pathname === "/api/memories/archive" && req.method === "POST") {
         const body = await readBody(req);
         const id = Number(body.id || 0);
@@ -415,6 +423,16 @@ export function startHttpServer(): Promise<void> {
             openaiExtractModel: getSetting("openaiExtractModel", "gpt-4o-mini"),
             openaiEmbedModel: getSetting("openaiEmbedModel", "text-embedding-3-small"),
             openaiHasKey: getSetting("openaiApiKey", "") ? "1" : "0",
+            // F3 webhook — secret tidak pernah dibalikkan, hanya penanda ada/tidak.
+            notifyDigest: getSetting("notifyDigest", "0"),
+            notifyScan: getSetting("notifyScan", "0"),
+            notifyApprove: getSetting("notifyApprove", "0"),
+            notifyDrafts: getSetting("notifyDrafts", "0"),
+            notifyDraftMin: getSetting("notifyDraftMin", "3"),
+            notifyTelegramChat: getSetting("notifyTelegramChat", ""),
+            notifyDiscordHas: getSetting("notifyDiscordUrl", "") ? "1" : "0",
+            notifyTelegramHas: getSetting("notifyTelegramToken", "") ? "1" : "0",
+            notifyGenericHas: getSetting("notifyGenericUrl", "") ? "1" : "0",
             extractThreshold: getSetting("extractThreshold", "0.3"),
             sources: Object.fromEntries(
               cfg.sources.map((s) => [s.tool, getSetting(`source:${s.tool}:enabled`, s.enabled ? "1" : "0")])
@@ -425,11 +443,19 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/settings" && req.method === "POST") {
         const body = await readBody(req);
         if (body.key && body.value !== undefined) {
-          // API key disimpan terenkripsi bila safeStorage tersedia (Keychain/DPAPI).
-          if (String(body.key) === "openaiApiKey") {
+          // Secret (API key & webhook) disimpan terenkripsi bila safeStorage
+          // tersedia (Keychain/DPAPI); value kosong = hapus.
+          const secretKeys = ["openaiApiKey", "notifyDiscordUrl", "notifyTelegramToken", "notifyGenericUrl"];
+          if (secretKeys.includes(String(body.key))) {
             const { encryptSecret } = await import("./store/secure");
-            const enc = encryptSecret(String(body.value));
-            setSetting("openaiApiKey", enc ?? String(body.value));
+            const v = String(body.value);
+            if (!v) {
+              setSetting(String(body.key), "");
+              sendJson(res, 200, { ok: true, cleared: true });
+              return;
+            }
+            const enc = encryptSecret(v);
+            setSetting(String(body.key), enc ?? v);
             sendJson(res, 200, { ok: true, encrypted: !!enc });
             return;
           }
@@ -438,6 +464,23 @@ export function startHttpServer(): Promise<void> {
         } else {
           sendJson(res, 400, { error: "key & value wajib" });
         }
+      } else if (url.pathname === "/api/notify/test" && req.method === "POST") {
+        // F3: kirim payload tes ke satu platform (bypass toggle event).
+        const body = await readBody(req);
+        const platform = ["discord", "telegram", "generic"].includes(String(body.platform))
+          ? (String(body.platform) as "discord" | "telegram" | "generic")
+          : undefined;
+        const { sendNotification } = await import("./notify/webhook");
+        const results = await sendNotification(
+          { event: "scan", title: "Memoria test notification", body: "If you can read this, the webhook is wired up correctly.", details: { test: true } },
+          platform
+        );
+        if (!results.length) {
+          sendJson(res, 200, { ok: false, error: "not configured" });
+          return;
+        }
+        const failed = results.filter((r) => !r.ok);
+        sendJson(res, 200, failed.length ? { ok: false, error: failed[0].error } : { ok: true, sent: results.map((r) => r.platform) });
       } else if (url.pathname === "/api/handoff" && req.method === "GET") {
         const proj = resolveProject(url.searchParams.get("slug") || "");
         const md = await generateHandoff(proj ? proj.slug : "");

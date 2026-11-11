@@ -1,12 +1,19 @@
-import { getBoolSetting, getSetting } from "./store/db";
+import { getBoolSetting, getSetting, setSetting, countDraft } from "./store/db";
 import { backupDb, pruneArchivedBackups } from "./store/backup";
 import { archiveStaleEligibles } from "./store/db";
 import { ensureOllamaRunning } from "./extract/ollama-serve";
+import { emitEvent } from "./events";
 
 let timers: NodeJS.Timeout[] = [];
 
 export function startBackgroundJobs(): void {
   ensureOllamaRunning().catch(() => {});
+  try {
+    const { registerWebhooks } = require("./notify/webhook") as typeof import("./notify/webhook");
+    registerWebhooks();
+  } catch {
+    /* non-blokir */
+  }
   runHousekeepingSoon();
   const t = setInterval(runHousekeepingSoon, 5 * 60_000);
   const daily = setInterval(dailyMaintenance, 6 * 60 * 60_000);
@@ -59,6 +66,20 @@ function dailyMaintenance(): void {
         if (nextWeeklyDigestDue()) {
           const d = generateWeeklyDigest();
           console.log(`[memoria] Weekly digest: ${d.memories} memories -> ${d.path}`);
+        }
+      } catch {
+        /* non-blokir */
+      }
+    }
+    // F3: notifikasi draft menunggu kurasi — maks sekali per 24 jam.
+    if (getBoolSetting("notifyDrafts", false)) {
+      try {
+        const min = Number(getSetting("notifyDraftMin", "3")) || 3;
+        const pending = countDraft();
+        const last = Number(getSetting("notifyLastDraft", "0"));
+        if (pending >= min && Date.now() - last >= 24 * 60 * 60_000) {
+          emitEvent("drafts_pending", { count: pending });
+          setSetting("notifyLastDraft", String(Date.now()));
         }
       } catch {
         /* non-blokir */
