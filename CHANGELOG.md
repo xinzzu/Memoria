@@ -6,6 +6,13 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-11 — Fase 3: Webhook & Notifikasi
+
+**Memoria kini bisa memberi tahu kamu di luar dashboard** — kirim notifikasi ke
+Discord, Telegram, atau endpoint JSON apa pun saat digest mingguan jadi, scan
+selesai, memori disetujui, atau draft menunggu kurasi. Opt-in penuh, secret
+terenkripsi, gagal-kirim tidak pernah mengganggu engine.
+
 ### Added
 - **Webhook & notifikasi (F3)** — Discord, Telegram, dan generic JSON webhook
   (`src/engine/notify/webhook.ts`): modul jadi listener tambahan di event bus
