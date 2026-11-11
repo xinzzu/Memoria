@@ -33,3 +33,5 @@ desktop.ini
 
 # Log
 *.log
+# ZCode artefak sesi (plan, dll.)
+.zcode/
