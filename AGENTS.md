@@ -24,7 +24,7 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
 - Rilis otomatis: push tag `v*` → `.github/workflows/build.yml` build 3 OS +
   publish GitHub Release (changelog dari git log antar-tag).
 - Sisa backlog: sync terenkripsi antar mesin, code signing (butuh keputusan biaya),
-  `embedMany` provider OpenAI-compat, SQL LIMIT di `/api/memories/list`.
+  `embedMany` provider OpenAI-compat.
 
 ## Arsitektur singkat
 - `src/engine/` — inti (tsc, commonjs, output `dist/engine/`): `store/db.ts`

@@ -643,6 +643,26 @@ export function allMemories(): Memory[] {
   return readMemories("WHERE archived = 0 AND status = 'active' ORDER BY created_at DESC", []);
 }
 
+/** Halaman pustaka langsung di SQL — jangan materialisasi seluruh tabel (F1C sisa). */
+export function listMemoriesPage(status: string, limit: number, offset: number): { memories: Memory[]; total: number } {
+  if (status === "draft") {
+    return {
+      memories: readMemories("WHERE archived = 0 AND status = 'draft' ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+      total: countDraft(),
+    };
+  }
+  if (status === "archived") {
+    return {
+      memories: readMemories("WHERE archived = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+      total: countArchived(),
+    };
+  }
+  return {
+    memories: readMemories("WHERE archived = 0 AND status = 'active' ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+    total: countMemories(),
+  };
+}
+
 export function memoryById(id: number): Memory | null {
   const rows = readMemories("WHERE id = ?", [id]);
   return rows[0] ?? null;
