@@ -6,6 +6,15 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+### Added
+- **Batch embedding provider OpenAI-compatible (F1B sisa)** — `openaiEmbedMany`
+  mengirim hingga 64 teks per request `/embeddings`, memetakan hasil lewat
+  `index` (urutan respons server tidak diasumsikan), memecah batch besar
+  otomatis, dan mengembalikan `null` per item yang gagal tanpa memblokir batch
+  lain. `embedManyVia` kini memakai jalur batch ini (sebelumnya loop satu
+  request per teks). Test baru: batch tunggal + urutan index, chunk >64,
+  respons parsial, wiring provider, dan no-op tanpa base URL.
+
 ### Changed
 - **Pagination pustaka dipindah ke SQL** — `GET /api/memories` dan
   `GET /api/memories/list` kini memakai `LIMIT`/`OFFSET` langsung di SQLite
