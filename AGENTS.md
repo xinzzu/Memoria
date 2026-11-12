@@ -21,8 +21,10 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
   FTS5 keyword search, embedding Float32 BLOB, dedupe via SQL, list pagination)
   → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
   `POST /api/notify/test`, secret terenkripsi safeStorage).
-- Rilis otomatis: push tag `v*` → `.github/workflows/build.yml` build 3 OS +
-  publish GitHub Release (changelog dari git log antar-tag).
+- Rilis otomatis: push tag `v*` (wajib cocok dengan versi `package.json`) →
+  verify (`npm test` + `check:ui`) → build 3 OS → publish GitHub Release.
+  Body release diambil dari seksi CHANGELOG versi itu (fallback: git log
+  antar-tag). Verify juga jalan di PR dan push ke `main`.
 - Sisa backlog: sync terenkripsi antar mesin, code signing (butuh keputusan biaya).
 
 ## Arsitektur singkat
