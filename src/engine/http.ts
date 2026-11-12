@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listDraft, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject, memoryById } from "./store/db";
+import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listMemoriesPage, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject, memoryById } from "./store/db";
 import { looksLikePath, projectSlugFromCwd } from "./ingest/util";
 import { ollamaAvailable } from "./extract/ollama";
 import { getEmbedProvider, engineStatus } from "./extract/provider";
@@ -197,20 +197,8 @@ export function startHttpServer(): Promise<void> {
         const status = url.searchParams.get("status") || "active";
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
         const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
-        let mems: import("./store/db").Memory[];
-        let total: number;
-        if (status === "draft") {
-          mems = listDraft();
-          total = countDraft();
-        } else if (status === "archived") {
-          mems = listArchived();
-          total = countArchived();
-        } else {
-          mems = allMemories();
-          total = countMemories();
-        }
+        const { memories: mems, total } = listMemoriesPage(status, limit, offset);
         const page = mems
-          .slice(offset, offset + limit)
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, status: m.status, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
         sendJson(res, 200, {
@@ -239,13 +227,8 @@ export function startHttpServer(): Promise<void> {
         const status = url.searchParams.get("status") || "active";
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
         const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
-        let mems: import("./store/db").Memory[];
-        let total: number;
-        if (status === "draft") { mems = listDraft(); total = countDraft(); }
-        else if (status === "archived") { mems = listArchived(); total = countArchived(); }
-        else { mems = allMemories(); total = countMemories(); }
-        const page = mems
-          .slice(offset, offset + limit)
+        const { memories, total } = listMemoriesPage(status, limit, offset);
+        const page = memories
           .map((m) => ({ ...m, embedding: undefined, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
         sendJson(res, 200, { memories: page, total, offset, limit, hasMore: offset + page.length < total });

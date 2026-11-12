@@ -6,6 +6,15 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+### Changed
+- **Pagination pustaka dipindah ke SQL** — `GET /api/memories` dan
+  `GET /api/memories/list` kini memakai `LIMIT`/`OFFSET` langsung di SQLite
+  (`listMemoriesPage` di `store/db.ts`) alih-alih mematerialisasi seluruh tabel
+  lewat `allMemories()`/`listDraft()`/`listArchived()` lalu `slice()` di JS.
+  Total tetap dihitung via query count; bentuk respons tidak berubah. Test baru
+  memastikan urutan, total, dan batas halaman identik dengan implementasi lama
+  untuk ketiga tab (active/draft/archived).
+
 ## [0.7.0] — 2026-11-11 — Fase 3: Webhook & Notifikasi
 
 **Memoria kini bisa memberi tahu kamu di luar dashboard** — kirim notifikasi ke

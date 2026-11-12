@@ -186,3 +186,28 @@ test("F1C: count konsisten untuk hasMore pagination", () => {
   assert.equal(dbmod.countDraft(), dbmod.listDraft().length);
   assert.equal(dbmod.countArchived(), dbmod.listArchived().length);
 });
+
+test("F1C: listMemoriesPage — SQL LIMIT/OFFSET setara materialisasi lama", () => {
+  dbmod.insertMemory(mem("halaman arsip unikz"));
+  const arch = dbmod.allMemories().find((m) => m.content === "halaman arsip unikz");
+  dbmod.archiveMemory(arch.id, true);
+  for (let i = 0; i < 5; i++) {
+    dbmod.insertMemory(mem(`halaman draft unikz ${i}`, { createdAt: 2000 + i, status: "draft" }));
+  }
+  const fixtures = [
+    ["active", dbmod.allMemories()],
+    ["draft", dbmod.listDraft()],
+    ["archived", dbmod.listArchived()],
+  ];
+  for (const [status, expected] of fixtures) {
+    const limit = 2;
+    const gotIds = [];
+    for (let offset = 0; offset < expected.length + limit; offset += limit) {
+      const page = dbmod.listMemoriesPage(status, limit, offset);
+      assert.equal(page.total, expected.length, `total ${status} harus konsisten`);
+      assert.ok(page.memories.length <= limit, `limit ${status} harus dihormati`);
+      gotIds.push(...page.memories.map((m) => m.id));
+    }
+    assert.deepEqual(gotIds, expected.map((m) => m.id), `urutan halaman ${status} harus sama`);
+  }
+});
