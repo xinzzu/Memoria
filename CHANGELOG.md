@@ -16,6 +16,11 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
   respons parsial, wiring provider, dan no-op tanpa base URL.
 
 ### Changed
+- **CI release**: workflow kini menjalankan verifikasi (`npm test` + `check:ui`)
+  sebelum build installer; tag `v*` harus sama dengan versi `package.json`;
+  body GitHub Release diambil dari seksi CHANGELOG versi tersebut (fallback:
+  git log antar-tag). Verifikasi juga berjalan di PR dan push ke `main`, matrix
+  build memakai `fail-fast: false` agar satu OS gagal tidak membatalkan lainnya.
 - **Pagination pustaka dipindah ke SQL** — `GET /api/memories` dan
   `GET /api/memories/list` kini memakai `LIMIT`/`OFFSET` langsung di SQLite
   (`listMemoriesPage` di `store/db.ts`) alih-alih mematerialisasi seluruh tabel
