@@ -22,7 +22,7 @@ import {
   ExtractedMemory,
 } from "./ollama";
 import { heuristicExtract, hashEmbed, HASH_MODEL, HeuristicMemory } from "./heuristic";
-import { openaiExtract, openaiEmbed, openaiConfigured, openaiConfig } from "./openai-compat";
+import { openaiExtract, openaiEmbed, openaiEmbedMany, openaiConfigured, openaiConfig } from "./openai-compat";
 
 export type { ExtractedMemory };
 
@@ -112,6 +112,12 @@ export const openaiProvider: MemoryProvider = {
     if (openaiBreaker.open || !openaiConfigured()) return null;
     const r = await openaiEmbed(text);
     openaiBreaker.record(r !== null);
+    return r;
+  },
+  async embedMany(texts) {
+    if (openaiBreaker.open || !openaiConfigured()) return texts.map(() => null);
+    const r = await openaiEmbedMany(texts);
+    openaiBreaker.record(r.some((x) => x !== null));
     return r;
   },
 };

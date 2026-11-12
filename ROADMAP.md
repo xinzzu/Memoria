@@ -23,9 +23,9 @@ graph obsidian + 3D, i18n penuh, light theme, SSE live, test suite, project deta
    Discord/Telegram/generic + 4 event + Send test + secret terenkripsi; test suite 18→23 kasus)
 2. Sisa F3: sinkronisasi terenkripsi antar mesin, code signing/notarization (butuh keputusan
    biaya: Apple Developer + cert Windows)
-3. Sisa kecil F1B: `embedMany` untuk provider OpenAI-compat (kini fallback per-teks).
-   ~~SQL-level LIMIT `/api/memories/list`~~ ✅ (2026-11-12: `listMemoriesPage` dipakai
-   juga oleh `/api/memories`; test halaman active/draft/archived)
+3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat
+   (batch 64/request, mapping via `index`, chunk otomatis) + SQL-level LIMIT
+   `/api/memories` & `/api/memories/list` (`listMemoriesPage`).
 4. Rilis v0.7.0 ✅ (tag + changelog). Rilis berikutnya menunggu sync terenkripsi/
    code signing atau kumpulan perbaikan berikutnya.
 

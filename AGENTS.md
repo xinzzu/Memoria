@@ -23,8 +23,7 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
   `POST /api/notify/test`, secret terenkripsi safeStorage).
 - Rilis otomatis: push tag `v*` → `.github/workflows/build.yml` build 3 OS +
   publish GitHub Release (changelog dari git log antar-tag).
-- Sisa backlog: sync terenkripsi antar mesin, code signing (butuh keputusan biaya),
-  `embedMany` provider OpenAI-compat.
+- Sisa backlog: sync terenkripsi antar mesin, code signing (butuh keputusan biaya).
 
 ## Arsitektur singkat
 - `src/engine/` — inti (tsc, commonjs, output `dist/engine/`): `store/db.ts`

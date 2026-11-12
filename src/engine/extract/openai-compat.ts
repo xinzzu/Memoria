@@ -117,3 +117,37 @@ export async function openaiEmbed(text: string): Promise<number[] | null> {
     return null;
   }
 }
+
+export async function openaiEmbedMany(texts: string[]): Promise<Array<number[] | null>> {
+  if (!texts.length) return [];
+  const c = openaiConfig();
+  const out: Array<number[] | null> = texts.map(() => null);
+  const BATCH = 64;
+  for (let start = 0; start < texts.length; start += BATCH) {
+    const batch = texts.slice(start, start + BATCH);
+    try {
+      const res = await fetch(`${c.baseUrl}/embeddings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(c.apiKey ? { Authorization: `Bearer ${c.apiKey}` } : {}),
+        },
+        signal: AbortSignal.timeout(90000),
+        body: JSON.stringify({ model: c.embedModel, input: batch }),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { data?: Array<{ index?: number; embedding?: number[] }> };
+      const rows = data.data || [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const idx = typeof row.index === "number" ? row.index : i;
+        const target = start + idx;
+        if (idx < 0 || idx >= batch.length || target >= texts.length) continue;
+        if (row.embedding && row.embedding.length) out[target] = row.embedding;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return out;
+}
