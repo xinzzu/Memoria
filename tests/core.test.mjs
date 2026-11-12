@@ -39,8 +39,8 @@ test("keywordScore: tak berhubungan -> 0", () => {
 });
 
 /* ---- identitas proyek ---- */
-test("canonicalPath: symlink macOS ter-resolve (/tmp -> /private/tmp)", () => {
-  assert.equal(canonicalPath("/tmp"), "/private/tmp");
+test("canonicalPath: symlink ter-resolve sesuai realpath OS", () => {
+  assert.equal(canonicalPath("/tmp"), require("node:fs").realpathSync("/tmp"));
 });
 
 test("looksLikePath: path vs nama polos", () => {
