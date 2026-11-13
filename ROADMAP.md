@@ -21,8 +21,8 @@ graph obsidian + 3D, i18n penuh, light theme, SSE live, test suite, project deta
 **Backlog eksekusi berikutnya (urut):**
 1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
    Discord/Telegram/generic + 4 event + Send test + secret terenkripsi; test suite kini 29 kasus)
-2. Sisa F3: sinkronisasi terenkripsi antar mesin, code signing/notarization (butuh keputusan
-   biaya: Apple Developer + cert Windows)
+2. Sisa F3: sinkronisasi terenkripsi antar mesin (desain draft: `docs/sync-design.md`),
+   code signing/notarization (butuh keputusan biaya: Apple Developer + cert Windows)
 3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat
    (batch 64/request, mapping via `index`, chunk otomatis) + SQL-level LIMIT
    `/api/memories` & `/api/memories/list` (`listMemoriesPage`).
