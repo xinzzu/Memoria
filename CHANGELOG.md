@@ -13,6 +13,14 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 yang tiba *sebelum* limit habis, dan kualitas retrieval yang kini terukur
 terbuka (hit@5 92.8–100% pada eval reproducible).
 
+### Changed
+- **RRF ranking: evaluated and rejected** — reciprocal-rank fusion of the
+  keyword and semantic lists was measured against the tuned score blend with
+  the eval harness (PRNG seed 42): blend won hit@1 (77.5% vs 67.9%), hit@5
+  (100% vs 99.6%) and MRR (0.855 vs 0.790) at 240 queries; RRF won only
+  hit@1/MRR at the 600-query scale. Kept the blend; experiment documented so
+  nobody re-proposes it without beating both scales.
+
 ### Added
 - **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
   Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
