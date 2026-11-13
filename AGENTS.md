@@ -1,6 +1,6 @@
 <!-- memoria:start -->
 # Handoff Proyek: Memoria — second brain offline untuk AI coding tools
-> Diperbarui manual — 2026-11-11 (repo: github.com/xinzzu/Memoria, MIT)
+> Diperbarui manual — 2026-11-13 (repo: github.com/xinzzu/Memoria, MIT)
 
 ## Apa ini
 App Electron + engine Node/TS yang menangkap transkrip sesi AI coding tools
@@ -15,12 +15,13 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
 - `git log` — konvensi commit: conventional commits; fitur via branch
   `feat/...`/`fix/...` lalu `git merge --no-ff` ke `main`.
 
-## Status (v0.7.0, 2026-11-11)
+## Status (v0.7.1, 2026-11-13)
 - Rilis: v0.2.0 (F0+F1A resume engine+F1B tiered intelligence) → v0.5.0 (F2 UX:
   light theme, tasks view, project detail, graph 2D/3D, i18n) → v0.6.0 (**F1C**:
   FTS5 keyword search, embedding Float32 BLOB, dedupe via SQL, list pagination)
   → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
-  `POST /api/notify/test`, secret terenkripsi safeStorage).
+  `POST /api/notify/test`, secret terenkripsi safeStorage) → v0.7.1 (pagination
+  pustaka SQL-level, batch embedding OpenAI-compat, CI verify + tag guard).
 - Rilis otomatis: push tag `v*` (wajib cocok dengan versi `package.json`) →
   verify (`npm test` + `check:ui`) → build 3 OS → publish GitHub Release.
   Body release diambil dari seksi CHANGELOG versi itu (fallback: git log
