@@ -13,6 +13,12 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 yang tiba *sebelum* limit habis, dan kualitas retrieval yang kini terukur
 terbuka (hit@5 92.8–100% pada eval reproducible).
 
+### Fixed
+- **Overview "Recently worked on" no longer lists zero-activity projects** —
+  recentProjects() now requires at least one transcript (audit finding);
+  **graph labels hide when off-screen** and clamp inside the canvas instead of
+  clipping raw at the edges.
+
 ### Changed
 - **RRF ranking: evaluated and rejected** — reciprocal-rank fusion of the
   keyword and semantic lists was measured against the tuned score blend with

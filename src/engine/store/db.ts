@@ -1565,7 +1565,9 @@ export function recentProjects(limit = 20): Array<{ slug: string; name: string; 
     .prepare(
       `SELECT p.slug, p.name, p.last_seen,
               (SELECT COUNT(*) FROM transcripts t WHERE t.project_id = p.id) AS transcripts
-       FROM projects p ORDER BY p.last_seen DESC LIMIT ?`
+       FROM projects p
+       WHERE EXISTS (SELECT 1 FROM transcripts t WHERE t.project_id = p.id)
+       ORDER BY p.last_seen DESC LIMIT ?`
     )
     .all(limit) as Array<{ slug: string; name: string; last_seen: number; transcripts: number }>;
   return rows;

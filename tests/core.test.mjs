@@ -250,3 +250,11 @@ test("MCP: deleteMemory — baris hilang + FTS tidak lagi match", () => {
   const stale = dbmod.getDb().prepare('SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?').all('"forgetq"');
   assert.equal(stale.length, 0, "index FTS harus bersih setelah delete");
 });
+
+test("PR-H: recentProjects — proyek tanpa transkrip tidak muncul", () => {
+  dbmod.ensureProject("users-mac-emptyproj", undefined); // tanpa transkrip
+  dbmod.insertTranscript({ tool: "claude", sessionId: "s-rp", projectId: dbmod.ensureProject("users-mac-fullproj", undefined), role: "user", content: "proyek dengan aktivitas nyata recentq", ts: Date.now(), seq: 9999 });
+  const slugs = dbmod.recentProjects(50).map((p) => p.slug);
+  assert.ok(!slugs.includes("users-mac-emptyproj"), "proyek 0-aktivitas harus disembunyikan");
+  assert.ok(slugs.includes("users-mac-fullproj"), "proyek aktif harus muncul");
+});
