@@ -6,6 +6,27 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+### Added
+- **Encrypted sync foundation (M1)** — database migration v3 adds stable UUID
+  `uid` columns plus `updated_by` to `projects` and `memories`, backfills every
+  existing row, and creates `sync_devices`, `sync_outbox`, `sync_applied`, and
+  `sync_state`. All project/memory/tag/link mutations now emit outbox
+  upsert/delete operations with hybrid logical clocks (`wall.counter.device`);
+  deletes produce tombstones and memory deletes also tombstone their links. The
+  migration enqueues an initial snapshot of existing projects, memories, and
+  links for peer bootstrap. Embeddings, entities, and FTS remain device-local
+  and are never queued. Test suite now covers v2→v3 backfill, outbox capture,
+  tombstones, HLC monotonicity/clock observation, and replay suppression
+  (31 tests total).
+
+### Changed
+- **Database migrations are atomic** — each `PRAGMA user_version` step now runs
+  inside a transaction, so a failed migration rolls back instead of leaving a
+  partially upgraded schema or duplicated outbox snapshots.
+- **Memory mutations bump `updated_at`/`updated_by` consistently** — approvals,
+  task resolution, archive/unarchive, content edits, and tag changes now update
+  sync metadata, not just content edits.
+
 ## [0.7.1] — 2026-11-13
 
 ### Added

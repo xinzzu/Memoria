@@ -22,15 +22,21 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
   → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
   `POST /api/notify/test`, secret terenkripsi safeStorage) → v0.7.1 (pagination
   pustaka SQL-level, batch embedding OpenAI-compat, CI verify + tag guard).
+- Belum rilis: **sync M1** di `feat/sync-m1` — migrasi `user_version` v3 (UID
+  stabil, `updated_by`, tabel `sync_devices`/`sync_outbox`/`sync_applied`/
+  `sync_state`), HLC `wall.counter.device`, outbox capture non-blokir, tombstone
+  hapus memori+link. Desain lengkap: `docs/sync-design.md`; lanjut M2 crypto.
 - Rilis otomatis: push tag `v*` (wajib cocok dengan versi `package.json`) →
   verify (`npm test` + `check:ui`) → build 3 OS → publish GitHub Release.
   Body release diambil dari seksi CHANGELOG versi itu (fallback: git log
   antar-tag). Verify juga jalan di PR dan push ke `main`.
-- Sisa backlog: sync terenkripsi antar mesin, code signing (butuh keputusan biaya).
+- Sisa backlog: sync M2–M5 (crypto/bundle manual → folder → UX → hardening),
+  code signing (butuh keputusan biaya).
 
 ## Arsitektur singkat
 - `src/engine/` — inti (tsc, commonjs, output `dist/engine/`): `store/db.ts`
-  (node:sqlite `DatabaseSync`, WAL, migrasi `PRAGMA user_version` + ALTER kolom),
+  (node:sqlite `DatabaseSync`, WAL, migrasi `PRAGMA user_version` + ALTER kolom;
+  UID/HLC/outbox sync M1; migrasi v3 atomik),
   `retrieve/search.ts` (FTS5 external-content trigram `memories_fts` + trigger
   sync; rerank `keywordScore`; fallback scan legacy bila FTS 0 hasil),
   `vecfind.ts`/`vecindex.ts` (LSH per dialek embedding), `extract/` (provider
@@ -64,6 +70,8 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
   **tanpa emoji** di UI chrome; string engine-facing English-first.
 
 ## Next
-- Verifikasi installer di mesin asli (migrasi FTS5/BLOB `~/.memoria` jalan otomatis).
-- Lanjut backlog F3 sisa di atas; detail posisi terkini selalu di `ROADMAP.md`.
+- Verifikasi installer di mesin asli (migrasi FTS/BLOB/v3 UID+outbox `~/.memoria`
+  jalan otomatis; backup DB sebelum uji).
+- Lanjut sync **M2**: group key + recovery code, bundle `.memsync` manual,
+  apply idempoten, embedding backfill queue. Detail posisi di `ROADMAP.md`.
 <!-- memoria:end -->
