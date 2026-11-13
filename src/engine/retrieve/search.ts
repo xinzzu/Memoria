@@ -125,7 +125,7 @@ function ftsCandidates(query: string, kind?: string): Memory[] | null {
 
 export function searchMemories(
   query: string,
-  opts: { limit?: number; projectSlug?: string; kind?: string; embedModel?: string } = {},
+  opts: { limit?: number; projectSlug?: string; kind?: string; embedModel?: string; since?: number } = {},
   queryEmbedding?: number[] | null
 ): SearchHit[] {
   const limit = opts.limit ?? 10;
@@ -155,6 +155,9 @@ export function searchMemories(
     const degree = centrality.get(m.id!) || 0;
     const centralityNorm = Math.min(1, degree / 6);
     const score = kw * 0.5 + sem * 0.3 + m.importance * 0.05 * Math.max(kw, 0.1) + recency * 0.08 + centralityNorm * 0.07;
+    // PR-38 H2: hormati filter umur di jalur search juga (dulu since di-drop
+    // secara diam-diam sehingga hasil lama menyembunyikan yang baru).
+    if (opts.since && (m.createdAt || 0) < opts.since) continue;
     if (score > 0.02 || sem > 0.25) {
       hits.push({
         id: m.id!,

@@ -112,17 +112,17 @@ function memoRowRenderer(renderId) {
       </div>
       <div class="mem-actions">
         ${isDraft ? `<button class="mem-approve" title="${t("Approve memory")}" data-appr="${h.id}">Approve ✓</button>` : ""}
-        ${isArchived ? `<button class="mem-approve" title=t("Restore memory") data-rs="${h.id}">Restore</button>` : ""}
-        <button class="icon-btn" title=t("View connections") data-rel="${h.id}">
+        ${isArchived ? `<button class="mem-approve" title="${t("Restore memory")}" data-rs="${h.id}">Restore</button>` : ""}
+        <button class="icon-btn" title="${t("View connections")}" data-rel="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.5" cy="4" r="1.6"/><circle cx="12.5" cy="3" r="1.6"/><circle cx="10" cy="11" r="1.6"/><path d="M5 4.8l5.8-1.2M3.7 5.6l1 4.3M9.2 10l1-7.4"/></svg>
         </button>
-        ${isArchived ? "" : `<button class="icon-btn" title=t("Archive") data-arch="${h.id}">
+        ${isArchived ? "" : `<button class="icon-btn" title="${t("Archive")}" data-arch="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5h12M4 4.5V14h8V4.5M5.5 8h5"/><path d="M2 2.5h12"/></svg>
         </button>`}
-        <button class="icon-btn" title=t("Edit")) data-edit="${h.id}">
+        <button class="icon-btn" title="${t("Edit")}" data-edit="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.5l2.5 2.5L6 12.5l-3 .5.5-3L11 2.5z"/></svg>
         </button>
-        <button class="icon-btn danger" title=t("Delete") data-del="${h.id}">
+        <button class="icon-btn danger" title="${t("Delete")}" data-del="${h.id}">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M6 4V3h4v1M5.5 4l.6 9h3.8l.6-9"/></svg>
         </button>
       </div>
@@ -147,6 +147,12 @@ function debounce(fn, ms) {
 
 function setView(name) {
   state.view = name;
+  // M1 (audit): matikan RAF label graph saat meninggalkan view graph —
+  // dulu loop requestAnimationFrame terus berputar ~60x/s tanpa henti.
+  if (name !== "graph" && typeof __labelRaf !== "undefined" && __labelRaf) {
+    cancelAnimationFrame(__labelRaf);
+    __labelRaf = 0;
+  }
   document.querySelectorAll(".nav-item").forEach((n) => n.classList.toggle("active", n.dataset.view === name));
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   $("#view-" + name).classList.add("active");
@@ -549,7 +555,9 @@ async function renderMemories(append = false) {
       return;
     }
     memPagination = null;
-    if (!q) { renderMemoryList(box, []); return; }
+    // PR-38 H1: filter kind/project TANPA query dulu merender list kosong —
+    // /api/search mendukung q kosong (fallback allMemories + filter server),
+    // jadi filter tetap hidup tanpa harus mengetik.
     params.set("q", q);
     const d = await api("/api/search?" + params.toString());
     if (!fresh()) return;
@@ -594,6 +602,9 @@ function renderLoadMore(box) {
 
 function renderMemoryList(box, items) {
   state.lastMemories = items || [];
+  // PR-38 H5: batch bar hanya sah di tab draft (dulu bocor ke Active/Archive).
+  const bar = document.getElementById('draftBatchBar');
+  if (bar) bar.style.display = state.memTab === 'draft' ? 'flex' : 'none';
   // PR-N: jaga posisi scroll + skip rebuild saat HTML identik — SSE refresh
   // tidak lagi membuat list "berkedip" dan scroll loncat ke atas.
   const content = document.querySelector(".content");
@@ -1026,7 +1037,7 @@ async function renderIntegrations() {
       const logo = INTEGRATION_LOGOS[key];
       const initials = esc(name.slice(0, 2).toUpperCase());
       return `<div class="intg-row">
-        <div class="intg-icon">${logo ? `<img src="${logo}" alt="${initials}" onerror="this.replaceWith(document.createTextNode('${initials}'))">` : initials}</div>
+        <div class="intg-icon">${logo ? `<img src="${logo}" alt="${initials}" data-fallback="${initials}">` : initials}</div>
         <div><div class="intg-name">${esc(name)}</div><div class="intg-desc">${esc(desc)}</div></div>
         <div class="spacer"></div>
         <span class="badge ${configured ? "ok" : "no"}">${configured ? t("Registered") : t("Not yet")}</span>
@@ -1047,6 +1058,10 @@ async function renderIntegrations() {
         b.disabled = false;
         renderIntegrations();
       });
+    });
+    // H4: fallback ikon tanpa inline onerror (diblokir CSP)
+    box.querySelectorAll("img[data-fallback]").forEach((img) => {
+      img.addEventListener("error", () => img.replaceWith(document.createTextNode(img.dataset.fallback || "")));
     });
   } catch (e) {
     box.innerHTML = emptyState(t("Failed to load"), esc(e.message));
@@ -1553,7 +1568,7 @@ async function renderProjectDetail(slug) {
         <div>
           <div class="card" style="margin-bottom:16px">
             <h4>${t("Open tasks")}</h4>
-            <div id="pdTasks" style="margin-top:8px"></div>
+            <div id="pdTasksList" style="margin-top:8px"></div>
           </div>
           <div class="card">
             <h4>${t("Recent memories")}</h4>
@@ -1604,7 +1619,7 @@ async function renderProjectDetail(slug) {
     $("#pdGoHandoff")?.addEventListener("click", goHandoff);
     $("#pdGoGraph")?.addEventListener("click", () => setView("graph"));
     // tugas mini
-    const tk = $("#pdTasks");
+    const tk = $("#pdTasksList");
     if (d.tasks.open.length) {
       tk.innerHTML = d.tasks.open.slice(0, 6).map((t) => `
         <div class="task-item"><div class="task-check" data-pdtoggle="${t.id}"></div>
@@ -1651,7 +1666,8 @@ async function renderProjectDetail(slug) {
     }
     drawProjectChart(d.week);
   } catch (e) {
-    box.innerHTML = `<div class="err-box"><h4>${t("Couldn't load project")}</h4><p>${esc(e.message)}</p><button class="btn" onclick="showProject('${slug.replace(/'/g, "")}')">${t("Retry")}</button></div>`;
+    box.innerHTML = `<div class="err-box"><h4>${t("Couldn't load project")}</h4><p>${esc(e.message)}</p><button class="btn" id="pdRetry">${t("Retry")}</button></div>`;
+    box.querySelector('#pdRetry')?.addEventListener('click', () => renderProjectDetail(slug));
   }
 }
 
@@ -1758,7 +1774,8 @@ async function renderTasks() {
       });
     });
   } catch (e) {
-    openBox.innerHTML = `<div class="err-box"><h4>${t("Couldn't load tasks")}</h4><p>${esc(e.message)}</p><button class="btn" onclick="renderTasks()">${t("Retry")}</button></div>`;
+    openBox.innerHTML = `<div class="err-box"><h4>${t("Couldn't load tasks")}</h4><p>${esc(e.message)}</p><button class="btn" id="taskRetry">${t("Retry")}</button></div>`;
+    openBox.querySelector("#taskRetry")?.addEventListener("click", () => renderTasks());
     if (doneBox) doneBox.innerHTML = "";
   }
 }

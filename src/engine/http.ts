@@ -29,6 +29,12 @@ const APP_VERSION: string = (() => {
   }
 })();
 
+function numParam(v: string | null | undefined, def: number, min: number, max: number): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return def;
+  return Math.min(max, Math.max(min, n));
+}
+
 function sendJson(res: ServerResponse, code: number, data: unknown): void {
   const body = JSON.stringify(data);
   // CORS hanya untuk origin lokal — situs eksternal tidak boleh membaca respons API.
@@ -204,7 +210,8 @@ export function startHttpServer(): Promise<void> {
         const limit = Number(url.searchParams.get("limit") || 10);
         const eprov = await getEmbedProvider();
         const qEmb = await eprov.embed(q);
-        const hits = searchMemories(q, { limit, projectSlug: project, kind, embedModel: eprov.embedModel }, qEmb).map(enrichMemory);
+        const since = numParam(url.searchParams.get("since"), 0, 0, Date.now());
+        const hits = searchMemories(q, { limit, projectSlug: project, kind, embedModel: eprov.embedModel, since }, qEmb).map(enrichMemory);
         sendJson(res, 200, { hits });
       } else if (url.pathname === "/api/project" && req.method === "GET") {
         const project = url.searchParams.get("slug") || "";
@@ -214,8 +221,8 @@ export function startHttpServer(): Promise<void> {
       } else if (url.pathname === "/api/memories" && req.method === "GET") {
         // Pustaka lengkap dengan pagination — param `status` kini benar-benar dihormati.
         const status = url.searchParams.get("status") || "active";
-        const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
-        const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
+        const limit = numParam(url.searchParams.get("limit"), 50, 1, 200);
+        const offset = numParam(url.searchParams.get("offset"), 0, 0, 1e9);
         const since = Math.max(0, Number(url.searchParams.get("since") || 0) || 0);
         const { memories: mems, total } = listMemoriesPage(status, limit, offset, since);
         const page = mems
@@ -247,7 +254,8 @@ export function startHttpServer(): Promise<void> {
         const status = url.searchParams.get("status") || "active";
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
         const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
-        const { memories, total } = listMemoriesPage(status, limit, offset);
+        const listSince = numParam(url.searchParams.get("since"), 0, 0, Date.now());
+        const { memories, total } = listMemoriesPage(status, limit, offset, listSince);
         const page = memories
           .map((m) => ({ ...m, embedding: undefined, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
@@ -723,7 +731,7 @@ export function startHttpServer(): Promise<void> {
         try {
           status = syncStatus({});
         } catch (e) {
-          status = { configured: false, error: String(e) };
+          status = { configured: false, error: e instanceof Error ? e.message : String(e) };
         }
         let folder: any = null;
         try {
@@ -772,7 +780,7 @@ export function startHttpServer(): Promise<void> {
       }
     } catch (e) {
       console.error("[memoria] API error:", url.pathname, e);
-      sendJson(res, 500, { error: String(e) });
+      sendJson(res, 500, { error: e instanceof Error ? e.message : String(e) });
     }
   });
   // Bind eksplisit ke loopback — tanpa ini Node bind ke semua interface (LAN ikut kebuka).

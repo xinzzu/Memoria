@@ -1166,8 +1166,10 @@ export function countTranscripts(): number {
   return row.c;
 }
 
-export function countMemories(): number {
-  const row = getDb().prepare("SELECT COUNT(*) AS c FROM memories WHERE archived = 0 AND status = 'active'").get() as { c: number };
+export function countMemories(since = 0): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS c FROM memories WHERE archived = 0 AND status = 'active' AND (? = 0 OR created_at >= ?)")
+    .get(since, since) as { c: number };
   return row.c;
 }
 
@@ -1339,13 +1341,17 @@ export function markResolved(id: number): boolean {
   return res.changes > 0;
 }
 
-export function countDraft(): number {
-  const row = getDb().prepare("SELECT COUNT(*) AS c FROM memories WHERE archived = 0 AND status = 'draft'").get() as { c: number };
+export function countDraft(since = 0): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS c FROM memories WHERE archived = 0 AND status = 'draft' AND (? = 0 OR created_at >= ?)")
+    .get(since, since) as { c: number };
   return row.c;
 }
 
-export function countArchived(): number {
-  const row = getDb().prepare("SELECT COUNT(*) AS c FROM memories WHERE archived = 1").get() as { c: number };
+export function countArchived(since = 0): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS c FROM memories WHERE archived = 1 AND (? = 0 OR created_at >= ?)")
+    .get(since, since) as { c: number };
   return row.c;
 }
 
@@ -1508,18 +1514,18 @@ export function listMemoriesPage(status: string, limit: number, offset: number, 
   if (status === "draft") {
     return {
       memories: readMemories(`WHERE archived = 0 AND status = 'draft'${age} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]),
-      total: countDraft(),
+      total: countDraft(since),
     };
   }
   if (status === "archived") {
     return {
       memories: readMemories(`WHERE archived = 1${age} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]),
-      total: countArchived(),
+      total: countArchived(since),
     };
   }
   return {
     memories: readMemories(`WHERE archived = 0 AND status = 'active'${age} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]),
-    total: countMemories(),
+    total: countMemories(since),
   };
 }
 
