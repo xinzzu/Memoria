@@ -7,6 +7,21 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Zero-AI session brain (F4)** — `extract/snapshot.ts` adds two model-free
+  mechanisms. (1) **Work snapshots**: at scan time the last 16 transcript lines
+  of a project are mined deterministically (files touched, shell commands run,
+  errors, last user message) and combined with the project's git branch/dirty
+  files into one `context` memory (origin `heuristic`, max one per 15 minutes,
+  dedupe-merged) — so recall/handoff in the next tool knows exactly what was
+  being worked on. (2) **Pre-limit trigger**: provider kill-messages
+  ("usage limit reached", "credit balance too low", "quota exceeded", …) are
+  detected in new transcripts via a cursor over `transcripts` — patterns are
+  deliberately strict so dev discussions *about* limits never fire it. On
+  detection the engine captures a snapshot, runs priority extraction and
+  injects resume context IMMEDIATELY (before the idle trigger fires), and
+  emits a `limit_hit` event (SSE today, webhook-ready). This is the
+  limit-hopping north star: switch tools the moment your quota dies and the
+  next AI already has the continuation brain.
 - **MCP self-editing tools** — the MCP server now exposes `update_memory`
   (correct content/kind/importance; a content change is auto re-embedded so
   semantic search stays accurate) and `forget` (delete a stale memory by id,
