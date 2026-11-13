@@ -1164,6 +1164,11 @@ function buildLabels3D(decorated) {
         const el = document.getElementById("graph3d");
         const w = el ? el.clientWidth : 0;
         const h = el ? el.clientHeight : 0;
+        // PR-P: anti-overlap greedy — label diproses sesuai urutan prioritas
+        // degree (sudah di-sort saat build); slot yang sudah dipakai tidak boleh
+        // ditumpuk label lain di cluster padat.
+        const placed = [];
+        const collides = (x, y) => placed.some((p) => Math.abs(p.x - x) < 150 && Math.abs(p.y - y) < 15);
         for (const it of __labels) {
           const n = it.node;
           if (n.x === undefined) continue;
@@ -1174,9 +1179,14 @@ function buildLabels3D(decorated) {
             it.el.style.opacity = 0;
             continue;
           }
-          it.el.style.opacity = 1;
           const cx = Math.min(Math.max(c.x - 50, 2), Math.max(2, w - 90));
           const cy = Math.min(Math.max(c.y + 6, 0), Math.max(0, h - 20));
+          if (collides(cx, cy)) {
+            it.el.style.opacity = 0.18; // tetap samar — bukan hilang total
+            continue;
+          }
+          placed.push({ x: cx, y: cy });
+          it.el.style.opacity = 1;
           it.el.style.transform = "translate(" + cx.toFixed(1) + "px, " + cy.toFixed(1) + "px)";
         }
       }
