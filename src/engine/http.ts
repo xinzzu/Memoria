@@ -216,7 +216,8 @@ export function startHttpServer(): Promise<void> {
         const status = url.searchParams.get("status") || "active";
         const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50)));
         const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
-        const { memories: mems, total } = listMemoriesPage(status, limit, offset);
+        const since = Math.max(0, Number(url.searchParams.get("since") || 0) || 0);
+        const { memories: mems, total } = listMemoriesPage(status, limit, offset, since);
         const page = mems
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, status: m.status, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
