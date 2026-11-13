@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "memoria": {
+      "command": "node",
+      "args": ["dist/engine/index.js", "mcp"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
