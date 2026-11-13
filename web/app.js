@@ -28,6 +28,7 @@ let state = {
   filterProject: "",
   memTab: "active",
   filterTag: "",
+  filterAge: "", // "7"|"30"|"90" hari — "" = semua
 };
 
 /* ---------- Helpers ---------- */
@@ -72,6 +73,22 @@ function toast(msg, type = "ok") {
   setTimeout(() => el.remove(), 3200);
 }
 
+// PR-O: highlight kata pencarian pada konten (esc dulu, token di-escape juga,
+// lalu dibungkus <mark> — aman terhadap entity).
+function hlContent(text) {
+  const escd = esc(text);
+  const q = (state.search || "").trim();
+  if (!q) return escd;
+  const terms = q.toLowerCase().split(/[\s,.;:!?()[\]{}"'/\\-]+/).filter((t) => t.length > 2).slice(0, 6);
+  if (!terms.length) return escd;
+  let out = escd;
+  for (const t of terms) {
+    const safe = esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(safe, "gi"), (m) => '<mark class="hl">' + m + "</mark>");
+  }
+  return out;
+}
+
 function memoRowRenderer(renderId) {
   const isDraft = state.memTab === "draft";
   const isArchived = state.memTab === "archived";
@@ -89,7 +106,7 @@ function memoRowRenderer(renderId) {
           <span class="sep">·</span>
           <span>${fmtRel(h.createdAt)}</span>
         </div>
-        <div class="mem-content">${esc(h.content)}</div>
+        <div class="mem-content">${hlContent(h.content)}</div>
         ${h.entities && h.entities.length ? `<div class="mem-chips">${h.entities.slice(0, 8).map((e) => `<span class="chip ent" data-ent="${esc(e.text)}">${esc(e.text)}</span>`).join("")}</div>` : ""}
         ${h.tags && h.tags.length ? `<div class="mem-chips">${h.tags.map((t) => `<span class="chip tag" data-tag="${esc(t)}">#${esc(t)}</span>`).join("")}</div>` : ""}
       </div>
@@ -481,13 +498,17 @@ async function renderMemories(append = false) {
   const fresh = () => seq === memRenderSeq; // false = ada render lebih baru
   const q = state.search.trim();
   const box = $("#memoriesList");
+  // PR-O: filter umur — server-side di jalur paginated (`since`), client-side
+  // di jalur list/tag/search.
+  const since = state.filterAge ? Date.now() - Number(state.filterAge) * 86400000 : 0;
+  const byAge = (m) => !since || (m.createdAt || 0) >= since;
   try {
     if (state.filterTag && state.memTab === "active") {
       const offset = append && memPagination ? memPagination.offset : 0;
       const d = await api(`/api/memories/tag?tag=${encodeURIComponent(state.filterTag)}&limit=50&offset=${offset}`);
       if (!fresh()) return;
-      const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
-      memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
+      const items = (d.memories || []).filter(byAge).map((m) => ({ ...m, score: 1 }));
+      memPagination = { offset: offset + (d.memories || []).length, hasMore: !!d.hasMore };
       if (append) appendMemoryList(box, items);
       else renderMemoryList(box, items);
       renderLoadMore(box);
@@ -501,6 +522,7 @@ async function renderMemories(append = false) {
       let items = raw;
       if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
       if (state.filterProject) items = items.filter((m) => m.projectSlug === state.filterProject);
+      if (since) items = items.filter(byAge);
       if (q) items = items.filter((m) => m.content.toLowerCase().includes(q.toLowerCase()));
       // Offset maju per halaman mentah (bukan hasil filter) agar tidak ada
       // halaman yang terlewati; filter tetap bekerja pada halaman termuat.
@@ -514,9 +536,10 @@ async function renderMemories(append = false) {
     const params = new URLSearchParams({ limit: "50" });
     if (state.filterKind) params.set("kind", state.filterKind);
     if (state.filterProject) params.set("project", state.filterProject);
+    if (since) params.set("since", String(since));
     if (!q && !state.filterKind && !state.filterProject) {
       const offset = append && memPagination ? memPagination.offset : 0;
-      const d = await api(`/api/memories?status=${state.memTab}&limit=50&offset=${offset}`);
+      const d = await api(`/api/memories?status=${state.memTab}&limit=50&offset=${offset}${since ? "&since=" + since : ""}`);
       if (!fresh()) return;
       const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
       memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
@@ -530,7 +553,7 @@ async function renderMemories(append = false) {
     params.set("q", q);
     const d = await api("/api/search?" + params.toString());
     if (!fresh()) return;
-    renderMemoryList(box, d.hits);
+    renderMemoryList(box, (d.hits || []).filter(byAge));
   } catch (e) {
     if (!fresh()) return;
     box.innerHTML = `<div class="err-box">
@@ -2112,6 +2135,7 @@ document.querySelectorAll(".mem-tabs .seg").forEach((b) => {
 $("#filterKind").addEventListener("change", (e) => { state.filterKind = e.target.value; renderMemories(); });
 $("#filterProject").addEventListener("change", (e) => { state.filterProject = e.target.value; renderMemories(); });
 $("#filterTag").addEventListener("change", (e) => { state.filterTag = e.target.value; renderMemories(); });
+$("#filterAge").addEventListener("change", (e) => { state.filterAge = e.target.value; renderMemories(); });
 
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {

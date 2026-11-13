@@ -1463,21 +1463,23 @@ export function allMemories(): Memory[] {
 }
 
 /** Halaman pustaka langsung di SQL — jangan materialisasi seluruh tabel (F1C sisa). */
-export function listMemoriesPage(status: string, limit: number, offset: number): { memories: Memory[]; total: number } {
+export function listMemoriesPage(status: string, limit: number, offset: number, since = 0): { memories: Memory[]; total: number } {
+  // PR-O: since (ms) — filter umur di level SQL (created_at >= since).
+  const age = since > 0 ? ` AND created_at >= ${Number(since)}` : "";
   if (status === "draft") {
     return {
-      memories: readMemories("WHERE archived = 0 AND status = 'draft' ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+      memories: readMemories(`WHERE archived = 0 AND status = 'draft'${age} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]),
       total: countDraft(),
     };
   }
   if (status === "archived") {
     return {
-      memories: readMemories("WHERE archived = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+      memories: readMemories(`WHERE archived = 1${age} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]),
       total: countArchived(),
     };
   }
   return {
-    memories: readMemories("WHERE archived = 0 AND status = 'active' ORDER BY created_at DESC LIMIT ? OFFSET ?", [limit, offset]),
+    memories: readMemories(`WHERE archived = 0 AND status = 'active'${age} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]),
     total: countMemories(),
   };
 }
