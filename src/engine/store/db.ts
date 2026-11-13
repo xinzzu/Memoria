@@ -169,6 +169,7 @@ const MIGRATIONS: Migration[] = [
   { version: 2, name: "embedding-float32-blob", up: m2EmbeddingBlob },
   { version: 3, name: "sync-uid-outbox", up: m3Sync },
   { version: 4, name: "sync-lww-metadata", up: m4SyncMetadata },
+  { version: 5, name: "sync-applied-bundle", up: m5SyncAppliedBundle },
 ];
 
 function runMigrations(d: DatabaseSync): void {
@@ -417,6 +418,26 @@ function m4SyncMetadata(d: DatabaseSync): void {
   }
 }
 
+/** M5: ledger bundle terapan untuk folder sync (idempoten lintas import manual/folder). */
+function m5SyncAppliedBundle(d: DatabaseSync): void {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS sync_applied_bundle (
+      bundle_id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL,
+      filename TEXT NOT NULL DEFAULT '',
+      applied_at INTEGER NOT NULL,
+      ops INTEGER NOT NULL DEFAULT 0,
+      hlc_max TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_applied_bundle_device ON sync_applied_bundle(device_id, applied_at);
+  `);
+  d.exec(`
+    INSERT OR IGNORE INTO sync_applied_bundle (bundle_id, device_id, filename, applied_at, ops, hlc_max, source)
+    SELECT file_id, device_id, '', applied_at, op_count, '', 'legacy' FROM sync_applied
+  `);
+}
+
 /* ---------- Codec embedding Float32 ----------
  * On-disk: BLOB raw bytes Float32 little-endian. In-memory: number[] biasa. */
 
@@ -642,6 +663,82 @@ export function pruneSyncTombstones(maxAgeDays = 180): number {
   const cutoff = Date.now() - maxAgeDays * 86400_000;
   const res = getDb().prepare("DELETE FROM sync_tombstones WHERE deleted_at < ?").run(cutoff);
   return Number(res.changes);
+}
+
+export interface AppliedBundleRecord {
+  bundleId: string;
+  deviceId: string;
+  filename?: string;
+  appliedAt?: number;
+  ops?: number;
+  hlcMax?: string;
+  source?: string;
+}
+
+export function isBundleApplied(bundleId: string): boolean {
+  if (!bundleId) return false;
+  const d = getDb();
+  const a = d.prepare("SELECT 1 AS ok FROM sync_applied WHERE file_id = ?").get(bundleId) as { ok: number } | undefined;
+  if (a) return true;
+  try {
+    const b = d.prepare("SELECT 1 AS ok FROM sync_applied_bundle WHERE bundle_id = ?").get(bundleId) as
+      | { ok: number }
+      | undefined;
+    return !!b;
+  } catch {
+    return false;
+  }
+}
+
+export function recordAppliedBundle(rec: AppliedBundleRecord): void {
+  const d = getDb();
+  const appliedAt = rec.appliedAt ?? Date.now();
+  try {
+    d.prepare(
+      `INSERT OR IGNORE INTO sync_applied_bundle (bundle_id, device_id, filename, applied_at, ops, hlc_max, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      rec.bundleId,
+      rec.deviceId || "",
+      rec.filename || "",
+      appliedAt,
+      rec.ops ?? 0,
+      rec.hlcMax || "",
+      rec.source || ""
+    );
+  } catch {
+    /* tabel mungkin belum ada pada DB lama sebelum migrasi selesai */
+  }
+}
+
+export interface SyncConflictRow {
+  id: number;
+  entity: string;
+  entityUid: string;
+  winnerHlc: string;
+  loserHlc: string;
+  createdAt: number;
+  loserPayload: string;
+}
+
+export function listRecentConflicts(limit = 50): SyncConflictRow[] {
+  const lim = Math.max(1, Math.min(200, Number(limit) || 50));
+  const rows = getDb()
+    .prepare(
+      `SELECT id, entity, entity_uid AS entityUid, winner_hlc AS winnerHlc, loser_hlc AS loserHlc,
+              created_at AS createdAt, loser_payload AS loserPayload
+       FROM sync_conflicts ORDER BY id DESC LIMIT ?`
+    )
+    .all(lim) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: Number(r.id),
+    entity: String(r.entity),
+    entityUid: String(r.entityUid),
+    winnerHlc: String(r.winnerHlc),
+    loserHlc: String(r.loserHlc),
+    createdAt: Number(r.createdAt),
+    loserPayload: String(r.loserPayload || ""),
+  }));
 }
 
 export function queueSyncOp(entity: SyncEntity, entityUid: string, op: SyncOp, payload: unknown): void {

@@ -4,8 +4,9 @@ import { applyBundleFile } from "./apply";
 import { exportBundle } from "./export";
 import { loadGroupKey, setupSync, syncStatus } from "./keys";
 import { embeddingBackfillCount, processEmbeddingBackfill } from "./embed";
+import { getFolderStatus, listRecentConflicts, scanAndApplyFolder, setSharedFolder } from "./folder";
 
-const VALUE_FLAGS = new Set(["passphrase", "out", "in", "device-name", "join"]);
+const VALUE_FLAGS = new Set(["passphrase", "out", "in", "device-name", "join", "limit"]);
 
 interface ParsedArgs {
   positional: string[];
@@ -139,5 +140,54 @@ export async function runSyncCommand(args: string[]): Promise<void> {
     return;
   }
 
-  throw new Error(`Unknown sync command: ${cmd}. Use setup, status, export, or import.`);
+  if (cmd === "folder") {
+    const sub = parsed.positional[1] || "status";
+    if (sub === "set") {
+      const target = parsed.positional[2] || (has(parsed, "clear") ? "--clear" : "");
+      if (!target) throw new Error("Usage: sync folder set <path> | --clear");
+      const st = setSharedFolder(target, { passphrase: flag(parsed, "passphrase") });
+      console.log(st.path ? `Folder: ${st.path}` : "Folder sync disabled.");
+      if (st.path) {
+        const scan = await scanAndApplyFolder({ passphrase: flag(parsed, "passphrase") });
+        if (scan.scanned || scan.applied || scan.failed) {
+          console.log(`Scan   : ${scan.scanned} files, applied ${scan.applied}, skipped ${scan.skipped}, failed ${scan.failed}`);
+        }
+      }
+      return;
+    }
+    if (sub === "status") {
+      const st = getFolderStatus();
+      if (!st.path) {
+        console.log("Folder sync: not configured.");
+        return;
+      }
+      console.log(`Folder      : ${st.path}`);
+      console.log(`Available   : ${st.available ? "yes" : "no"}${st.writable ? " (writable)" : ""}`);
+      console.log(`Watching    : ${st.watching ? "yes" : "no"}`);
+      console.log(`Pending     : ${st.pendingSinceExport} since folder export`);
+      console.log(`Last export : ${st.lastExportHlc || "-"} (${formatAt(st.lastExportAt)})`);
+      console.log(`Last import : ${st.lastImportHlc || "-"} (${formatAt(st.lastImportAt)})`);
+      if (st.lastError) console.log(`Last error  : ${st.lastError}`);
+      return;
+    }
+    throw new Error(`Unknown sync folder command: ${sub}. Use set or status.`);
+  }
+
+  if (cmd === "conflicts") {
+    const lim = Number(flag(parsed, "limit") || "50") || 50;
+    const rows = listRecentConflicts(lim);
+    if (!rows.length) {
+      console.log("No sync conflicts.");
+      return;
+    }
+    for (const r of rows) {
+      const when = formatAt(String(r.createdAt));
+      console.log(`[${r.id}] ${when} ${r.entity} ${r.entityUid}`);
+      console.log(`  winner: ${r.winnerHlc}`);
+      console.log(`  loser : ${r.loserHlc}`);
+    }
+    return;
+  }
+
+  throw new Error(`Unknown sync command: ${cmd}. Use setup, status, export, import, folder, or conflicts.`);
 }

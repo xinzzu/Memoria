@@ -18,22 +18,22 @@ Acceptance F1C: 5.000 memori sintetis → search median 5,4–58,0 ms, semua < 1
 embedding, setup checklist, settings two-pane, graph obsidian + 3D, i18n penuh, light
 theme, SSE live, test suite, project detail view.
 
-**Sync M1 ✅ (PR #8) + M2 ✅:** migrasi v3/v4
+**Sync M1 ✅ (PR #8) + M2 ✅ + M3 ✅:** migrasi v3/v4/v5
 (UID stabil + `updated_by`, outbox/HLC, entity clock, tombstone, conflict/seen-op
-ledger, embed queue, project alias), CLI `memoria sync setup|status|export|import`
-(`--full`/`--join`/`--passphrase`/`--embed`), recovery code + group key
+ledger, embed queue, project alias, applied-bundle ledger), CLI `memoria sync
+setup|status|export|import|folder set|folder status|conflicts`
+(`--full`/`--join`/`--passphrase`/`--embed`/`--clear`), recovery code + group key
 (safeStorage/passphrase scrypt), bundle `.memsync` terenkripsi AES-256-GCM/HKDF
 dengan header AAD, apply idempoten + LWW/tombstone + relay full export + project
-alias (slug/path lokal tidak disinkronkan), embedding backfill lokal, dan guard
-`sync.groupKey` di `/api/settings`. Test suite kini **38 kasus**. Migrasi DB asli
-5k memori v3 terukur ±0,8 dtk (5669 snapshot ops, sekali jalan). Berikutnya
-**M3**: shared folder sync/watcher, applied ledger hardening, conflict log
-UI/CLI, two-device integration.
+alias (slug/path lokal tidak disinkronkan), embedding backfill lokal, guard
+`sync.groupKey` di `/api/settings`, shared-folder watcher + atomic/debounced
+export + scan/apply idempoten + cleanup bundle sendiri. Test suite kini **41
+kasus**. Berikutnya **M4**: sync UX/status/conflict UI, README/i18n.
 
 **Backlog eksekusi berikutnya (urut):**
 1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
    Discord/Telegram/generic + 4 event + Send test + secret terenkripsi)
-2. **Sync M1 ✅ → M2 ✅ → M3 shared folder → M4 UX →
+2. **Sync M1 ✅ → M2 ✅ → M3 ✅ → M4 UX →
    M5 hardening** (desain: `docs/sync-design.md`). Code signing/notarization masih
    menunggu keputusan biaya (Apple Developer + cert Windows).
 3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat

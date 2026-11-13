@@ -83,7 +83,7 @@ test("migrasi v2 -> v4: uid backfill + snapshot project/memory/link", () => {
   old.close();
 
   const d = dbmod.initDb(dir);
-  assert.equal(Number(d.prepare("PRAGMA user_version").get().user_version), 4);
+  assert.equal(Number(d.prepare("PRAGMA user_version").get().user_version), 5);
 
   const projects = d.prepare("SELECT id, uid FROM projects").all();
   assert.equal(projects.length, 1);
@@ -120,7 +120,7 @@ test("migrasi v2 -> v4: uid backfill + snapshot project/memory/link", () => {
   const before = Number(d.prepare("SELECT COUNT(*) AS c FROM sync_outbox").get().c);
   dbmod.closeDb();
   const d2 = dbmod.initDb(dir);
-  assert.equal(Number(d2.prepare("PRAGMA user_version").get().user_version), 4);
+  assert.equal(Number(d2.prepare("PRAGMA user_version").get().user_version), 5);
   assert.equal(Number(d2.prepare("SELECT COUNT(*) AS c FROM sync_outbox").get().c), before, "migrasi ulang tidak boleh duplikat");
 });
 

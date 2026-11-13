@@ -4,9 +4,11 @@ import {
   getEntityClock,
   getTombstone,
   hlcNewer,
+  isBundleApplied,
   logSyncConflict,
   markSyncOpSeen,
   observeHlc,
+  recordAppliedBundle,
   recordEntityClock,
   recordTombstone,
   reindexEntities,
@@ -183,10 +185,18 @@ export function applySyncBundle(bundle: SyncBundle): ApplyResult {
     deviceId: header.deviceId,
     opCount: header.opCount,
   };
-  const already = d.prepare("SELECT file_id FROM sync_applied WHERE file_id = ?").get(header.fileId) as
-    | { file_id: string }
-    | undefined;
-  if (already) {
+  if (isBundleApplied(header.fileId)) {
+    try {
+      recordAppliedBundle({
+        bundleId: header.fileId,
+        deviceId: header.deviceId,
+        ops: header.opCount,
+        hlcMax: header.hlcMax,
+        source: "legacy",
+      });
+    } catch {
+      /* best effort */
+    }
     return { ...base, applied: 0, skipped: header.opCount, conflicts: 0, deferredEmbeddings: embeddingBackfillCount(), alreadyApplied: true };
   }
   if (!bundle.ops.length) throw new Error("Bundle contains no operations");
@@ -200,6 +210,23 @@ export function applySyncBundle(bundle: SyncBundle): ApplyResult {
   const seenStmt = d.prepare("SELECT 1 AS seen FROM sync_seen_ops WHERE op_id = ?");
   const unseen = ops.filter((op) => !seenStmt.get(op.opId));
   if (!unseen.length) {
+    try {
+      d.prepare("INSERT OR IGNORE INTO sync_applied (file_id, device_id, applied_at, op_count) VALUES (?, ?, ?, ?)").run(
+        header.fileId,
+        header.deviceId,
+        Date.now(),
+        header.opCount
+      );
+      recordAppliedBundle({
+        bundleId: header.fileId,
+        deviceId: header.deviceId,
+        ops: header.opCount,
+        hlcMax: header.hlcMax,
+        source: "import",
+      });
+    } catch {
+      /* best effort */
+    }
     return { ...base, applied: 0, skipped: header.opCount, conflicts: 0, deferredEmbeddings: embeddingBackfillCount(), alreadyApplied: true };
   }
 
@@ -503,12 +530,19 @@ export function applySyncBundle(bundle: SyncBundle): ApplyResult {
       else skipped++;
     }
 
-    d.prepare("INSERT INTO sync_applied (file_id, device_id, applied_at, op_count) VALUES (?, ?, ?, ?)").run(
+    d.prepare("INSERT OR IGNORE INTO sync_applied (file_id, device_id, applied_at, op_count) VALUES (?, ?, ?, ?)").run(
       header.fileId,
       header.deviceId,
       Date.now(),
       header.opCount
     );
+    recordAppliedBundle({
+      bundleId: header.fileId,
+      deviceId: header.deviceId,
+      ops: header.opCount,
+      hlcMax: header.hlcMax,
+      source: "import",
+    });
     setSyncState("last_import_at", String(Date.now()));
     setSyncState("last_import_file", header.fileId);
     setSyncState("last_import_hlc", header.hlcMax);
@@ -533,7 +567,22 @@ export function applySyncBundle(bundle: SyncBundle): ApplyResult {
   };
 }
 
-export function applyBundleFile(filePath: string, groupKey: Buffer): ApplyResult {
+export function applyBundleFile(filePath: string, groupKey: Buffer, source = "import", filename = ""): ApplyResult {
   const bundle = readBundleFile(filePath, groupKey);
-  return applySyncBundle(bundle);
+  const result = applySyncBundle(bundle);
+  if (!result.alreadyApplied || source !== "import") {
+    try {
+      recordAppliedBundle({
+        bundleId: result.fileId,
+        deviceId: result.deviceId,
+        filename,
+        ops: result.opCount,
+        hlcMax: bundle.header.hlcMax,
+        source,
+      });
+    } catch {
+      /* best effort */
+    }
+  }
+  return result;
 }
