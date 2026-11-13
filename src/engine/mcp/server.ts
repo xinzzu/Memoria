@@ -241,7 +241,7 @@ export function createMcpServer(): Server {
             : null;
         const eprov = await getEmbedProvider();
         const embedding = await eprov.embed(content);
-        addMemoryWithDedupe({
+        const res = addMemoryWithDedupe({
           projectId,
           kind,
           content,
@@ -255,7 +255,13 @@ export function createMcpServer(): Server {
           origin: "user",
           embedModel: eprov.embedModel,
         });
-        return { content: [{ type: "text", text: `Memory saved: [${kind}] ${content}` }] };
+        // Smart remember:laporkan apa yang sebenarnya terjadi (ADD/UPDATE/NOOP).
+        const text = res.updated
+          ? `Memory updated (replaced content of #${res.updated}): [${kind}] ${content}`
+          : res.inserted
+            ? `Memory saved: [${kind}] ${content}`
+            : `Merged into existing memory #${res.mergedInto} (importance raised)`;
+        return { content: [{ type: "text", text }] };
       }
       case "update_memory": {
         const id = Number(a.id || 0);
