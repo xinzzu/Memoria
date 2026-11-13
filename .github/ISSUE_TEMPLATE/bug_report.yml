@@ -1,0 +1,65 @@
+name: Bug report
+description: Something broke — give us the details (never paste secrets)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Memoria is local-first —
+        **please never paste secrets**: `apiToken`, Discord/generic webhook
+        URLs, Telegram bot tokens, or API keys.
+  - type: input
+    id: version
+    attributes:
+      label: Memoria version
+      description: From Settings → System, or `node dist/engine/index.js status`
+      placeholder: "e.g. 0.9.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Multiple
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Capture / scan (watcher, tools)
+        - Extraction / review queue
+        - Search / recall / MCP
+        - Sync (bundles, shared folder, conflicts)
+        - Dashboard UI
+        - Handoff / injection
+        - Notifications / webhooks
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Engine console output — redact tokens and webhook URLs.
+  - type: checkboxes
+    id: attest
+    attributes:
+      label: Attestation
+      options:
+        - label: I redacted all secrets from this report
+          required: true
+        - label: I searched existing issues for a duplicate
+          required: true
