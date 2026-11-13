@@ -6,6 +6,13 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-14 — Encrypted Sync & Zero-AI Brain
+
+**Otak yang mengikuti kamu, gratis selamanya**: sync terenkripsi antar mesin
+(M1–M4), agen yang bisa mengkurasi memorinya sendiri, snapshot sesi tanpa AI
+yang tiba *sebelum* limit habis, dan kualitas retrieval yang kini terukur
+terbuka (hit@5 92.8–100% pada eval reproducible).
+
 ### Added
 - **Eval harness lite (PR-D)** — `scripts/eval-search.mjs`: a reproducible
   LongEval-lite benchmark (deterministic PRNG seed 42, N topics × paraphrase +
