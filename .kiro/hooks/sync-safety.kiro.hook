@@ -1,0 +1,12 @@
+{
+  "name": "Sync safety guardrails",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/engine/sync/**/*.ts", "src/engine/store/db.ts", "docs/sync-design.md"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Sync code/schema touched. Enforce: never sync/export embeddings, secrets/API keys, settings, raw transcripts, or machine-local paths/offsets. Preserve stable UIDs, HLC/LWW + tombstones, idempotent apply (applied/seen ledgers), bundle AAD/crypto integrity, and migrations via PRAGMA user_version. Add/update dist-based node:test coverage for behavior changes."
+  }
+}

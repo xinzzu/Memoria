@@ -1,0 +1,12 @@
+{
+  "name": "Build & test reminder (engine)",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/engine/**/*.ts", "tests/**/*.mjs"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Engine source or tests changed. Remember: tests run against dist/ (not src). If behavior changed, run `npm run build` and the relevant `node --test ...` or `npm test` before finishing; never touch live ~/.memoria or port 48210 (use MEMORIA_DATA_DIR=$(mktemp -d)). Keep CHANGELOG entries in English."
+  }
+}

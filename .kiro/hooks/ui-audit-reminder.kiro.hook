@@ -1,0 +1,12 @@
+{
+  "name": "Dashboard UI audit reminder",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["web/**/*", "src/engine/http.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Dashboard/UI or HTTP API changed. Run `npm run check:ui` when relevant; keep UI strings in English keys via t() with translations in web/i18n.js, no emoji in UI chrome, and ensure #overlay/#toast-wrap remain direct <body> children."
+  }
+}
