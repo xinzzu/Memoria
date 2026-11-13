@@ -1829,7 +1829,8 @@ async function loadSyncStatus() {
     set("syncKvStatus", !st.configured ? t("Not configured") : st.locked ? t("Locked") : t("Configured"));
     set("syncKvGroup", st.groupId || (st.locked ? t("Locked") : "—"));
     set("syncKvDevice", st.deviceName ? st.deviceName + " (" + (st.deviceId || "").slice(0, 8) + ")" : "—");
-    set("syncKvPending", st.configured ? String(st.pendingSinceExport ?? st.pendingOutbox ?? 0) : "—");
+    const pendingN = st.pendingSinceExport ?? st.pendingOutbox ?? 0;
+    set("syncKvPending", st.configured ? String(pendingN) : (pendingN ? `${pendingN} (${t("not configured")})` : "—"));
     set("syncKvExport", fmtSyncTime(st.lastExportAt));
     set("syncKvImport", fmtSyncTime(st.lastImportAt));
     set("syncKvConflicts", st.configured ? String(st.conflicts ?? 0) : "—");

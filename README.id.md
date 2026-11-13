@@ -46,7 +46,7 @@ sudah tahu Anda sedang mengerjakan apa.
 | 🔍 Retrieval hibrid | Keyword + embedding + graph centrality, toleran typo |
 | 🕸️ Graph memori | Interaksi ala Obsidian |
 | 🌐 EN/ID | English default, Indonesia satu klik |
-| 🔐 Privasi | 100% lokal; API key terenkripsi via OS keychain; tanpa telemetri |
+| 🔐 Privasi & sync | 100% lokal; API key terenkripsi; sync terenkripsi E2E opsional (bundle manual/folder bersama), tanpa server/embedding/secret/transkrip |
 
 ## Mulai cepat
 
