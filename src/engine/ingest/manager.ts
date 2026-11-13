@@ -133,12 +133,18 @@ export function stats(): {
   // pembagian menghasilkan float (20760.72) yang tak pernah cocok dgn bucket harian.
   const rows = db
     .prepare("SELECT CAST(ts / ? AS INTEGER) AS d, COUNT(*) AS c FROM transcripts WHERE ts >= ? GROUP BY d")
-    .all(DAY, Date.now() - 7 * DAY) as Array<{ d: number; c: number }>;
+    .all(DAY, Date.now() - 14 * DAY) as Array<{ d: number; c: number }>;
   const byDay = new Map(rows.map((r) => [Number(r.d), r.c]));
-  const week: Array<{ day: string; count: number }> = [];
-  for (let i = 6; i >= 0; i--) {
+  // PR-L: aktivitas MEMORI per hari (active + draft) — aktivitas heuristik
+  // (draft masuk inbox) kini ikut terlihat di chart, bukan cuma pesan mentah.
+  const memRows = db
+    .prepare("SELECT CAST(created_at / ? AS INTEGER) AS d, COUNT(*) AS c FROM memories WHERE created_at >= ? GROUP BY d")
+    .all(DAY, Date.now() - 14 * DAY) as Array<{ d: number; c: number }>;
+  const memByDay = new Map(memRows.map((r) => [Number(r.d), r.c]));
+  const week: Array<{ day: string; count: number; memories: number }> = [];
+  for (let i = 13; i >= 0; i--) {
     const dd = today - i;
-    week.push({ day: new Date(dd * DAY).toISOString().slice(5, 10), count: byDay.get(dd) || 0 });
+    week.push({ day: new Date(dd * DAY).toISOString().slice(5, 10), count: byDay.get(dd) || 0, memories: memByDay.get(dd) || 0 });
   }
 
   // Proyek dengan konteks resume yang baru diinjeksi (48 jam terakhir).

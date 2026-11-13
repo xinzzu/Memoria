@@ -357,6 +357,8 @@
   "Deleted": "Dihapus",
   "Approved": "Disetujui",
   "Select drafts to approve or delete them in one go": "Pilih draft untuk menyetujui atau menghapusnya sekaligus",
+  "Last 14 days, all tools": "14 hari terakhir, semua tool",
+  "memories": "memori",
   "Notifications": "Notifikasi",
   "Heuristic results are parked as drafts — {0} waiting for this project": "Hasil heuristik parkir sebagai draft — {0} menunggu untuk proyek ini",
   "Review drafts": "Tinjau draft",
