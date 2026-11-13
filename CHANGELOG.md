@@ -7,6 +7,15 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Eval harness lite (PR-D)** — `scripts/eval-search.mjs`: a reproducible
+  LongEval-lite benchmark (deterministic PRNG seed 42, N topics × paraphrase +
+  typo queries, generic noise memories as distractors) that scores
+  `searchMemories` with hit@1 / hit@5 / MRR and average latency. Current
+  zero-LLM numbers (hash embeddings + FTS5 trigram, no model at all):
+  **hit@1 77.5% · hit@5 100% · MRR 0.855** at 240 queries / 520 memories;
+  **hit@5 92.8%** at 600 queries / ~1300 memories; ~14 ms per query. Run:
+  `npm run build && node scripts/eval-search.mjs [topics] [noise]`. Any
+  future ranking change (e.g. RRF fusion) must beat these numbers first.
 - **Smart remember (PR-C, mem0-style ADD/UPDATE/NOOP — zero-LLM)** —
   `addMemoryWithDedupe` now grows memories instead of only stacking them: new
   content that is LONGER and overlaps ≥55% tokens with a near-duplicate
