@@ -945,6 +945,12 @@ const INTEGRATIONS = [
   ["gemini", "Gemini CLI", t("Registered in ~/.gemini/settings.json")],
   ["copilot", "Copilot", t("Registered in ~/.copilot/mcp-config.json")],
   ["antigravity", "Antigravity", t("Registered in ~/.gemini/config/mcp_config.json")],
+  ["claude-desktop", "Claude Desktop", t("Registered in claude_desktop_config.json (stdio)")],
+  ["cursor", "Cursor", t("Registered in ~/.cursor/mcp.json (HTTP bridge)")],
+  ["windsurf", "Windsurf", t("Registered in ~/.codeium/windsurf/mcp_config.json")],
+  ["vscode", "VS Code (Copilot)", t("Registered in ~/.vscode/mcp.json (HTTP bridge)")],
+  ["cline", "Cline", t("Registered in Cline MCP settings (stdio)")],
+  ["zed", "Zed", t("Registered in ~/.config/zed/settings.json (stdio)")],
 ];
 
 async function renderIntegrations() {

@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getConfig } from "./config";
 
 export function engineScriptPath(): string {
   if (process.resourcesPath) {
@@ -187,7 +188,132 @@ function antigravityTarget(): ToolTarget {
   };
 }
 
-const TARGETS: ToolTarget[] = [claudeTarget(), codexTarget(), opencodeTarget(), geminiTarget(), copilotTarget(), antigravityTarget()];
+/* ---------- Target tambahan (docs resmi MCP: modelcontextprotocol.io/clients
+ * + docs tiap editor). Semua merge JSON (bukan overwrite) agar config user
+ * yang sudah ada tetap utuh. Cursor & VS Code memakai HTTP bridge
+ * (http://127.0.0.1:<port>/mcp) — resmi didukung keduanya ("url"/"type":
+ * "http"); sisanya stdio agar engine di-spawn on-demand. ---------- */
+
+function httpUrl(): string {
+  return `http://127.0.0.1:${getConfig().httpPort}/mcp`;
+}
+
+function mergeJsonConfig(cfgPath: string, apply: (cfg: Record<string, any>) => void): string {
+  fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
+  let cfg: Record<string, any> = {};
+  if (fs.existsSync(cfgPath)) {
+    try {
+      cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    } catch {
+      cfg = {};
+    }
+  }
+  apply(cfg);
+  fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+  return "ok";
+}
+
+function claudeDesktopTarget(): ToolTarget {
+  const cfgPath = () =>
+    process.platform === "win32"
+      ? path.join(process.env.APPDATA || path.join(home(), "AppData", "Roaming"), "Claude", "claude_desktop_config.json")
+      : path.join(home(), "Library", "Application Support", "Claude", "claude_desktop_config.json");
+  return {
+    key: "claude-desktop",
+    display: "Claude Desktop",
+    configPath: cfgPath,
+    configured: () => fs.existsSync(cfgPath()),
+    register: (_cmd, script) =>
+      mergeJsonConfig(cfgPath(), (cfg) => {
+        cfg.mcpServers = cfg.mcpServers || {};
+        cfg.mcpServers["memoria"] = { command: _cmd, args: [script, "mcp"] };
+      }),
+  };
+}
+
+function cursorTarget(): ToolTarget {
+  const cfgPath = () => path.join(home(), ".cursor", "mcp.json");
+  return {
+    key: "cursor",
+    display: "Cursor",
+    configPath: cfgPath,
+    configured: () => fs.existsSync(cfgPath()),
+    register: () =>
+      mergeJsonConfig(cfgPath(), (cfg) => {
+        cfg.mcpServers = cfg.mcpServers || {};
+        // HTTP bridge (docs Cursor: server remote = field "url")
+        cfg.mcpServers["memoria"] = { url: httpUrl() };
+      }),
+  };
+}
+
+function windsurfTarget(): ToolTarget {
+  const cfgPath = () => path.join(home(), ".codeium", "windsurf", "mcp_config.json");
+  return {
+    key: "windsurf",
+    display: "Windsurf",
+    configPath: cfgPath,
+    configured: () => fs.existsSync(cfgPath()),
+    register: (_cmd, script) =>
+      mergeJsonConfig(cfgPath(), (cfg) => {
+        cfg.mcpServers = cfg.mcpServers || {};
+        cfg.mcpServers["memoria"] = { command: _cmd, args: [script, "mcp"] };
+      }),
+  };
+}
+
+function vscodeTarget(): ToolTarget {
+  const cfgPath = () => path.join(home(), ".vscode", "mcp.json");
+  return {
+    key: "vscode",
+    display: "VS Code (Copilot)",
+    configPath: cfgPath,
+    configured: () => fs.existsSync(cfgPath()),
+    register: () =>
+      mergeJsonConfig(cfgPath(), (cfg) => {
+        cfg.servers = cfg.servers || {};
+        // docs VS Code: server remote = { "type": "http", "url": ... }
+        cfg.servers["memoria"] = { type: "http", url: httpUrl() };
+      }),
+  };
+}
+
+function clineTarget(): ToolTarget {
+  const cfgPath = () =>
+    process.platform === "darwin"
+      ? path.join(home(), "Library", "Application Support", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")
+      : process.platform === "win32"
+        ? path.join(process.env.APPDATA || path.join(home(), "AppData", "Roaming"), "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json")
+        : path.join(home(), ".config", "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings", "cline_mcp_settings.json");
+  return {
+    key: "cline",
+    display: "Cline",
+    configPath: cfgPath,
+    configured: () => fs.existsSync(cfgPath()),
+    register: (_cmd, script) =>
+      mergeJsonConfig(cfgPath(), (cfg) => {
+        cfg.mcpServers = cfg.mcpServers || {};
+        cfg.mcpServers["memoria"] = { command: _cmd, args: [script, "mcp"], disabled: false };
+      }),
+  };
+}
+
+function zedTarget(): ToolTarget {
+  const cfgPath = () => path.join(home(), ".config", "zed", "settings.json");
+  return {
+    key: "zed",
+    display: "Zed",
+    configPath: cfgPath,
+    configured: () => fs.existsSync(cfgPath()),
+    register: (_cmd, script) =>
+      mergeJsonConfig(cfgPath(), (cfg) => {
+        cfg.context_servers = cfg.context_servers || {};
+        cfg.context_servers["memoria"] = { source: "custom", command: _cmd, args: [script, "mcp"] };
+      }),
+  };
+}
+
+const TARGETS: ToolTarget[] = [claudeTarget(), codexTarget(), opencodeTarget(), geminiTarget(), copilotTarget(), antigravityTarget(), claudeDesktopTarget(), cursorTarget(), windsurfTarget(), vscodeTarget(), clineTarget(), zedTarget()];
 
 export function registerIntegration(tool: string): { ok: boolean; message: string } {
   const t = TARGETS.find((x) => x.key === tool);
