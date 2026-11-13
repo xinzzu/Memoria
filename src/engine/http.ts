@@ -300,7 +300,7 @@ export function startHttpServer(): Promise<void> {
         // project with only drafts doesn't read as "empty".
         const draftCount = (db.prepare("SELECT COUNT(*) AS c FROM memories WHERE project_id = ? AND archived = 0 AND status = 'draft'").get(rec.id) as { c: number }).c;
         const drafts = db
-          .prepare("SELECT id, content, createdAt, source_tool AS sourceTool FROM memories WHERE project_id = ? AND archived = 0 AND status = 'draft' ORDER BY created_at DESC LIMIT 3")
+          .prepare("SELECT id, content, created_at AS createdAt, source_tool AS sourceTool FROM memories WHERE project_id = ? AND archived = 0 AND status = 'draft' ORDER BY created_at DESC LIMIT 3")
           .all(rec.id) as Array<{ id: number; content: string; createdAt: number; sourceTool: string }>;
         sendJson(res, 200, {
           project: { slug: rec.slug, name: rec.name, path: rec.path },
