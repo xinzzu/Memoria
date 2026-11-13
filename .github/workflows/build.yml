@@ -86,25 +86,25 @@ jobs:
       - name: Compose release notes
         run: |
           version="${GITHUB_REF_NAME#v}"
+          prev=$(git tag --sort=-version:refname | awk -v cur="${GITHUB_REF_NAME}" '$0 != cur { print; exit }')
           section=$(awk -v ver="${version}" '
             index($0, "## [" ver "]") == 1 { found=1; next }
             found && index($0, "## [") == 1 { exit }
             found { print }
           ' CHANGELOG.md)
-          if [ -n "${section}" ]; then
-            printf '## Memoria %s\n\n%s\n' "${GITHUB_REF_NAME}" "${section}" > release-body.md
-          else
-            prev=$(git tag --sort=-version:refname | awk -v cur="${GITHUB_REF_NAME}" '$0 != cur { print; exit }')
-            {
-              printf '## Memoria %s\n\n### Changes since %s\n\n' "${GITHUB_REF_NAME}" "${prev:-the beginning}"
-              if [ -z "${prev}" ]; then
-                git log --pretty=format:"- %s (%h)" --no-merges "${GITHUB_REF_NAME}" --max-count=100
-              else
-                git log --pretty=format:"- %s (%h)" --no-merges "${prev}..${GITHUB_REF_NAME}"
-              fi
-              echo
-            } > release-body.md
-          fi
+          # Body rilis = section CHANGELOG (kurasi) + riwayat commit per-tag
+          # (format "- subject (sha)") — keduanya selalu tampil.
+          {
+            printf '## Memoria %s\n\n' "${GITHUB_REF_NAME}"
+            if [ -n "${section}" ]; then printf '%s\n' "${section}"; fi
+            printf '\n### Changes since %s\n\n' "${prev:-the beginning}"
+            if [ -z "${prev}" ]; then
+              git log --pretty=format:"- %s (%h)" --no-merges "${GITHUB_REF_NAME}" --max-count=100
+            else
+              git log --pretty=format:"- %s (%h)" --no-merges "${prev}..${GITHUB_REF_NAME}"
+            fi
+            echo
+          } > release-body.md
       - uses: actions/download-artifact@v4
         with:
           path: dist
