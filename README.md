@@ -157,6 +157,8 @@ node dist/engine/index.js scan      # scan all tools now
 node dist/engine/index.js recall "docker issue"
 node dist/engine/index.js status
 node dist/engine/index.js mcp       # MCP stdio mode
+#                                    MCP over HTTP (bridge for any AI tool):
+#                                    url: http://127.0.0.1:48210/mcp
 
 # encrypted sync (same user, multiple machines)
 node dist/engine/index.js sync setup                         # create group + recovery code

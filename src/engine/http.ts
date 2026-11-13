@@ -149,6 +149,14 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, 401, { error: "token tidak valid (header x-memoria-token)" });
         return;
       }
+      // PR-K: MCP over HTTP (streamable) — jembatan antar-AI di port yang
+      // sama. Hook SETELAH guard host/origin/token: mewarisi keamanan API.
+      // Transport membaca body mentah sendiri — JANGAN pre-parse di sini.
+      if (url.pathname === "/mcp") {
+        const { handleMcpHttp } = await import("./mcp/http");
+        await handleMcpHttp(req, res);
+        return;
+      }
       if (req.method === "OPTIONS") {
         const origin = String(req.headers.origin || "");
         res.writeHead(204, {
