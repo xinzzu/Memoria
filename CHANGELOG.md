@@ -6,6 +6,8 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-11-13
+
 ### Added
 - **Batch embedding provider OpenAI-compatible (F1B sisa)** — `openaiEmbedMany`
   mengirim hingga 64 teks per request `/embeddings`, memetakan hasil lewat

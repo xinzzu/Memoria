@@ -5,7 +5,7 @@
 
 ---
 
-## ⏭️ POSI TERKINI (2026-11-11) — untuk melanjutkan kerja
+## ⏭️ POSI TERKINI (2026-11-13) — untuk melanjutkan kerja
 
 **Selesai & ter-push (main):** F0 ✅ · F1A ✅ (acceptance 12/12) · F1B ✅ (smoke 6/6) ·
 **F1C ✅ (2026-11-11, `feat/f1c-retrieval-scale`)**: FTS5 keyword search (trigram, rerank
@@ -20,14 +20,15 @@ graph obsidian + 3D, i18n penuh, light theme, SSE live, test suite, project deta
 
 **Backlog eksekusi berikutnya (urut):**
 1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
-   Discord/Telegram/generic + 4 event + Send test + secret terenkripsi; test suite 18→23 kasus)
+   Discord/Telegram/generic + 4 event + Send test + secret terenkripsi; test suite kini 29 kasus)
 2. Sisa F3: sinkronisasi terenkripsi antar mesin, code signing/notarization (butuh keputusan
    biaya: Apple Developer + cert Windows)
 3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat
    (batch 64/request, mapping via `index`, chunk otomatis) + SQL-level LIMIT
    `/api/memories` & `/api/memories/list` (`listMemoriesPage`).
-4. Rilis v0.7.0 ✅ (tag + changelog). Rilis berikutnya menunggu sync terenkripsi/
-   code signing atau kumpulan perbaikan berikutnya.
+4. Rilis v0.7.1 ✅ (tag + changelog): pagination SQL, batch embedding
+   OpenAI-compat, CI verify + tag guard. Rilis berikutnya menunggu sync
+   terenkripsi/code signing atau kumpulan perbaikan berikutnya.
 
 **Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
 data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).
