@@ -14,6 +14,15 @@ every ranking change must now beat the eval numbers first — the RRF
 experiment lost and was recorded, not shipped blindly.
 
 ### Added
+- **12 MCP integrations — the integration map is complete (PR-M)** — Integrations
+  now registers Memoria into **Claude Desktop** (claude_desktop_config.json,
+  per-OS), **Cursor** (~/.cursor/mcp.json via the HTTP bridge), **Windsurf**
+  (~/.codeium/windsurf/mcp_config.json), **VS Code / Copilot** (~/.vscode/mcp.json,
+  official "type": "http"), **Cline** (globalStorage cline_mcp_settings.json), and
+  **Zed** (settings.json context_servers) — paths per the official MCP clients docs.
+  All writers MERGE JSON (existing user configs are preserved), Cursor/VS Code
+  connect through the new HTTP bridge so there is one engine, one brain, every
+  tool. Integrations card + README updated (12 targets, initials fallback icons).
 - **MCP over HTTP — the AI-to-AI bridge (PR-K)** — the engine now also serves
   MCP at `http://127.0.0.1:48210/mcp` (streamable transport, stateless,
   JSON responses) on the same port as the dashboard, behind the same
