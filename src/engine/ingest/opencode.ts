@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import * as fs from "node:fs";
 import {
   insertTranscript,
+  seqAllocator,
   ensureProject,
   getSourceOffset,
   setSourceOffset,
@@ -27,7 +28,7 @@ export function scanOpencode(dbPath: string): { messages: number } {
         .prepare("SELECT id, time_created, data FROM message WHERE session_id = ? AND time_created > ? ORDER BY time_created")
         .all(sess.id, offset) as Array<{ id: string; time_created: number; data: string }>;
 
-      let seq = 0;
+      const nextSeq = seqAllocator("opencode");
       for (const msg of messages) {
         maxTs = Math.max(maxTs, msg.time_created);
         let data: any;
@@ -65,7 +66,7 @@ export function scanOpencode(dbPath: string): { messages: number } {
             role,
             content,
             ts: msg.time_created || Date.now(),
-            seq: seq++,
+            seq: nextSeq(sess.id),
           });
           total++;
         }

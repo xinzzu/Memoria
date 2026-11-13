@@ -132,8 +132,7 @@ export function addMemoryWithDedupe(m: Memory): DedupeResult {
     const updated = tryUpdate(existing);
     if (updated) return updated;
   }
-  insertMemory(m);
-  const newId = lastInsertId();
+  const newId = insertMemory(m);
   if (newId != null) linkNew(newId);
   emitEvent("memory", { kind: m.kind });
   return { inserted: true };
@@ -148,14 +147,6 @@ function linkNew(id: number): void {
   }
 }
 
-function lastInsertId(): number | null {
-  try {
-    const row = getDb().prepare("SELECT last_insert_rowid() AS id").get() as { id: number };
-    return row.id || null;
-  } catch {
-    return null;
-  }
-}
 
 function cosineSimilarity(a: number[], b: number[]): number {
   return cosine(a, b);

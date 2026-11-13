@@ -5,31 +5,35 @@ import { addMemoryWithDedupe } from "./dedupe";
 let running = false;
 let lastAttempt = 0;
 
-const GENERIC_PATTERNS = [
-  /identify the task/i,
-  /identify the requirement/i,
-  /understand the user/i,
-  /understand what/i,
+/* PR-37 H5 (audit): dua kelas pola supaya filter tidak membunuh memori nyata.
+ * NOISE_ANY — cocok di string mana pun (status tool, badge shields.io):
+ *   kehadirannya sendiri sudah menandakan noise.
+ * NOISE_STRUCT — pola STRUKTURAL ber-anchor (fence, debris bullet, kalimat
+ *   meta pembuka): hanya noise bila MENDOMINASI konten (>= 50% baris) atau
+ *   seluruh string cocok. Dulu satu fence/bullet di tengah memori multi-baris
+ *   yang valid menghapus semuanya. */
+const NOISE_ANY = [
+  /has been updated successfully/i,
+  /modified \d+ files? (you|you've|you have) previously read/i,
+  /\[!\[[^\]]*\]\(https?:\/\/img\.shields\.io/i,
+  /img\.shields\.io\/badge\//i,
+  /^\[!\w+\]\(/,
   /help the user/i,
   /assist the user/i,
   /user['’]s request/i,
   /user['’]s needs/i,
-  /determine what to create/i,
-  /determine what to fix/i,
-  /what to build/i,
+  /determine what to (create|fix)/i,
   /gather information about the project/i,
-  /the next step is to/i,
   /proceed with the (task|request)/i,
-  // PR-N2: noise tool & markdown — biang 4.8k draft (status tool, badge
-  // shields.io, debris formatting) yang dulu lolos jadi "fakta".
-  /has been updated successfully/i,
-  /modified \d+ files? (you|you've|you have) previously read/i,
-  /\[!\[[^\]]*\]\(https?:\/\/img\.shields\.io/i,
-  /\]\(https?:\/\/img\.shields\.io/i,
-  /img\.shields\.io\/badge\//i,
-  /^\[!\w+\]\(/,
-  /^\s*(--|\*)\s*\*\*[^*]+\*\*/,
+  /identify the (task|requirement)/i,
+  /understand the user/i,
+];
+const NOISE_STRUCT = [
   /^\s*```/,
+  /^\s*(--|\*)\s*\*\*[^*]+\*\*/,
+  /^understand what/i,
+  /^what to build/i,
+  /^the next step is to/i,
 ];
 
 export function isGenericMemory(content: string): boolean {
@@ -39,10 +43,13 @@ export function isGenericMemory(content: string): boolean {
   // konten multi-baris, bukan seluruh string.
   const lines = c.split("\n").map((l) => l.trim()).filter(Boolean);
   for (const line of [c, ...lines]) {
-    for (const p of GENERIC_PATTERNS) {
+    for (const p of NOISE_ANY) {
       if (p.test(line)) return true;
     }
   }
+  const structHits = lines.filter((l) => NOISE_STRUCT.some((p) => p.test(l))).length;
+  if (lines.length && structHits / lines.length >= 0.5) return true;
+  if (NOISE_STRUCT.some((p) => p.test(c))) return true;
   return false;
 }
 

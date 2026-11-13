@@ -3,6 +3,7 @@ import {
   getSourceOffset,
   setSourceOffset,
   insertTranscript,
+  seqAllocator,
   ensureProject,
 } from "../store/db";
 import { withTx } from "../store/tx";
@@ -45,7 +46,7 @@ export async function scanCodex(root: string, log?: (msg: string) => void): Prom
       continue;
     }
     let cwd: string | undefined;
-    let seq = 0;
+    const nextSeq = seqAllocator("codex");
     withTx(() => {
       for (const line of lines) {
         const j = safeJson(line);
@@ -63,7 +64,7 @@ export async function scanCodex(root: string, log?: (msg: string) => void): Prom
           const content = cleanContent(raw);
           if (!content) continue;
           const projectId = ensureProject(projectSlugFromCwd(cwd), cwd);
-          insertTranscript({ tool: "codex", sessionId: j.session_id || file, projectId, role: "user", content, ts, seq: seq++ });
+          insertTranscript({ tool: "codex", sessionId: j.session_id || file, projectId, role: "user", content, ts, seq: nextSeq(j.session_id || file) });
           totalLines++;
           continue;
         }
@@ -82,7 +83,7 @@ export async function scanCodex(root: string, log?: (msg: string) => void): Prom
             role: normalized,
             content: clean,
             ts,
-            seq: seq++,
+            seq: nextSeq(j.session_id || payload.session_id || file),
           });
           totalLines++;
         }

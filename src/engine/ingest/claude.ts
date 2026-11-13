@@ -3,6 +3,7 @@ import {
   getSourceOffset,
   setSourceOffset,
   insertTranscript,
+  seqAllocator,
   ensureProject,
 } from "../store/db";
 import { withTx } from "../store/tx";
@@ -20,7 +21,7 @@ export async function scanClaude(root: string, log?: (msg: string) => void): Pro
       if (finalOffset > stored) setSourceOffset("claude", file, finalOffset, mtime);
       continue;
     }
-    let seq = 0;
+    const nextSeq = seqAllocator("claude");
     withTx(() => {
       for (const line of lines) {
         const j = safeJson(line);
@@ -39,7 +40,7 @@ export async function scanClaude(root: string, log?: (msg: string) => void): Pro
             role: j.type,
             content,
             ts: ts || Date.now(),
-            seq: seq++,
+            seq: nextSeq(sessionId),
           });
           totalLines++;
         }

@@ -48,7 +48,7 @@ function mem(content, extra = {}) {
 /* ---- Migrasi v6 ---- */
 test("v6: migrasi diterapkan — kolom baru + continuity_events + backfill", () => {
   const uv = Number(d.prepare("PRAGMA user_version").get().user_version);
-  assert.equal(uv, 6, "user_version harus 6 setelah migrasi");
+  assert.equal(uv, 7, "user_version harus 7 setelah migrasi");
   const cols = d.prepare("PRAGMA table_info(memories)").all().map((c) => c.name);
   for (const c of ["valid_from", "valid_to", "source_session"]) assert.ok(cols.includes(c), `kolom ${c} harus ada`);
   const t = d.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='continuity_events'").get();

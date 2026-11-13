@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getConfig } from "../config";
+import { getDb } from "./db";
 
 export interface BackupInfo {
   name: string;
@@ -39,9 +40,15 @@ export function backupDb(): string | null {
   const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
   const dest = path.join(dir, `memory-${stamp}.db`);
   try {
-    fs.copyFileSync(src, dest);
+    // H1 (audit): copyFileSync atas DB WAL yang hidup bisa robek/stale —
+    // VACUUM INTO menghasilkan snapshot konsisten (SQLite >= 3.27).
+    getDb().prepare('VACUUM INTO ?').run(dest);
   } catch {
-    return null;
+    try {
+      fs.copyFileSync(src, dest); // fallback lama bila VACUUM gagal
+    } catch {
+      return null;
+    }
   }
   const all = fs
     .readdirSync(dir)

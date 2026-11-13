@@ -274,6 +274,9 @@ test("PR-N2: isGenericMemory — noise tool/badge/markdown tersaring", async () 
     "Keputusan arsitektur: pakai pnpm workspace untuk monorepo ini dan hindari npm biasa.",
     "User memilih bun sebagai runtime karena startup lebih cepat 3x dibanding node.",
     "Invariant escrow: claimed <= total harus dijaga di kontrak posisi (dites via fuzzing).",
+    // PR-37 H5: memori nyata multi-baris yang KEBETULAN punya satu fence —
+    // tidak boleh dihapus hanya karena satu baris cocok pola struktural.
+    "auth flow diperbaiki\n```\nnpm run build\n```\nlanjut verifikasi manual di staging",
   ];
   for (const k of keep) assert.ok(!isGenericMemory(k), `konten nyata tidak boleh tersaring: ${k.slice(0, 60)}`);
 });
