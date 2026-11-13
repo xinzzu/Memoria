@@ -70,6 +70,21 @@ function dailyMaintenance(): void {
       pruneArchivedBackups();
       backupDb();
     }
+    // PR-B: konsolidasi berkala — merge near-duplicate (zero-LLM, guard
+    // konservatif: proyek sama + kind sama + cosine >= 0.85). Default ON.
+    if (getBoolSetting("autoConsolidate", true)) {
+      void (async () => {
+        try {
+          const { consolidateMemories } = require("./extract/consolidate") as typeof import("./extract/consolidate");
+          const r = await consolidateMemories();
+          if (r.removed) {
+            console.log(`[memoria] Consolidation: ${r.removed} near-duplicate memories removed in ${r.clusters} clusters`);
+          }
+        } catch {
+          /* non-blokir */
+        }
+      })();
+    }
     try {
       const pruned = pruneSyncTombstones(180);
       if (pruned) console.log(`[memoria] Sync tombstones pruned: ${pruned}`);

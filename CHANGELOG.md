@@ -7,6 +7,15 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Consolidation (PR-B)** — `extract/consolidate.ts`: a daily, model-free pass
+  that clusters near-duplicate memories (same project, same kind, cosine
+  ≥ 0.85 on locally computed hash embeddings — briefs excluded, newest 400
+  per run) and merges each cluster into its best member: longest content
+  survives, importance takes the maximum, tags are unioned, the rest are
+  deleted with sync tombstones. Runs in `dailyMaintenance` (toggle
+  `autoConsolidate`, default on, also in Settings → Behavior) and on demand
+  via `POST /api/consolidate`. This is the zero-LLM answer to runaway curation
+  inboxes (mcp-memory-service consolidation / mem0 "Dream", offline edition).
 - **Temporal memory, provenance & project brief (migrasi v6)** — memories gain
   `valid_from`/`valid_to` (Graphiti-style validity windows; archiving closes a
   fact's validity, unarchiving reopens it) and `source_session` provenance —

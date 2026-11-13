@@ -351,6 +351,8 @@
   "Timeline": "Timeline",
   "Graph": "Graph",
   "Tags (comma separated)": "Tag (pisah koma)",
+  "Consolidate memories": "Konsolidasi memori",
+  "Daily — merge near-duplicate memories (same project & kind, very high similarity)": "Harian — gabungkan memori nyaris-duplikat (proyek & jenis sama, kemiripan sangat tinggi)",
   "Approve": "Setujui",
   "Deleted": "Dihapus",
   "Approved": "Disetujui",
