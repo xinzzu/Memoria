@@ -100,6 +100,14 @@ export async function scanAll(log?: (msg: string) => void): Promise<ScanResult[]
   const tools = results.filter((r) => r.ok && r.count > 0).map((r) => `${r.tool}+${r.count}`);
   const newTranscripts = results.reduce((a, r) => a + (r.ok ? r.count : 0), 0);
   emitEvent("scan", { tools, newTranscripts, newMemories });
+  // F4: pesan "limit habis" pada transkrip baru → snapshot sesi + ekstraksi
+  // prioritas + inject SEKARANG (lebih cepat dari trigger idle di watcher).
+  try {
+    const { checkLimitSignals } = await import("../extract/snapshot");
+    void checkLimitSignals();
+  } catch {
+    /* non-blokir */
+  }
   return results;
 }
 
