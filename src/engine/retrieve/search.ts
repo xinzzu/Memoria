@@ -1,4 +1,4 @@
-import { getDb, allMemories, projectSlugById, readMemories, Memory } from "../store/db";
+import { getDb, allMemories, projectSlugById, readMemories, Memory, projectRecord, getProjectBrief } from "../store/db";
 import { vecCandidates } from "../vecfind";
 import { cosine as vecCosine } from "../vecindex";
 
@@ -217,5 +217,21 @@ export function projectContext(projectSlug: string, limit = 8): SearchHit[] {
       score,
     });
   }
-  return hits.sort((a, b) => b.score - a.score).slice(0, limit);
+  const ranked = hits.sort((a, b) => b.score - a.score).slice(0, limit);
+  // A4: project brief SELALU pertama — inti dari "core memory" per proyek.
+  const proj = projectRecord(projectSlug);
+  const brief = proj ? getProjectBrief(proj.id) : null;
+  if (brief) {
+    ranked.unshift({
+      id: brief.id!,
+      kind: "brief",
+      content: brief.content,
+      importance: brief.importance,
+      createdAt: brief.createdAt,
+      sourceTool: brief.sourceTool,
+      projectSlug,
+      score: Infinity,
+    });
+  }
+  return ranked.slice(0, Math.max(limit, brief ? 1 : 0));
 }

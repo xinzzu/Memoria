@@ -11,6 +11,7 @@ import { looksLikePath, projectSlugFromCwd } from "../ingest/util";
 import { getEmbedProvider } from "../extract/provider";
 import { relatedMemories } from "../graph";
 import { addMemoryWithDedupe } from "../extract/dedupe";
+import { buildContextBlock } from "../retrieve/contextblock";
 import { emitEvent } from "../events";
 
 const TOOL_DESC = `
@@ -117,6 +118,20 @@ export function createMcpServer(): Server {
           },
         },
       },
+      {
+        name: "build_context",
+        description:
+          "One ready-to-use context block for a project: auto-maintained project brief + key memories + optional query matches + 1-hop relations, capped to maxChars. Ideal first call at session start.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            project: { type: "string", description: "Path atau nama proyek" },
+            query: { type: "string", description: "Fokus opsional — memori yang cocok ditambahkan ke blok" },
+            maxChars: { type: "number", default: 6000 },
+          },
+          required: ["project"],
+        },
+      },
     ],
   }));
 
@@ -142,7 +157,38 @@ export function createMcpServer(): Server {
               `[${r.kind}] (${r.projectSlug ?? "global"}, ${r.sourceTool}, importance ${r.importance.toFixed(2)})\n${r.content}`
           )
           .join("\n\n");
-        return { content: [{ type: "text", text }] };
+        // A5: lampirkan relasi 1-hop dari 2 hit teratas — konteks kaya tanpa
+        // panggilan tambahan (traversal graphiti-style, dangkal & murah).
+        const relLines: string[] = [];
+        for (const h of results.slice(0, 2)) {
+          const rel = relatedMemories(h.id, 2);
+          for (const r of rel) {
+            if (!results.some((x) => x.id === r.memory.id)) {
+              relLines.push(`  ↳ [${r.linkKind}] (id ${r.memory.id}) ${r.memory.content.replace(/\s+/g, " ").slice(0, 110)}`);
+            }
+          }
+        }
+        const withRel = relLines.length ? `${text}\n\nRelated:\n${relLines.join("\n")}` : text;
+        return { content: [{ type: "text", text: withRel }] };
+      }
+      case "build_context": {
+        // A3: satu blok konteks siap-tempel — brief + memori kunci + query +
+        // relasi 1-hop, dibatasi maxChars (ala build_context / context string).
+        const project = String(a.project || "");
+        if (!project) {
+          return { content: [{ type: "text", text: "project is required (path atau nama proyek)." }] };
+        }
+        const eprov = a.query ? await getEmbedProvider() : null;
+        const qEmb = eprov && a.query ? await eprov.embed(String(a.query)) : null;
+        const block = buildContextBlock({
+          project,
+          query: a.query ? String(a.query) : undefined,
+          limit: Number(a.limit || 12),
+          maxChars: Number(a.maxChars || 6000),
+          embedModel: eprov?.embedModel,
+          queryEmbedding: qEmb,
+        });
+        return { content: [{ type: "text", text: block }] };
       }
       case "project_context": {
         const proj = resolveProject(String(a.project || ""));

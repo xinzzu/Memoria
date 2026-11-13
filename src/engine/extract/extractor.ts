@@ -95,6 +95,9 @@ export async function extractQueue(force = false, opts: { order?: "asc" | "desc"
             status,
             origin,
             embedModel: embs[i] ? embedProv.embedModel : "",
+            // Provenance: sesi sumber → tiap memori bisa ditelusuri ke
+            // percakapan asalnya (A2/Hindsight-style traceability).
+            sourceSession: rows[0].sessionId || "",
           });
           extracted++;
         });

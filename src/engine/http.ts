@@ -500,6 +500,26 @@ export function startHttpServer(): Promise<void> {
         pruneArchivedBackups();
         const p = backupDb();
         sendJson(res, p ? 200 : 500, { ok: !!p, path: p });
+      } else if (url.pathname === "/api/continuity" && req.method === "GET") {
+        // B8: metrik limit-hopping — berapa kali limit terpicu, seberapa cepat
+        // resume siap, dan "berapa penjelasan ulang terhemat".
+        const { continuityStats } = await import("./store/db");
+        const s = continuityStats();
+        sendJson(res, 200, {
+          ...s,
+          reExplanationsSaved: s.resumesReady30d,
+        });
+      } else if (url.pathname === "/api/projects/brief" && req.method === "POST") {
+        // A4: regenerate project brief on-demand (dipakai juga untuk test UI).
+        const body = await readBody(req);
+        const proj = resolveProject(String(body.slug || ""));
+        if (!proj) {
+          sendJson(res, 404, { error: "project not found" });
+          return;
+        }
+        const { generateProjectBrief } = await import("./store/db");
+        const brief = await generateProjectBrief(proj.id);
+        sendJson(res, brief ? 200 : 404, { ok: !!brief, brief: brief?.content ?? null });
       } else if (url.pathname === "/api/integrations" && req.method === "GET") {
         sendJson(res, 200, { integrations: integrationStatus() });
       } else if (url.pathname === "/api/integrate" && req.method === "POST") {

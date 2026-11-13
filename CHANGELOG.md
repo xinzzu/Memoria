@@ -7,6 +7,21 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Temporal memory, provenance & project brief (migrasi v6)** — memories gain
+  `valid_from`/`valid_to` (Graphiti-style validity windows; archiving closes a
+  fact's validity, unarchiving reopens it) and `source_session` provenance —
+  every memory and F4 snapshot now traces back to its source conversation, and
+  the extraction pipeline stamps the session it came from. **Project brief**
+  (Letta core-memory / Cline memory-bank style): an auto-maintained, max-one
+  per-project summary memory (`Project brief: …` — decisions, open tasks,
+  preferences, key facts, ≤1400 chars, regenerated daily and on demand) that
+  ALWAYS sits first in `project_context` and recall outputs. New MCP tool
+  **`build_context`** assembles one ready-to-paste context block (brief + key
+  memories + optional query matches + 1-hop relation traversal, capped to
+  `maxChars`), and `recall` now appends 1-hop related memories from its top
+  hits. New `GET /api/continuity` + `POST /api/projects/brief` endpoints; F4
+  emits `limit_hit`/`resume_ready` into a `continuity_events` ledger
+  (`continuityStats()` aggregates 30-day counts + average limit→resume gap).
 - **Zero-AI session brain (F4)** — `extract/snapshot.ts` adds two model-free
   mechanisms. (1) **Work snapshots**: at scan time the last 16 transcript lines
   of a project are mined deterministically (files touched, shell commands run,

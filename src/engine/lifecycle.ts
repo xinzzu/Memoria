@@ -110,6 +110,33 @@ function dailyMaintenance(): void {
         /* non-blokir */
       }
     }
+    // A4: project brief — satu memori ringkas per proyek yang selalu pertama
+    // di recall/handoff (Letta core memory / Cline memory bank, versi otomatis).
+    void (async () => {
+      try {
+        const db = require("./store/db") as typeof import("./store/db");
+        const projects = db
+          .getDb()
+          .prepare(
+            `SELECT DISTINCT m.project_id AS id FROM memories m
+             WHERE m.project_id IS NOT NULL AND m.archived = 0 AND m.status = 'active'
+             ORDER BY m.created_at DESC LIMIT 20`
+          )
+          .all() as Array<{ id: number }>;
+        let made = 0;
+        for (const p of projects) {
+          try {
+            const brief = await db.generateProjectBrief(p.id);
+            if (brief) made++;
+          } catch {
+            /* satu proyek gagal tidak menghentikan yang lain */
+          }
+        }
+        if (made) console.log(`[memoria] Project briefs refreshed: ${made}`);
+      } catch {
+        /* non-blokir */
+      }
+    })();
   } catch {
     // aman untuk diabaikan
   }
