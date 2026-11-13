@@ -10,7 +10,7 @@
  *    saat penyedia AI menutup sesi. Terdeteksi → ekstraksi prioritas + inject
  *    SEKARANG — bukan menunggu trigger idle 4 menit (watcher.ts).
  */
-import { getDb, getSetting, setSetting, effectiveStatus, Memory } from "../store/db";
+import { getDb, getSetting, setSetting, effectiveStatus, Memory, recordContinuity } from "../store/db";
 import { addMemoryWithDedupe } from "./dedupe";
 import { runGitStatus } from "../git";
 import { emitEvent } from "../events";
@@ -112,10 +112,11 @@ export async function captureSessionSnapshot(projectId: number, fallbackTool = "
   if (!proj) return null;
 
   const rows = d
-    .prepare("SELECT role, content FROM transcripts WHERE project_id = ? AND content != '' ORDER BY id DESC LIMIT 16")
-    .all(projectId) as Array<{ role: string; content: string }>;
+    .prepare("SELECT role, content, session_id FROM transcripts WHERE project_id = ? AND content != '' ORDER BY id DESC LIMIT 16")
+    .all(projectId) as Array<{ role: string; content: string; session_id: string | null }>;
   if (!rows.length) return null;
   const { files, commands, errors, lastUser } = extractSignals(rows.reverse());
+  const sourceSession = rows.find((r) => r.session_id)?.session_id || "";
 
   // Git status: sinyal absolut "apa yang sedang dikerjakan" (F1A sudah membaca
   // ini untuk handoff — kini juga disimpan sebagai memori).
@@ -157,6 +158,7 @@ export async function captureSessionSnapshot(projectId: number, fallbackTool = "
     status: effectiveStatus(),
     origin: "heuristic",
     embedModel: embedding ? eprov.embedModel : undefined,
+    sourceSession,
   });
   return result;
 }
@@ -177,6 +179,7 @@ export async function checkLimitSignals(): Promise<void> {
       for (const pid of projects) {
         const snap = await captureSessionSnapshot(pid);
         snapshotResults.push({ projectId: pid, snapshotted: !!snap });
+        recordContinuity("limit_hit", pid, `snapshotted=${!!snap}`);
         emitEvent("limit_hit", { projectId: pid, snapshotted: !!snap });
       }
       console.log(
@@ -187,7 +190,10 @@ export async function checkLimitSignals(): Promise<void> {
       await extractQueue(true, { order: "desc" });
       const { autoInjectContext } = await import("../handoff");
       const injected = await autoInjectContext();
-      if (injected.length) console.log(`[memoria] Pre-limit resume context ready for: ${injected.join(", ")}`);
+      if (injected.length) {
+        console.log(`[memoria] Pre-limit resume context ready for: ${injected.join(", ")}`);
+        recordContinuity("resume_ready", null, injected.join(", "));
+      }
     } finally {
       limitFiring = false;
     }

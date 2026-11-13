@@ -36,6 +36,12 @@ export interface Memory {
   embedModel?: string;
   updatedAt?: number;
   updatedBy?: string;
+  /** Sesi sumber memori (provenance) — deep-link ke percakapan asal. */
+  sourceSession?: string;
+  /** Temporal (ala Graphiti): fakta berlaku sejak valid_from sampai valid_to
+   * (0 = masih berlaku). Archive/resolved menutup window. */
+  validFrom?: number;
+  validTo?: number;
 }
 
 let db: DatabaseSync | null = null;
@@ -170,7 +176,80 @@ const MIGRATIONS: Migration[] = [
   { version: 3, name: "sync-uid-outbox", up: m3Sync },
   { version: 4, name: "sync-lww-metadata", up: m4SyncMetadata },
   { version: 5, name: "sync-applied-bundle", up: m5SyncAppliedBundle },
+  { version: 6, name: "temporal-provenance-continuity", up: m6ContextProvenance },
 ];
+
+/** M6: memori temporal (valid_from/valid_to) + provenance sesi + ledger
+ * continuity (limit_hit → resume_ready) untuk metrik limit-hopping. */
+function m6ContextProvenance(d: DatabaseSync): void {
+  d.exec(`
+    ALTER TABLE memories ADD COLUMN valid_from INTEGER DEFAULT 0;
+    ALTER TABLE memories ADD COLUMN valid_to INTEGER DEFAULT 0;
+    ALTER TABLE memories ADD COLUMN source_session TEXT DEFAULT '';
+    UPDATE memories SET valid_from = created_at WHERE valid_from = 0 AND created_at > 0;
+    CREATE TABLE IF NOT EXISTS continuity_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts INTEGER NOT NULL,
+      project_id INTEGER,
+      kind TEXT NOT NULL,
+      detail TEXT DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_continuity_ts ON continuity_events(ts);
+  `);
+}
+
+/* ---------- Continuity metrics (F4/B8) ---------- */
+
+export function recordContinuity(kind: string, projectId: number | null, detail = ""): void {
+  getDb()
+    .prepare("INSERT INTO continuity_events (ts, project_id, kind, detail) VALUES (?, ?, ?, ?)")
+    .run(Date.now(), projectId, kind, detail.slice(0, 400));
+}
+
+export interface ContinuityStats {
+  limits30d: number;
+  resumesReady30d: number;
+  lastLimitAt: number;
+  lastResumeAt: number;
+  /** Rata-rata jeda limit → resume siap (ms) dari pasangan terkini. */
+  avgResumeGapMs: number;
+}
+
+export function continuityStats(): ContinuityStats {
+  const d = getDb();
+  const since = Date.now() - 30 * 24 * 60 * 60_000;
+  const count = (kind: string): number => {
+    const r = d.prepare("SELECT COUNT(*) AS c FROM continuity_events WHERE kind = ? AND ts >= ?").get(kind, since) as { c: number };
+    return r.c;
+  };
+  const lastOf = (kind: string): number => {
+    const r = d.prepare("SELECT MAX(ts) AS t FROM continuity_events WHERE kind = ?").get(kind) as { t: number | null };
+    return r.t || 0;
+  };
+  // Jeda per limit terakhir → resume_ready berikutnya (paling relevan untuk UX).
+  const limits = d
+    .prepare("SELECT ts FROM continuity_events WHERE kind = 'limit_hit' ORDER BY ts DESC LIMIT 20")
+    .all() as Array<{ ts: number }>;
+  const resumes = d
+    .prepare("SELECT ts FROM continuity_events WHERE kind = 'resume_ready' ORDER BY ts DESC LIMIT 40")
+    .all() as Array<{ ts: number }>;
+  let gapSum = 0;
+  let gapN = 0;
+  for (const l of limits) {
+    const next = resumes.find((r) => r.ts >= l.ts);
+    if (next) {
+      gapSum += next.ts - l.ts;
+      gapN++;
+    }
+  }
+  return {
+    limits30d: count("limit_hit"),
+    resumesReady30d: count("resume_ready"),
+    lastLimitAt: lastOf("limit_hit"),
+    lastResumeAt: lastOf("resume_ready"),
+    avgResumeGapMs: gapN ? Math.round(gapSum / gapN) : 0,
+  };
+}
 
 function runMigrations(d: DatabaseSync): void {
   const row = d.prepare("PRAGMA user_version").get() as { user_version: number | null };
@@ -1059,8 +1138,8 @@ export function insertMemory(m: Memory): void {
   const uid = m.uid || randomUUID();
   const now = Date.now();
   d.prepare(
-    `INSERT INTO memories (project_id, kind, content, importance, created_at, source_tool, embedding, status, origin, embed_model, uid, updated_at, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO memories (project_id, kind, content, importance, created_at, source_tool, embedding, status, origin, embed_model, uid, updated_at, updated_by, source_session, valid_from)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     m.projectId,
     m.kind,
@@ -1074,7 +1153,9 @@ export function insertMemory(m: Memory): void {
     m.embedModel || "",
     uid,
     m.updatedAt || now,
-    m.updatedBy || getDeviceId()
+    m.updatedBy || getDeviceId(),
+    m.sourceSession || "",
+    m.validFrom || m.createdAt || now
   );
   // node:sqlite mengembalikan objek ber-prototype null — ambil properti .id-nya.
   // Number(row) di atas objek null-prototype melempar "Cannot convert object to
@@ -1260,11 +1341,94 @@ export function updateMemory(
 }
 
 export function archiveMemory(id: number, archived = true): boolean {
+  // Temporal: arsip menutup window keberlakuan fakta (valid_to); unarchive
+  // membukanya kembali — "apa yang kami percaya di tanggal X" jadi mungkin.
   const res = getDb()
-    .prepare("UPDATE memories SET archived = ?, updated_at = ?, updated_by = ? WHERE id = ?")
-    .run(archived ? 1 : 0, Date.now(), getDeviceId(), id);
+    .prepare(
+      `UPDATE memories SET archived = ?, updated_at = ?, updated_by = ?, valid_to = CASE WHEN ? = 1 THEN ? ELSE 0 END WHERE id = ?`
+    )
+    .run(archived ? 1 : 0, Date.now(), getDeviceId(), archived ? 1 : 0, archived ? Date.now() : 0, id);
   if (res.changes > 0) enqueueMemorySnapshot(id);
   return res.changes > 0;
+}
+
+/* ---------- Project brief (A4 — Letta core memory / Cline memory bank) ----------
+ * Satu memori ringkas per proyek yang SELALU muncul pertama di recall/handoff.
+ * Di-generate heuristik (tanpa LLM), regenerasi = ganti memori brief lama. */
+export const BRIEF_PREFIX = "Project brief:";
+
+export function getProjectBrief(projectId: number): Memory | null {
+  const row = getDb()
+    .prepare(
+      `SELECT id FROM memories WHERE project_id = ? AND kind = 'context' AND archived = 0 AND content LIKE ? ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(projectId, `${BRIEF_PREFIX}%`) as { id: number } | undefined;
+  return row ? memoryById(row.id) : null;
+}
+
+/** Ringkas proyek jadi brief padat: keputusan terkunci, tugas terbuka,
+ * preferensi, fakta penting — dipilih importance × recency, ≤ ~700 char. */
+export async function generateProjectBrief(projectId: number): Promise<Memory | null> {
+  const now = Date.now();
+  const mems = readMemories(
+    `WHERE project_id = ? AND archived = 0 AND status = 'active' AND content NOT LIKE ? ORDER BY importance DESC, created_at DESC LIMIT 60`,
+    [projectId, `${BRIEF_PREFIX}%`]
+  );
+  if (!mems.length) return null;
+  const pick = (kinds: string[], n: number): Memory[] =>
+    mems
+      .filter((m) => kinds.includes(m.kind))
+      .sort((a, b) => b.importance * Math.exp(-(now - b.createdAt) / (45 * 86400_000)) - a.importance * Math.exp(-(now - a.createdAt) / (45 * 86400_000)))
+      .slice(0, n);
+  const decisions = pick(["decision"], 3);
+  const tasks = pick(["task_pending"], 3);
+  const prefs = pick(["preference"], 2);
+  const facts = pick(["fact", "error_fixed", "task_done", "context"], 3);
+  const fmt = (m: Memory) => `- ${m.content.replace(/\s+/g, " ").slice(0, 130)}`;
+  const sections: string[] = [];
+  if (decisions.length) sections.push("DECISIONS:\n" + decisions.map(fmt).join("\n"));
+  if (tasks.length) sections.push("OPEN TASKS:\n" + tasks.map(fmt).join("\n"));
+  if (prefs.length) sections.push("PREFERENCES:\n" + prefs.map(fmt).join("\n"));
+  if (facts.length) sections.push("KEY FACTS:\n" + facts.map(fmt).join("\n"));
+  if (!sections.length) return null;
+  const name = projectSlugById(projectId) || "project";
+  const content = `${BRIEF_PREFIX} ${name} — auto-maintained. Read this FIRST.\n\n${sections.join("\n\n")}`.slice(0, 1400);
+
+  // Regenerasi: hapus brief lama (tombstone sinkron) lalu insert yang baru.
+  const d = getDb();
+  const olds = d
+    .prepare(`SELECT id FROM memories WHERE project_id = ? AND kind = 'context' AND content LIKE ?`)
+    .all(projectId, `${BRIEF_PREFIX}%`) as Array<{ id: number }>;
+  for (const o of olds) deleteMemory(o.id);
+
+  const eprov = await getEmbedProviderSafe();
+  const embedding = eprov ? await eprov.embed(content) : null;
+  insertMemory({
+    projectId,
+    kind: "context",
+    content,
+    importance: 1,
+    createdAt: now,
+    lastAccessed: 0,
+    accessCount: 0,
+    sourceTool: "brief",
+    embedding: embedding ?? null,
+    status: "active",
+    origin: "heuristic",
+    embedModel: embedding ? eprov!.embedModel : "",
+  });
+  const fresh = getProjectBrief(projectId);
+  if (fresh && fresh.id != null) enqueueMemorySnapshot(fresh.id);
+  return fresh;
+}
+
+async function getEmbedProviderSafe(): Promise<{ embed(text: string): Promise<number[] | null>; embedModel: string } | null> {
+  try {
+    const { getEmbedProvider } = await import("../extract/provider");
+    return await getEmbedProvider();
+  } catch {
+    return null;
+  }
 }
 
 export function listArchived(): Memory[] {
@@ -1352,6 +1516,9 @@ export function readMemories(whereClause: string, params: Array<number | string 
     embed_model: string | null;
     updated_at: number | null;
     updated_by: string | null;
+    source_session: string | null;
+    valid_from: number | null;
+    valid_to: number | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
@@ -1371,6 +1538,9 @@ export function readMemories(whereClause: string, params: Array<number | string 
     embedModel: r.embed_model || "",
     updatedAt: r.updated_at || 0,
     updatedBy: r.updated_by || "",
+    sourceSession: r.source_session || "",
+    validFrom: r.valid_from || r.created_at || 0,
+    validTo: r.valid_to || 0,
   }));
 }
 
