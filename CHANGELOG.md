@@ -6,12 +6,25 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
-## [0.8.0] — 2026-11-14 — Encrypted Sync & Zero-AI Brain
+## [0.9.0] — 2026-11-14 — Two-way & Measured
 
-**Otak yang mengikuti kamu, gratis selamanya**: sync terenkripsi antar mesin
-(M1–M4), agen yang bisa mengkurasi memorinya sendiri, snapshot sesi tanpa AI
-yang tiba *sebelum* limit habis, dan kualitas retrieval yang kini terukur
-terbuka (hit@5 92.8–100% pada eval reproducible).
+**Memori kini mengalir dua arah** (impor vault Obsidian/memory-bank), pemicu
+pre-limit bisa berbunyi di HP-mu (webhook `notifyLimit`), dan setiap perubahan
+ranking kini wajib mengalahkan angka eval terlebih dahulu — percobaan RRF
+kalah dan dicatat, bukan dilandaskan buta.
+
+### Added
+- **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
+  Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
+  whenever you're ready" (opt-in toggle in Settings → Notifications, event
+  payload carries project slug + snapshot status).
+- **Obsidian two-way — import side (PR-G)** — `POST /api/import/markdown
+  {folder, project?}` + UI (Backup & data → Import Markdown): a folder of
+  .md notes (Obsidian vault, Cline memory bank, plain notes) is imported as
+  memories — first heading becomes the title line, 2 levels deep, ≤500 files,
+  tiny files skipped, embeddings computed locally. Idempotent by design:
+  re-importing the same folder merges via dedupe instead of duplicating.
+  Completes the two-way story with the existing Obsidian export.
 
 ### Fixed
 - **Overview "Recently worked on" no longer lists zero-activity projects** —
@@ -27,18 +40,14 @@ terbuka (hit@5 92.8–100% pada eval reproducible).
   hit@1/MRR at the 600-query scale. Kept the blend; experiment documented so
   nobody re-proposes it without beating both scales.
 
+## [0.8.0] — 2026-11-14 — Encrypted Sync & Zero-AI Brain
+
+**Otak yang mengikuti kamu, gratis selamanya**: sync terenkripsi antar mesin
+(M1–M4), agen yang bisa mengkurasi memorinya sendiri, snapshot sesi tanpa AI
+yang tiba *sebelum* limit habis, dan kualitas retrieval yang kini terukur
+terbuka (hit@5 92.8–100% pada eval reproducible).
+
 ### Added
-- **Obsidian two-way — import side (PR-G)** — `POST /api/import/markdown
-  {folder, project?}` + UI (Backup & data → Import Markdown): a folder of
-  .md notes (Obsidian vault, Cline memory bank, plain notes) is imported as
-  memories — first heading becomes the title line, 2 levels deep, ≤500 files,
-  tiny files skipped, embeddings computed locally. Idempotent by design:
-  re-importing the same folder merges via dedupe instead of duplicating.
-  Completes the two-way story with the existing Obsidian export.
-- **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
-  Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
-  whenever you're ready" (opt-in toggle in Settings → Notifications, event
-  payload carries project slug + snapshot status).
 - **Eval harness lite (PR-D)** — `scripts/eval-search.mjs`: a reproducible
   LongEval-lite benchmark (deterministic PRNG seed 42, N topics × paraphrase +
   typo queries, generic noise memories as distractors) that scores
