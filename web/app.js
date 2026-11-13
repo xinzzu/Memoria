@@ -474,13 +474,18 @@ function projectRow(p, clickable) {
 
 let memPagination = null; // { offset, hasMore } untuk tab aktif tanpa filter
 
+let memRenderSeq = 0; // PR-N: "latest wins" — respons fetch lama tidak menimpa
+
 async function renderMemories(append = false) {
+  const seq = ++memRenderSeq;
+  const fresh = () => seq === memRenderSeq; // false = ada render lebih baru
   const q = state.search.trim();
   const box = $("#memoriesList");
   try {
     if (state.filterTag && state.memTab === "active") {
       const offset = append && memPagination ? memPagination.offset : 0;
       const d = await api(`/api/memories/tag?tag=${encodeURIComponent(state.filterTag)}&limit=50&offset=${offset}`);
+      if (!fresh()) return;
       const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
       memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
       if (append) appendMemoryList(box, items);
@@ -491,6 +496,7 @@ async function renderMemories(append = false) {
     if (state.memTab !== "active") {
       const offset = append && memPagination ? memPagination.offset : 0;
       const d = await api(`/api/memories/list?status=${state.memTab}&limit=50&offset=${offset}`);
+      if (!fresh()) return;
       const raw = d.memories || [];
       let items = raw;
       if (state.filterKind) items = items.filter((m) => m.kind === state.filterKind);
@@ -511,6 +517,7 @@ async function renderMemories(append = false) {
     if (!q && !state.filterKind && !state.filterProject) {
       const offset = append && memPagination ? memPagination.offset : 0;
       const d = await api(`/api/memories?status=${state.memTab}&limit=50&offset=${offset}`);
+      if (!fresh()) return;
       const items = (d.memories || []).map((m) => ({ ...m, score: 1 }));
       memPagination = { offset: offset + items.length, hasMore: !!d.hasMore };
       if (append) appendMemoryList(box, items);
@@ -522,8 +529,10 @@ async function renderMemories(append = false) {
     if (!q) { renderMemoryList(box, []); return; }
     params.set("q", q);
     const d = await api("/api/search?" + params.toString());
+    if (!fresh()) return;
     renderMemoryList(box, d.hits);
   } catch (e) {
+    if (!fresh()) return;
     box.innerHTML = `<div class="err-box">
       <h4>${t("Couldn't load memories")}</h4>
       <p>${esc(e.message)}</p>
@@ -562,13 +571,22 @@ function renderLoadMore(box) {
 
 function renderMemoryList(box, items) {
   state.lastMemories = items || [];
+  // PR-N: jaga posisi scroll + skip rebuild saat HTML identik — SSE refresh
+  // tidak lagi membuat list "berkedip" dan scroll loncat ke atas.
+  const content = document.querySelector(".content");
+  const scrollBefore = content ? content.scrollTop : 0;
   if (!items || !items.length) {
     box.innerHTML = emptyState(t("No matching memories"), t("Try different keywords, or add a memory manually."));
+    if (content) content.scrollTop = scrollBefore;
     return;
   }
-  box.innerHTML = `<div class="list">${items.map(memoRowRenderer()).join("")}</div>`;
-  bindRowActions(box);
-  if (state.memTab === "draft") wireDraftBatch(box);
+  const html = `<div class="list">${items.map(memoRowRenderer()).join("")}</div>`;
+  if (box.innerHTML !== html) {
+    box.innerHTML = html;
+    bindRowActions(box);
+    if (state.memTab === "draft") wireDraftBatch(box);
+  }
+  if (content) content.scrollTop = scrollBefore;
 }
 
 /* ---------- Batch kurasi (Pending approval) ---------- */
@@ -2126,7 +2144,12 @@ function setupLiveEvents() {
   };
   const refreshCounts = throttled(() => {
     loadStats();
-    if (state.view === "memories") renderMemories();
+    if (state.view === "memories") {
+      // PR-N: di tab draft (review 4-5k item) SSE refresh tidak boleh rebuild
+      // list — data "hilang-hilangan" & scroll loncat. Angka cukup via
+      // loadStats; list di-render ulang saat user pindah tab/filter.
+      if (state.memTab !== "draft") renderMemories();
+    }
     if (state.view === "tasks") renderTasks();
     if (state.view === "overview") loadProjects();
   });
