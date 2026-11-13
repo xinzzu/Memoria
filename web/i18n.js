@@ -358,6 +358,8 @@
   "Approved": "Disetujui",
   "Select drafts to approve or delete them in one go": "Pilih draft untuk menyetujui atau menghapusnya sekaligus",
   "Notifications": "Notifikasi",
+  "Heuristic results are parked as drafts — {0} waiting for this project": "Hasil heuristik parkir sebagai draft — {0} menunggu untuk proyek ini",
+  "Review drafts": "Tinjau draft",
   "Saving…": "Menyimpan…",
   "Saved ✓": "Tersimpan ✓",
   "Save failed": "Gagal menyimpan",

@@ -19,6 +19,16 @@ import { countOpen } from "./extract/tasklife";
 import { addListener, removeListener, emitEvent } from "./events";
 import { runGitStatus } from "./git";
 
+// Versi engine dari package.json di root — dipakai chip versi dashboard
+// (dulu hardcoded, jadi selalu basi setiap rilis).
+const APP_VERSION: string = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "../../package.json"), "utf8")).version || "";
+  } catch {
+    return "";
+  }
+})();
+
 function sendJson(res: ServerResponse, code: number, data: unknown): void {
   const body = JSON.stringify(data);
   // CORS hanya untuk origin lokal — situs eksternal tidak boleh membaca respons API.
@@ -161,6 +171,7 @@ export function startHttpServer(): Promise<void> {
           .map(enrichMemory);
         sendJson(res, 200, {
           ...s,
+          version: APP_VERSION,
           ollamaOnline: ollama,
           engine,
           setup: {
@@ -285,9 +296,17 @@ export function startHttpServer(): Promise<void> {
         const git = rec.path && fs.existsSync(rec.path) ? await runGitStatus(rec.path) : null;
         const recentMemories = allMemories().filter((m) => m.projectId === rec.id).slice(0, 8)
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool }));
+        // Heuristic mode parks results in the review queue — surface them so a
+        // project with only drafts doesn't read as "empty".
+        const draftCount = (db.prepare("SELECT COUNT(*) AS c FROM memories WHERE project_id = ? AND archived = 0 AND status = 'draft'").get(rec.id) as { c: number }).c;
+        const drafts = db
+          .prepare("SELECT id, content, createdAt, source_tool AS sourceTool FROM memories WHERE project_id = ? AND archived = 0 AND status = 'draft' ORDER BY created_at DESC LIMIT 3")
+          .all(rec.id) as Array<{ id: number; content: string; createdAt: number; sourceTool: string }>;
         sendJson(res, 200, {
           project: { slug: rec.slug, name: rec.name, path: rec.path },
-          stats: { transcripts, memories: memCount, tasksOpen, lastSeen },
+          stats: { transcripts, memories: memCount, tasksOpen, lastSeen, drafts: draftCount },
+          draftCount,
+          drafts,
           week, git, tasks: { open: tasks.open.map(slim), done: tasks.done.map(slim) },
           recentMemories,
         });
