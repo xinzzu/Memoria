@@ -516,6 +516,21 @@ export function startHttpServer(): Promise<void> {
         const { consolidateMemories } = await import("./extract/consolidate");
         const r = await consolidateMemories();
         sendJson(res, 200, { ok: true, ...r });
+      } else if (url.pathname === "/api/import/markdown" && req.method === "POST") {
+        // PR-G: Obsidian dua arah — sisi import folder .md → memori.
+        const body = await readBody(req);
+        const folder = String(body.folder || "").trim();
+        if (!folder) {
+          sendJson(res, 400, { error: "folder wajib" });
+          return;
+        }
+        try {
+          const { importMarkdownNotes } = await import("./import/markdown");
+          const r = await importMarkdownNotes(folder, String(body.project || "") || undefined);
+          sendJson(res, 200, { ok: true, ...r });
+        } catch (e) {
+          sendJson(res, 400, { ok: false, error: String((e as Error).message || e) });
+        }
       } else if (url.pathname === "/api/projects/brief" && req.method === "POST") {
         // A4: regenerate project brief on-demand (dipakai juga untuk test UI).
         const body = await readBody(req);
