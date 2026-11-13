@@ -14,6 +14,12 @@ export function startBackgroundJobs(): void {
   } catch {
     /* non-blokir */
   }
+  try {
+    const { startFolderWatcher } = require("./sync/folder") as typeof import("./sync/folder");
+    startFolderWatcher();
+  } catch {
+    /* non-blokir */
+  }
   runHousekeepingSoon();
   const t = setInterval(runHousekeepingSoon, 5 * 60_000);
   const daily = setInterval(dailyMaintenance, 6 * 60 * 60_000);
@@ -23,6 +29,12 @@ export function startBackgroundJobs(): void {
 export function stopBackgroundJobs(): void {
   for (const t of timers) clearInterval(t);
   timers = [];
+  try {
+    const { stopFolderWatcher } = require("./sync/folder") as typeof import("./sync/folder");
+    stopFolderWatcher();
+  } catch {
+    /* non-blokir */
+  }
 }
 
 async function runHousekeepingSoon(): Promise<void> {

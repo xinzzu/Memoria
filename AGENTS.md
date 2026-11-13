@@ -22,19 +22,20 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
   → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
   `POST /api/notify/test`, secret terenkripsi safeStorage) → v0.7.1 (pagination
   pustaka SQL-level, batch embedding OpenAI-compat, CI verify + tag guard).
-- Belum rilis: **sync M1 + M2** — migrasi v3/v4 (UID stabil, `updated_by`,
-  outbox/HLC, entity clock, tombstone, conflict log, seen-op ledger, embed queue,
-  project alias), CLI `memoria sync setup|status|export|import` (`--full`,
-  `--join`, `--passphrase`, `--embed`), recovery code + key storage
+- Belum rilis: **sync M1 + M2 + M3** — migrasi v3/v4/v5 (UID stabil, `updated_by`,
+  outbox/HLC, entity clock, tombstone, conflict/seen-op ledger, embed queue,
+  project alias, applied-bundle ledger), CLI `memoria sync
+  setup|status|export|import|folder set|folder status|conflicts` (`--full`,
+  `--join`, `--passphrase`, `--embed`, `--clear`), recovery code + key storage
   safeStorage/passphrase, bundle `.memsync` terenkripsi (AES-256-GCM, HKDF per
-  file, gzip JSONL, AAD header), apply idempoten/LWW, relay full export, dan
-  embedding backfill lokal. Desain: `docs/sync-design.md`; lanjut M3 shared
-  folder sync.
+  file, gzip JSONL, AAD header), apply idempoten/LWW, relay full export,
+  embedding backfill lokal, dan shared-folder watcher/atomic export + scan/apply.
+  Desain: `docs/sync-design.md`; lanjut M4 UX/hardening.
 - Rilis otomatis: push tag `v*` (wajib cocok dengan versi `package.json`) →
   verify (`npm test` + `check:ui`) → build 3 OS → publish GitHub Release.
   Body release diambil dari seksi CHANGELOG versi itu (fallback: git log
   antar-tag). Verify juga jalan di PR dan push ke `main`.
-- Sisa backlog: sync M2–M5 (crypto/bundle manual → folder → UX → hardening),
+- Sisa backlog: sync M4–M5 (UX → hardening),
   code signing (butuh keputusan biaya).
 
 ## Arsitektur singkat

@@ -7,6 +7,21 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Encrypted sync shared-folder transport (M3)** — database migration v5 adds
+  the `sync_applied_bundle` ledger (with backfill from legacy `sync_applied`)
+  to track applied bundle IDs across manual and folder imports. New folder sync
+  layer (`src/engine/sync/folder.ts`) supports configuring a writable shared
+  folder (Dropbox/iCloud/Syncthing/network share), folder status, atomic
+  debounced delta export of `<device>-<stamp>.memsync` bundles, and watcher-
+  driven scan/apply of peer bundles with idempotent ledger checks and per-file
+  decrypt/AAD/parse error tolerance. CLI adds `memoria sync folder set|status`
+  and `memoria sync conflicts`; folder watcher runs in engine background jobs.
+  Cleanup removes this device’s own bundles older than 14 days. Never syncs
+  embeddings, secrets, settings, transcripts, or machine-local paths. Two-device
+  integration tests cover convergence (create/delete tombstone), concurrent LWW
+  conflict handling, idempotent re-apply, folder guards, and CLI (41 tests
+  total).
+
 - **Encrypted sync manual bundles (M2)** — database migration v4 adds
   per-entity LWW clocks, tombstones, conflict log, seen-op ledger, embedding
   backfill queue, and project slug aliases. New `memoria sync setup|status|export|import`
