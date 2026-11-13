@@ -211,3 +211,42 @@ test("F1C: listMemoriesPage — SQL LIMIT/OFFSET setara materialisasi lama", () 
     assert.deepEqual(gotIds, expected.map((m) => m.id), `urutan halaman ${status} harus sama`);
   }
 });
+
+/* ---- MCP self-editing: update_memory (re-embed) & forget (delete) ---- */
+test("MCP: updateMemory — konten baru + vektor baru + FTS mengikuti", () => {
+  dbmod.insertMemory(mem("preferensi build pakai pnpm bukan npm updatecase", { embedding: [0, 0, 0.5, 0, 0, 0, 0, 0], embedModel: "hash-256-v1" }));
+  const row = dbmod.allMemories().find((m) => m.content.includes("updatecase"));
+  const embLama = row.embedding.slice();
+  const ok = dbmod.updateMemory(row.id, {
+    content: "preferensi build pakai bun bukan pnpm",
+    embedding: [1, 0, 0, 0, 0, 0, 0, 0],
+    embedModel: "hash-256-v1",
+  });
+  assert.ok(ok, "update harus berhasil");
+  const after = dbmod.memoryById(row.id);
+  assert.match(after.content, /bun/);
+  assert.equal(after.embedding[0], 1, "vektor baru harus tersimpan");
+  assert.notEqual(after.embedding[0], embLama[0], "vektor harus berubah dari sebelum edit");
+  assert.equal(after.embedModel, "hash-256-v1");
+  assert.ok(searchmod.searchMemories("bun", { limit: 5 }).some((h) => h.id === row.id), "FTS harus ketemu konten baru");
+  const stale = dbmod.getDb().prepare('SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?').all('"updatecase"');
+  assert.equal(stale.length, 0, "kata lama harus hilang dari index FTS");
+});
+
+test("MCP: updateMemory tanpa embedding patch — vektor lama dipertahankan", () => {
+  dbmod.insertMemory(mem("memori update tanpa vektor baru keepvec", { embedding: [0, 1, 0, 0], embedModel: "hash-256-v1" }));
+  const row = dbmod.allMemories().find((m) => m.content.includes("keepvec"));
+  dbmod.updateMemory(row.id, { importance: 0.9 });
+  const after = dbmod.memoryById(row.id);
+  assert.equal(after.importance, 0.9);
+  assert.equal(after.embedding[1], 1, "vektor lama tidak boleh hilang");
+});
+
+test("MCP: deleteMemory — baris hilang + FTS tidak lagi match", () => {
+  dbmod.insertMemory(mem("memori sementara untuk dihapus forgetq"));
+  const row = dbmod.allMemories().find((m) => m.content.includes("forgetq"));
+  assert.ok(dbmod.deleteMemory(row.id), "delete harus berhasil");
+  assert.equal(dbmod.memoryById(row.id), null);
+  const stale = dbmod.getDb().prepare('SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?').all('"forgetq"');
+  assert.equal(stale.length, 0, "index FTS harus bersih setelah delete");
+});

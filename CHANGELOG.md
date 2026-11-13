@@ -7,6 +7,14 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **MCP self-editing tools** — the MCP server now exposes `update_memory`
+  (correct content/kind/importance; a content change is auto re-embedded so
+  semantic search stays accurate) and `forget` (delete a stale memory by id,
+  or by query — a confident match is deleted immediately, otherwise
+  candidates are listed for an explicit id). `updateMemory` gains optional
+  embedding/embed-model patch support so edits never leave stale vectors
+  behind; FTS5 stays in sync via its UPDATE trigger. Agents can now curate
+  their own second brain, not only append to it.
 - **Encrypted sync UX (M4)** — Settings now includes a **Sync** tab showing
   group/device status, pending outbox, last export/import, embed queue, shared
   folder path/state/error, and recent conflict log (last-writer-wins). Folder
