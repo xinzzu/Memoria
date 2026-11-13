@@ -14,21 +14,30 @@ keywordScore, fallback legacy untuk recall typo) · embedding Float32 BLOB (migr
 `/api/memories/tag` + "Load more" di semua tab Memories · event delegation (tanpa re-bind
 O(n)) · `content-visibility` menggantikan virtualisasi JS (tinggi baris variabel aman).
 Acceptance F1C: 5.000 memori sintetis → search median 5,4–58,0 ms, semua < 100 ms
-(`scripts/bench-f1c.mjs`). Test suite 18/18 (`node --test tests/`). · F2 ✅ (v0.5.0):
-Tasks view, engine EN, safeStorage, batch embedding, setup checklist, settings two-pane,
-graph obsidian + 3D, i18n penuh, light theme, SSE live, test suite, project detail view.
+(`scripts/bench-f1c.mjs`). · F2 ✅ (v0.5.0): Tasks view, engine EN, safeStorage, batch
+embedding, setup checklist, settings two-pane, graph obsidian + 3D, i18n penuh, light
+theme, SSE live, test suite, project detail view.
+
+**Aktif — Sync M1 (branch `feat/sync-m1`, belum merge):** migrasi `user_version` v3
+(UID stabil + `updated_by`, tabel `sync_devices`/`sync_outbox`/`sync_applied`/`sync_state`),
+backfill snapshot project/memory/link, HLC `wall.counter.device`, outbox upsert/delete
+non-blokir, tombstone hapus memori + link, hook suppression untuk replay peer, dan test
+v2→v3. Test suite kini **31 kasus**. Migrasi DB asli 5k memori terukur ±0,8 dtk
+(5669 snapshot ops, sekali jalan). Berikutnya **M2**: crypto group key/recovery code,
+bundle `.memsync` manual, apply idempoten, lalu embedding backfill queue.
 
 **Backlog eksekusi berikutnya (urut):**
 1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
-   Discord/Telegram/generic + 4 event + Send test + secret terenkripsi; test suite kini 29 kasus)
-2. Sisa F3: sinkronisasi terenkripsi antar mesin (desain draft: `docs/sync-design.md`),
-   code signing/notarization (butuh keputusan biaya: Apple Developer + cert Windows)
+   Discord/Telegram/generic + 4 event + Send test + secret terenkripsi)
+2. **Sync M1 ✅ di branch → M2 crypto/manual bundle → M3 shared folder → M4 UX →
+   M5 hardening** (desain: `docs/sync-design.md`). Code signing/notarization masih
+   menunggu keputusan biaya (Apple Developer + cert Windows).
 3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat
    (batch 64/request, mapping via `index`, chunk otomatis) + SQL-level LIMIT
    `/api/memories` & `/api/memories/list` (`listMemoriesPage`).
 4. Rilis v0.7.1 ✅ (tag + changelog): pagination SQL, batch embedding
-   OpenAI-compat, CI verify + tag guard. Rilis berikutnya menunggu sync
-   terenkripsi/code signing atau kumpulan perbaikan berikutnya.
+   OpenAI-compat, CI verify + tag guard. Rilis berikutnya menunggu sync M2+
+   atau code signing.
 
 **Catatan lingkungan:** server live jalan via `nohup node dist/engine/index.js server` (port 48210,
 data asli ~/.memoria, 17.8k transkrip; backlog ekstraksi qwen berjalan bertahap di background).

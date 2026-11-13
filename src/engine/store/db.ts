@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { extractEntities } from "../extract/entities";
@@ -17,6 +18,7 @@ export interface Transcript {
 
 export interface Memory {
   id?: number;
+  uid?: string;
   projectId: number | null;
   kind: string;
   content: string;
@@ -32,6 +34,8 @@ export interface Memory {
   origin?: string;
   /** Dialek embedding (nama model / hash-256-v1). Vektor lintas dialek tak boleh dibandingkan. */
   embedModel?: string;
+  updatedAt?: number;
+  updatedBy?: string;
 }
 
 let db: DatabaseSync | null = null;
@@ -163,6 +167,7 @@ type Migration = { version: number; name: string; up: (d: DatabaseSync) => void 
 const MIGRATIONS: Migration[] = [
   { version: 1, name: "fts5-keyword-index", up: m1Fts5 },
   { version: 2, name: "embedding-float32-blob", up: m2EmbeddingBlob },
+  { version: 3, name: "sync-uid-outbox", up: m3Sync },
 ];
 
 function runMigrations(d: DatabaseSync): void {
@@ -170,9 +175,20 @@ function runMigrations(d: DatabaseSync): void {
   let v = Number(row.user_version) || 0;
   for (const m of MIGRATIONS) {
     if (m.version <= v) continue;
-    m.up(d);
-    d.exec(`PRAGMA user_version = ${m.version}`);
-    v = m.version;
+    d.exec("BEGIN");
+    try {
+      m.up(d);
+      d.exec(`PRAGMA user_version = ${m.version}`);
+      d.exec("COMMIT");
+      v = m.version;
+    } catch (err) {
+      try {
+        d.exec("ROLLBACK");
+      } catch {
+        /* transaksi mungkin sudah batal */
+      }
+      throw err;
+    }
   }
 }
 
@@ -213,6 +229,91 @@ function m2EmbeddingBlob(d: DatabaseSync): void {
     } catch {
       continue; // vektor rusak: biarkan, jalur baca juga menoleransi ini
     }
+  }
+}
+
+/** M3: identitas stabil + outbox sync. UID dipakai lintas mesin karena id
+ * autoincrement lokal tidak mungkin sama. Snapshot awal di-enqueue sekali agar
+ * peer baru bisa bootstrap tanpa membaca seluruh tabel dari sisi exporter. */
+function m3Sync(d: DatabaseSync): void {
+  const addColumn = (table: string, column: string, decl: string): void => {
+    const cols = (d.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name);
+    if (!cols.includes(column)) d.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+  };
+  addColumn("projects", "uid", "TEXT");
+  addColumn("projects", "updated_by", "TEXT DEFAULT ''");
+  addColumn("memories", "uid", "TEXT");
+  addColumn("memories", "updated_by", "TEXT DEFAULT ''");
+
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS sync_devices (
+      device_id TEXT PRIMARY KEY,
+      name TEXT,
+      created_at INTEGER NOT NULL,
+      last_seen INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_outbox (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      op_id TEXT UNIQUE NOT NULL,
+      seq INTEGER NOT NULL,
+      hlc TEXT NOT NULL,
+      entity TEXT NOT NULL,
+      entity_uid TEXT NOT NULL,
+      op TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_outbox_hlc ON sync_outbox(hlc);
+    CREATE INDEX IF NOT EXISTS idx_sync_outbox_entity ON sync_outbox(entity, entity_uid);
+    CREATE TABLE IF NOT EXISTS sync_applied (
+      file_id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL,
+      applied_at INTEGER NOT NULL,
+      op_count INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+
+  const deviceId = getDeviceId();
+  const updProjectUid = d.prepare("UPDATE projects SET uid = ? WHERE id = ?");
+  for (const row of d.prepare("SELECT id FROM projects WHERE uid IS NULL OR uid = ''").all() as Array<{ id: number }>) {
+    updProjectUid.run(randomUUID(), row.id);
+  }
+  const updMemoryUid = d.prepare("UPDATE memories SET uid = ? WHERE id = ?");
+  for (const row of d.prepare("SELECT id FROM memories WHERE uid IS NULL OR uid = ''").all() as Array<{ id: number }>) {
+    updMemoryUid.run(randomUUID(), row.id);
+  }
+  d.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_uid ON projects(uid);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_uid ON memories(uid);
+  `);
+
+  d.prepare("UPDATE memories SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = 0").run();
+  d.prepare("UPDATE memories SET updated_by = ? WHERE updated_by IS NULL OR updated_by = ''").run(deviceId);
+  d.prepare("UPDATE projects SET updated_by = ? WHERE updated_by IS NULL OR updated_by = ''").run(deviceId);
+  d.prepare("INSERT OR IGNORE INTO sync_devices (device_id, name, created_at, last_seen) VALUES (?, ?, ?, ?)").run(
+    deviceId,
+    "local",
+    Date.now(),
+    Date.now()
+  );
+
+  for (const row of d.prepare("SELECT id FROM projects ORDER BY id").all() as Array<{ id: number }>) {
+    enqueueProjectSnapshot(row.id);
+  }
+  for (const row of d.prepare("SELECT id FROM memories ORDER BY id").all() as Array<{ id: number }>) {
+    enqueueMemorySnapshot(row.id);
+  }
+  for (const row of d.prepare("SELECT from_memory_id, to_memory_id, kind, weight FROM memory_links ORDER BY id").all() as Array<{
+    from_memory_id: number;
+    to_memory_id: number;
+    kind: string;
+    weight: number;
+  }>) {
+    enqueueLinkSnapshot(row.from_memory_id, row.to_memory_id, row.kind, row.weight);
   }
 }
 
@@ -281,6 +382,207 @@ export function closeDb(): void {
     db = null;
   }
 }
+
+/* ---------- Sync primitives M1 (HLC + outbox) ----------
+ * Outbox di level aplikasi (bukan trigger SQL) agar payload bisa memuat tag,
+ * UID proyek, dan link tanpa query rekursif dari trigger. Semua kegagalan
+ * pencatatan sync sengaja non-blokir: ingest tetap jalan walau outbox rusak. */
+
+export type SyncEntity = "project" | "memory" | "link";
+export type SyncOp = "upsert" | "delete";
+
+let syncCaptureEnabled = true;
+
+/** Dipakai jalur apply M2 agar replay dari peer tidak masuk outbox lagi. */
+export function setSyncCaptureEnabled(enabled: boolean): void {
+  syncCaptureEnabled = enabled;
+}
+
+function syncStateGet(key: string): string {
+  const row = getDb().prepare("SELECT value FROM sync_state WHERE key = ?").get(key) as
+    | { value: string }
+    | undefined;
+  return row?.value ?? "";
+}
+
+function syncStateSet(key: string, value: string): void {
+  getDb()
+    .prepare("INSERT INTO sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+    .run(key, value);
+}
+
+export function getDeviceId(): string {
+  const d = getDb();
+  const existing = syncStateGet("device_id");
+  if (existing) return existing;
+  const id = randomUUID();
+  syncStateSet("device_id", id);
+  d.prepare("INSERT OR IGNORE INTO sync_devices (device_id, name, created_at, last_seen) VALUES (?, ?, ?, ?)").run(
+    id,
+    "local",
+    Date.now(),
+    Date.now()
+  );
+  return id;
+}
+
+function nextSeq(): number {
+  const next = Number(syncStateGet("seq") || 0) + 1;
+  syncStateSet("seq", String(next));
+  return next;
+}
+
+/** HLC zero-padded agar perbandingan string konsisten lintas device. */
+export function nextHlc(deviceId = getDeviceId()): string {
+  const prev = syncStateGet("clock");
+  const [prevWallRaw, prevCounterRaw] = prev.split(".");
+  const prevWall = Number(prevWallRaw) || 0;
+  const prevCounter = Number(prevCounterRaw) || 0;
+  const now = Date.now();
+  const wall = now > prevWall ? now : prevWall;
+  const counter = now > prevWall ? 0 : prevCounter + 1;
+  const hlc = `${String(wall).padStart(13, "0")}.${String(counter).padStart(6, "0")}.${deviceId}`;
+  syncStateSet("clock", hlc);
+  return hlc;
+}
+
+export function compareHlc(a: string, b: string): number {
+  const [aw, ac, ...ad] = String(a || "").split(".");
+  const [bw, bc, ...bd] = String(b || "").split(".");
+  const wallA = Number(aw) || 0;
+  const wallB = Number(bw) || 0;
+  if (wallA !== wallB) return wallA < wallB ? -1 : 1;
+  const counterA = Number(ac) || 0;
+  const counterB = Number(bc) || 0;
+  if (counterA !== counterB) return counterA < counterB ? -1 : 1;
+  const devA = ad.join(".");
+  const devB = bd.join(".");
+  if (devA === devB) return 0;
+  return devA < devB ? -1 : 1;
+}
+
+export function hlcNewer(a: string, b: string): boolean {
+  return compareHlc(a, b) > 0;
+}
+
+/** Catat jam peer agar HLC lokal berikutnya selalu menang atas operasi yang baru dilihat. */
+export function observeHlc(remote: string): void {
+  if (!remote) return;
+  const local = syncStateGet("clock");
+  if (!local || hlcNewer(remote, local)) syncStateSet("clock", remote);
+}
+
+export function queueSyncOp(entity: SyncEntity, entityUid: string, op: SyncOp, payload: unknown): void {
+  if (!syncCaptureEnabled || !entityUid) return;
+  try {
+    const d = getDb();
+    const deviceId = getDeviceId();
+    const seq = nextSeq();
+    const hlc = nextHlc(deviceId);
+    d.prepare(
+      `INSERT INTO sync_outbox (op_id, seq, hlc, entity, entity_uid, op, payload, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(`${deviceId}:${seq}`, seq, hlc, entity, entityUid, op, JSON.stringify(payload ?? {}), Date.now());
+  } catch (err) {
+    console.warn("[memoria] sync outbox:", err instanceof Error ? err.message : err);
+  }
+}
+
+function enqueueProjectSnapshot(id: number): void {
+  try {
+    const row = getDb()
+      .prepare("SELECT uid, slug, name, last_seen, updated_by FROM projects WHERE id = ?")
+      .get(id) as
+      | {
+          uid: string | null;
+          slug: string;
+          name: string | null;
+          last_seen: number | null;
+          updated_by: string | null;
+        }
+      | undefined;
+    if (!row?.uid) return;
+    queueSyncOp("project", row.uid, "upsert", {
+      slug: row.slug,
+      name: row.name || row.slug,
+      lastSeen: row.last_seen || 0,
+      updatedBy: row.updated_by || "",
+    });
+  } catch {
+    /* non-blokir */
+  }
+}
+
+function enqueueMemorySnapshot(id: number): void {
+  try {
+    const row = getDb()
+      .prepare(
+        `SELECT m.uid, m.kind, m.content, m.importance, m.created_at, m.updated_at, m.updated_by, m.source_tool,
+                m.status, m.resolved_at, m.origin, m.archived, p.uid AS project_uid
+         FROM memories m LEFT JOIN projects p ON p.id = m.project_id WHERE m.id = ?`
+      )
+      .get(id) as
+      | {
+          uid: string | null;
+          kind: string;
+          content: string;
+          importance: number;
+          created_at: number;
+          updated_at: number | null;
+          updated_by: string | null;
+          source_tool: string | null;
+          status: string | null;
+          resolved_at: number | null;
+          origin: string | null;
+          archived: number | null;
+          project_uid: string | null;
+        }
+      | undefined;
+    if (!row?.uid) return;
+    queueSyncOp("memory", row.uid, "upsert", {
+      projectUid: row.project_uid || null,
+      kind: row.kind,
+      content: row.content,
+      importance: row.importance,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at || 0,
+      updatedBy: row.updated_by || "",
+      sourceTool: row.source_tool || "",
+      status: row.status || "active",
+      resolvedAt: row.resolved_at || 0,
+      origin: row.origin || "user",
+      archived: row.archived ? 1 : 0,
+      tags: tagsForMemory(id),
+    });
+  } catch {
+    /* non-blokir */
+  }
+}
+
+function enqueueLinkSnapshot(fromId: number, toId: number, kind: string, weight: number): void {
+  try {
+    const row = getDb()
+      .prepare(
+        `SELECT a.uid AS from_uid, b.uid AS to_uid
+         FROM memories a JOIN memories b ON b.id = ? WHERE a.id = ?`
+      )
+      .get(toId, fromId) as { from_uid: string | null; to_uid: string | null } | undefined;
+    if (!row?.from_uid || !row.to_uid) return;
+    queueSyncOp("link", `${row.from_uid}|${row.to_uid}`, "upsert", {
+      fromUid: row.from_uid,
+      toUid: row.to_uid,
+      kind,
+      weight,
+    });
+  } catch {
+    /* non-blokir */
+  }
+}
+
+function enqueueMemoryDelete(uid: string): void {
+  queueSyncOp("memory", uid, "delete", {});
+}
+
 
 /** Nama tampilan proyek dari path/slug: ambil segmen terakhir, rapikan jadi judul. */
 export function prettifyProjectName(src: string): string {
@@ -377,9 +679,11 @@ export function ensureProject(slug: string, projectPath?: string): number {
   //    yang panjang seperti "users-mac-documents-workspace-...").
   const name = prettifyProjectName(canon || projectPath || clean);
   const res = d
-    .prepare("INSERT INTO projects (slug, path, name, last_seen) VALUES (?, ?, ?, ?)")
-    .run(clean, canon || projectPath || null, name || clean, Date.now());
-  return finish(Number(res.lastInsertRowid));
+    .prepare("INSERT INTO projects (slug, path, name, last_seen, uid, updated_by) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(clean, canon || projectPath || null, name || clean, Date.now(), randomUUID(), getDeviceId());
+  const id = Number(res.lastInsertRowid);
+  enqueueProjectSnapshot(id);
+  return finish(id);
 }
 
 export function insertTranscript(t: Transcript): boolean {
@@ -436,9 +740,11 @@ export function countMemories(): number {
 
 export function insertMemory(m: Memory): void {
   const d = getDb();
+  const uid = m.uid || randomUUID();
+  const now = Date.now();
   d.prepare(
-    `INSERT INTO memories (project_id, kind, content, importance, created_at, source_tool, embedding, status, origin, embed_model)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO memories (project_id, kind, content, importance, created_at, source_tool, embedding, status, origin, embed_model, uid, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     m.projectId,
     m.kind,
@@ -449,7 +755,10 @@ export function insertMemory(m: Memory): void {
     m.embedding ? f32ToBlob(m.embedding) : null,
     m.status || "active",
     m.origin || "user",
-    m.embedModel || ""
+    m.embedModel || "",
+    uid,
+    m.updatedAt || now,
+    m.updatedBy || getDeviceId()
   );
   // node:sqlite mengembalikan objek ber-prototype null — ambil properti .id-nya.
   // Number(row) di atas objek null-prototype melempar "Cannot convert object to
@@ -461,6 +770,7 @@ export function insertMemory(m: Memory): void {
   } catch {
     /* non-blokir */
   }
+  enqueueMemorySnapshot(id);
 }
 
 export function reindexEntities(memoryId: number, content: string): void {
@@ -480,16 +790,29 @@ export function entitiesForMemory(memoryId: number): Array<{ text: string; type:
 }
 
 export function setMemoryTag(memoryId: number, tag: string): void {
-  getDb()
-    .prepare("INSERT OR IGNORE INTO memory_tags (memory_id, tag) VALUES (?, ?)")
-    .run(memoryId, tag);
+  const d = getDb();
+  const res = d.prepare("INSERT OR IGNORE INTO memory_tags (memory_id, tag) VALUES (?, ?)").run(memoryId, tag);
+  if (res.changes > 0) {
+    d.prepare("UPDATE memories SET updated_at = ?, updated_by = ? WHERE id = ?").run(Date.now(), getDeviceId(), memoryId);
+    enqueueMemorySnapshot(memoryId);
+  }
 }
 
 export function clearMemoryTags(memoryId?: number): void {
+  const d = getDb();
   if (memoryId) {
-    getDb().prepare("DELETE FROM memory_tags WHERE memory_id = ?").run(memoryId);
-  } else {
-    getDb().prepare("DELETE FROM memory_tags").run();
+    const res = d.prepare("DELETE FROM memory_tags WHERE memory_id = ?").run(memoryId);
+    if (res.changes > 0) {
+      d.prepare("UPDATE memories SET updated_at = ?, updated_by = ? WHERE id = ?").run(Date.now(), getDeviceId(), memoryId);
+      enqueueMemorySnapshot(memoryId);
+    }
+    return;
+  }
+  const ids = d.prepare("SELECT DISTINCT memory_id AS id FROM memory_tags").all() as Array<{ id: number }>;
+  d.prepare("DELETE FROM memory_tags").run();
+  for (const row of ids) {
+    d.prepare("UPDATE memories SET updated_at = ?, updated_by = ? WHERE id = ?").run(Date.now(), getDeviceId(), row.id);
+    enqueueMemorySnapshot(row.id);
   }
 }
 
@@ -499,6 +822,10 @@ export function replaceMemoryTags(memoryId: number, tags: string[]): void {
   d.prepare("DELETE FROM memory_tags WHERE memory_id = ?").run(memoryId);
   const stmt = d.prepare("INSERT OR IGNORE INTO memory_tags (memory_id, tag) VALUES (?, ?)");
   for (const t of tags.map((t) => t.trim().toLowerCase()).filter(Boolean)) stmt.run(memoryId, t);
+  const res = d
+    .prepare("UPDATE memories SET updated_at = ?, updated_by = ? WHERE id = ?")
+    .run(Date.now(), getDeviceId(), memoryId);
+  if (res.changes > 0) enqueueMemorySnapshot(memoryId);
 }
 
 export function tagsForMemory(memoryId: number): string[] {
@@ -538,8 +865,9 @@ export function listDraft(): Memory[] {
 
 export function approveMemory(id: number): boolean {
   const res = getDb()
-    .prepare("UPDATE memories SET status = 'active', updated_at = ? WHERE id = ?")
-    .run(Date.now(), id);
+    .prepare("UPDATE memories SET status = 'active', updated_at = ?, updated_by = ? WHERE id = ?")
+    .run(Date.now(), getDeviceId(), id);
+  if (res.changes > 0) enqueueMemorySnapshot(id);
   return res.changes > 0;
 }
 
@@ -561,15 +889,17 @@ export function listTasks(projectId: number | null, limit = 300): { open: Memory
 /** Toggle resolved manual dari dashboard Tasks. */
 export function setTaskResolved(id: number, resolved: boolean): boolean {
   const res = getDb()
-    .prepare("UPDATE memories SET resolved_at = ?, updated_at = ? WHERE id = ?")
-    .run(resolved ? Date.now() : 0, Date.now(), id);
+    .prepare("UPDATE memories SET resolved_at = ?, updated_at = ?, updated_by = ? WHERE id = ?")
+    .run(resolved ? Date.now() : 0, Date.now(), getDeviceId(), id);
+  if (res.changes > 0) enqueueMemorySnapshot(id);
   return res.changes > 0;
 }
 
 export function markResolved(id: number): boolean {
   const res = getDb()
-    .prepare("UPDATE memories SET resolved_at = ?, updated_at = ? WHERE id = ?")
-    .run(Date.now(), Date.now(), id);
+    .prepare("UPDATE memories SET resolved_at = ?, updated_at = ?, updated_by = ? WHERE id = ?")
+    .run(Date.now(), Date.now(), getDeviceId(), id);
+  if (res.changes > 0) enqueueMemorySnapshot(id);
   return res.changes > 0;
 }
 
@@ -597,18 +927,22 @@ export function updateMemory(
   const importance = patch.importance ?? current.importance;
   const projectId = patch.projectId !== undefined ? patch.projectId : current.project_id;
   d.prepare(
-    `UPDATE memories SET content = ?, kind = ?, importance = ?, project_id = ?, updated_at = ? WHERE id = ?`
-  ).run(content, kind, importance, projectId, Date.now(), id);
+    `UPDATE memories SET content = ?, kind = ?, importance = ?, project_id = ?, updated_at = ?, updated_by = ? WHERE id = ?`
+  ).run(content, kind, importance, projectId, Date.now(), getDeviceId(), id);
   try {
     reindexEntities(id, content);
   } catch {
     /* non-blokir */
   }
+  enqueueMemorySnapshot(id);
   return true;
 }
 
 export function archiveMemory(id: number, archived = true): boolean {
-  const res = getDb().prepare("UPDATE memories SET archived = ? WHERE id = ?").run(archived ? 1 : 0, id);
+  const res = getDb()
+    .prepare("UPDATE memories SET archived = ?, updated_at = ?, updated_by = ? WHERE id = ?")
+    .run(archived ? 1 : 0, Date.now(), getDeviceId(), id);
+  if (res.changes > 0) enqueueMemorySnapshot(id);
   return res.changes > 0;
 }
 
@@ -673,6 +1007,7 @@ export function readMemories(whereClause: string, params: Array<number | string 
     .prepare(`SELECT * FROM memories ${whereClause}`)
     .all(...params) as unknown as Array<{
     id: number;
+    uid: string | null;
     project_id: number | null;
     kind: string;
     content: string;
@@ -686,9 +1021,12 @@ export function readMemories(whereClause: string, params: Array<number | string 
     resolved_at: number;
     origin: string | null;
     embed_model: string | null;
+    updated_at: number | null;
+    updated_by: string | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
+    uid: r.uid || "",
     projectId: r.project_id,
     kind: r.kind,
     content: r.content,
@@ -702,6 +1040,8 @@ export function readMemories(whereClause: string, params: Array<number | string 
     resolvedAt: r.resolved_at || 0,
     origin: r.origin || "user",
     embedModel: r.embed_model || "",
+    updatedAt: r.updated_at || 0,
+    updatedBy: r.updated_by || "",
   }));
 }
 
@@ -745,7 +1085,25 @@ export function pendingExtractionCount(): number {
 }
 
 export function deleteMemory(id: number): boolean {
-  const res = getDb().prepare("DELETE FROM memories WHERE id = ?").run(id);
+  const d = getDb();
+  const row = d.prepare("SELECT uid FROM memories WHERE id = ?").get(id) as { uid: string | null } | undefined;
+  const links = d
+    .prepare(
+      `SELECT a.uid AS from_uid, b.uid AS to_uid
+       FROM memory_links l
+       JOIN memories a ON a.id = l.from_memory_id
+       JOIN memories b ON b.id = l.to_memory_id
+       WHERE l.from_memory_id = ? OR l.to_memory_id = ?`
+    )
+    .all(id, id) as Array<{ from_uid: string | null; to_uid: string | null }>;
+  const res = d.prepare("DELETE FROM memories WHERE id = ?").run(id);
+  if (res.changes > 0) {
+    d.prepare("DELETE FROM memory_links WHERE from_memory_id = ? OR to_memory_id = ?").run(id, id);
+    for (const link of links) {
+      if (link.from_uid && link.to_uid) queueSyncOp("link", `${link.from_uid}|${link.to_uid}`, "delete", {});
+    }
+    if (row?.uid) enqueueMemoryDelete(row.uid);
+  }
   return res.changes > 0;
 }
 
@@ -764,6 +1122,7 @@ export function insertMemoryLink(fromId: number, toId: number, kind: string, wei
       "INSERT INTO memory_links (from_memory_id, to_memory_id, kind, weight, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(from_memory_id, to_memory_id) DO UPDATE SET weight = MAX(memory_links.weight, excluded.weight)"
     )
     .run(a, b, kind, weight, Date.now());
+  enqueueLinkSnapshot(a, b, kind, weight);
 }
 
 export function linksForMemory(id: number, limit = 12): Array<{ memoryId: number; kind: string; weight: number }> {
@@ -789,5 +1148,17 @@ export function allMemoryLinks(limit = 800): Array<{ fromId: number; toId: numbe
 }
 
 export function clearMemoryLinks(): void {
-  getDb().prepare("DELETE FROM memory_links").run();
+  const d = getDb();
+  const rows = d
+    .prepare(
+      `SELECT l.from_memory_id AS from_id, l.to_memory_id AS to_id, a.uid AS from_uid, b.uid AS to_uid
+       FROM memory_links l
+       JOIN memories a ON a.id = l.from_memory_id
+       JOIN memories b ON b.id = l.to_memory_id`
+    )
+    .all() as Array<{ from_id: number; to_id: number; from_uid: string | null; to_uid: string | null }>;
+  d.prepare("DELETE FROM memory_links").run();
+  for (const row of rows) {
+    if (row.from_uid && row.to_uid) queueSyncOp("link", `${row.from_uid}|${row.to_uid}`, "delete", {});
+  }
 }

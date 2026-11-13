@@ -1,6 +1,6 @@
 # Memoria Encrypted Sync — Design
 
-Status: draft, not implemented. Scope: F3 sync between Memoria instances (same user, multiple machines).
+Status: M1 implemented on `feat/sync-m1` (schema, UID, HLC, outbox, tests); M2+ not implemented. Scope: F3 sync between Memoria instances (same user, multiple machines).
 
 ## 1. Goals and non-goals
 
@@ -24,8 +24,8 @@ Status: draft, not implemented. Scope: F3 sync between Memoria instances (same u
 - `memories` and `projects` use local autoincrement `id` (`src/engine/store/db.ts:45-118`).
   These IDs are not stable across machines.
 - `memory_tags`, `memory_entities`, `memory_links` reference local IDs.
-- `memories.updated_at` exists but is not bumped by every mutation
-  (`archiveMemory`, `deleteMemory`, tag/link changes currently do not bump it).
+- `memories.updated_at` now gets bumped by every synced mutation (M1); legacy
+  rows are backfilled so LWW has a usable baseline.
 - Embeddings are stored per dialect (`embed_model`) and must never be compared across models.
 - `settings` contains secrets (API keys, webhook URLs/tokens) encrypted with `safeStorage`
   via `src/engine/store/secure.ts`; it must not be synced wholesale.
@@ -248,7 +248,7 @@ CLI: `memoria sync status|export|import|folder`.
 
 ## 14. Delivery plan
 
-1. **M1 — schema and change capture**: migration v3, UIDs, outbox, HLC helpers, unit tests.
+1. **M1 — schema and change capture** ✅: migration v3, UIDs, outbox, HLC helpers, unit tests.
 2. **M2 — crypto and manual bundles**: key generation/storage, recovery code, export/import CLI,
    idempotent apply, embedding backfill queue.
 3. **M3 — folder sync**: watcher, applied ledger, conflict log, two-device integration tests.
@@ -256,13 +256,9 @@ CLI: `memoria sync status|export|import|folder`.
 5. **M5 — hardening**: key rotation, device revocation, rollback protection, performance pass.
 6. **Optional** — direct LAN pairing.
 
-## 15. Decisions needed before implementation
+## 15. Decisions for v1
 
-- Transport default: manual bundles only, or shared folder too? (Recommend both; folder is the
-  practical default.)
-- Transcripts: exclude in v1? (Recommend yes; revisit after usage feedback.)
-- Recovery UX: generated recovery code only, or passphrase-wrapped key? (Recommend code plus
-  optional passphrase.)
-- Conflict policy: LWW + bounded conflict log acceptable? (Recommend yes for v1.)
-- Tombstone retention: 180 days acceptable?
-- Device revocation: rotate group key manually, or automatic re-key via paired-device channel?
+Resolved: manual bundles plus shared folder, transcripts excluded, generated recovery code
+plus optional passphrase, LWW with bounded conflict log, and 180-day tombstone retention.
+Still open: device revocation (manual group-key rotation vs automatic re-key through a
+paired-device channel).
