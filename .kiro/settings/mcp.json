@@ -3,6 +3,7 @@
     "memoria": {
       "command": "node",
       "args": ["dist/engine/index.js", "mcp"],
+      "env": {},
       "disabled": false,
       "autoApprove": []
     }
