@@ -538,6 +538,19 @@ export function startHttpServer(): Promise<void> {
           ...s,
           reExplanationsSaved: s.resumesReady30d,
         });
+      } else if (url.pathname === '/api/drafts/clean-noise' && req.method === 'POST') {
+        // PR-N2: hapus draft yang cocok pola noise (status tool, badge shields.io,
+        // debris markdown). Eksplisit dari UI — tidak pernah otomatis.
+        const { isGenericMemory } = await import('./extract/extractor');
+        const { listDraft, deleteMemory } = await import('./store/db');
+        const drafts = listDraft();
+        let removed = 0;
+        for (const m of drafts) {
+          if (isGenericMemory(m.content)) {
+            if (deleteMemory(m.id!)) removed++;
+          }
+        }
+        sendJson(res, 200, { ok: true, removed, scanned: drafts.length });
       } else if (url.pathname === "/api/consolidate" && req.method === "POST") {
         // PR-B: konsolidasi manual (dashboard/CLI) — jalankan sekali sekarang.
         const { consolidateMemories } = await import("./extract/consolidate");

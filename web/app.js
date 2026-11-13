@@ -600,6 +600,27 @@ function updateDraftBar(box) {
   if (hint) hint.textContent = n ? "" : t("Select drafts to approve or delete them in one go");
 }
 
+function wireCleanNoise() {
+  const btn = document.getElementById("batchCleanNoise");
+  if (!btn || btn.dataset.wired) return;
+  btn.dataset.wired = "1";
+  btn.addEventListener("click", async () => {
+    if (!confirm(t("Delete all drafts that match known noise patterns (tool status lines, shields.io badges, markdown debris)? This cannot be undone."))) return;
+    btn.disabled = true;
+    try {
+      const r = await api("/api/drafts/clean-noise", { method: "POST" });
+      toast(t("Cleaned {0} noise drafts (scanned {1})", r.removed, r.scanned));
+      loadStats();
+      renderMemories();
+    } catch (e) {
+      toast(t("Failed: ") + e.message, "err");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+wireCleanNoise();
+
 function wireDraftBatch(box) {
   const bar = document.getElementById("draftBatchBar");
   if (!bar) return;
