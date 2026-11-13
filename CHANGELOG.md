@@ -6,6 +6,73 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-11-14 — The Bridge
+
+**One URL for every AI tool.** The engine now serves MCP over HTTP, Integrations
+covers the full official MCP client map (12 targets), and the dashboard became
+honest: heuristic drafts are visible where they were invisible, the activity
+chart shows what your brain actually did, and the version chip never lies.
+
+### Added
+- **MCP over HTTP — the AI-to-AI bridge** — the engine serves MCP at
+  `http://127.0.0.1:48210/mcp` (streamable transport, stateless, JSON responses)
+  on the same port as the dashboard, behind the same host/origin/token guards as
+  the rest of the API. Any AI tool — Claude Code, Codex, Gemini, opencode, or an
+  agent on the LAN (with the optional `apiToken`) — points at one URL instead of
+  per-tool stdio wiring. Live-verified: initialize handshake, tools/list (7
+  tools), and a real `recall` call over HTTP; stdio stays fully compatible.
+- **12 MCP integrations — the integration map is complete** — Integrations now
+  registers Memoria into **Claude Desktop** (claude_desktop_config.json, per-OS),
+  **Cursor** (~/.cursor/mcp.json via the HTTP bridge), **Windsurf**
+  (~/.codeium/windsurf/mcp_config.json), **VS Code / Copilot** (~/.vscode/mcp.json,
+  official `"type": "http"`), **Cline** (globalStorage cline_mcp_settings.json),
+  and **Zed** (settings.json `context_servers`) — paths per the official MCP
+  clients docs. All writers MERGE JSON: existing user configs are preserved.
+- **Project detail shows pending drafts** — heuristic mode parks extraction
+  results as drafts, which made healthy projects read as "0 memories / No
+  memories yet". The view now shows "Heuristic results are parked as drafts — N
+  waiting for this project" with a **Review drafts** button that jumps to the
+  draft tab pre-filtered by that project.
+- **Memories age filter + search-term highlighting** — an "All time / 7 / 30 /
+  90 days" select (server-side `since` on the paginated path via
+  `listMemoriesPage`, client-side elsewhere) and search terms highlighted with
+  `<mark>` inside memory content (escape-safe).
+- **MCP `recall` budget + project scope** — optional `project` (scope to one
+  project) and `maxChars` (truncate the context block so agents never blow
+  their context window).
+- **Purge per project** — `POST /api/memories/purge {slug, confirm:true}`
+  bulk-deletes one project's memories (sync tombstones included); the project
+  detail UI exposes it behind a double confirmation.
+- **Community standards complete** — CODE_OF_CONDUCT (Contributor Covenant 2.1),
+  CONTRIBUTING (repo-specific workflow: dist tests, eval-first ranking, i18n
+  conventions, migration policy), SECURITY.md (private advisory reporting),
+  bug/feature issue forms with a secrets-redaction attestation, and a PR
+  template. Repo health: 100%.
+
+### Fixed
+- **Memories list stability** — three fixes for rows "disappearing" while
+  reviewing: late fetch responses no longer overwrite the newest render
+  (latest-wins seq guard), identical renders skip the innerHTML rebuild and
+  scroll position is preserved, and SSE refresh no longer rebuilds the list
+  while on the draft tab (counts still update live).
+- **Draft noise filter + one-click cleanup** — tool status lines ("has been
+  updated successfully"), shields.io badge markdown, and formatting debris were
+  captured as "facts" (the 4.8k-draft pileup). New `GENERIC_PATTERNS` filter
+  them per-line on both extraction paths, and a **Clean noise drafts** button +
+  `POST /api/drafts/clean-noise` clears stored noise explicitly (208 removed on
+  the dev machine's real data).
+- **Dynamic version chip** — the sidebar version was hardcoded ("v0.7.1") and
+  stale on every release; `/api/stats` now reports the engine version.
+- **Overview activity chart shows what your brain actually did** — window
+  widened to 14 days and a second series counts memory creations per day
+  (active + draft), so heuristic-mode work is visible; tooltip and legend
+  updated.
+- **Graph labels in dense clusters** — greedy anti-overlap (degree-priority
+  slots): colliding labels dim instead of piling into unreadable stacks.
+- **i18n consistency** — the quick-note window and global palette had raw
+  Indonesian/English mixed strings bypassing `t()`; all wrapped, dictionary
+  completed (EN and ID modes each fully consistent).
+
 ## [0.9.0] — 2026-11-14 — Two-way & Measured
 
 **Memory now flows both ways** (import your Obsidian vault / memory bank),
@@ -14,25 +81,6 @@ every ranking change must now beat the eval numbers first — the RRF
 experiment lost and was recorded, not shipped blindly.
 
 ### Added
-- **12 MCP integrations — the integration map is complete (PR-M)** — Integrations
-  now registers Memoria into **Claude Desktop** (claude_desktop_config.json,
-  per-OS), **Cursor** (~/.cursor/mcp.json via the HTTP bridge), **Windsurf**
-  (~/.codeium/windsurf/mcp_config.json), **VS Code / Copilot** (~/.vscode/mcp.json,
-  official "type": "http"), **Cline** (globalStorage cline_mcp_settings.json), and
-  **Zed** (settings.json context_servers) — paths per the official MCP clients docs.
-  All writers MERGE JSON (existing user configs are preserved), Cursor/VS Code
-  connect through the new HTTP bridge so there is one engine, one brain, every
-  tool. Integrations card + README updated (12 targets, initials fallback icons).
-- **MCP over HTTP — the AI-to-AI bridge (PR-K)** — the engine now also serves
-  MCP at `http://127.0.0.1:48210/mcp` (streamable transport, stateless,
-  JSON responses) on the same port as the dashboard, behind the same
-  host/origin/token guards as the rest of the API. Any AI tool — Claude Code,
-  Codex, Gemini, opencode, or an agent on the LAN (with the optional
-  `apiToken`) — can now point at one URL instead of wiring per-tool stdio
-  configs. Verified: initialize handshake, tools/list (7 tools incl.
-  build_context/update_memory/forget), and a live `recall` call over HTTP;
-  the stdio transport stays fully compatible. All 7 tools + repo structure
-  docs updated in README.
 - **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
   Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
   whenever you're ready" (opt-in toggle in Settings → Notifications, event
