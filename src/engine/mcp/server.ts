@@ -43,6 +43,8 @@ export function createMcpServer(): Server {
           properties: {
             query: { type: "string", description: "Pertanyaan atau kata kunci" },
             limit: { type: "number", default: 8 },
+            project: { type: "string", description: "Opsional — batasi ke satu proyek (path/nama)" },
+            maxChars: { type: "number", description: "Opsional — potong hasil pada N karakter (budget context window)" },
           },
           required: ["query"],
         },
@@ -145,12 +147,24 @@ export function createMcpServer(): Server {
         // Embed query agar skor semantik aktif — tanpa ini recall MCP hanya keyword.
         const eprov = await getEmbedProvider();
         const qEmb = await eprov.embed(query);
-        const results = searchMemories(query, { limit: Number(a.limit || 8), embedModel: eprov.embedModel }, qEmb);
+        // PR-M: scope proyek opsional — bridge lintas-AI jadi bisa bertanya
+        // "recall khusus proyek X" tanpa menyaring hasil manual.
+        const projInput = String(a.project || "");
+        const projRec = projInput ? resolveProject(projInput) : null;
+        const results = searchMemories(
+          query,
+          { limit: Number(a.limit || 8), embedModel: eprov.embedModel, projectSlug: projRec?.slug },
+          qEmb
+        );
         if (!results.length) {
           return {
             content: [{ type: "text", text: "No matching memories. This is a fresh session - proceed with the user's task as usual." }],
           };
         }
+        // PR-M: budget token — agent bisa membatasi panjang blok konteks agar
+        // tidak melampaui context window-nya (default: tanpa batas).
+        const maxChars = Number(a.maxChars || 0);
+        const cap = (s: string): string => (maxChars > 0 && s.length > maxChars ? s.slice(0, maxChars - 1) + "…\n(truncated at maxChars=" + maxChars + ")" : s);
         const text = results
           .map(
             (r) =>
@@ -168,7 +182,7 @@ export function createMcpServer(): Server {
             }
           }
         }
-        const withRel = relLines.length ? `${text}\n\nRelated:\n${relLines.join("\n")}` : text;
+        const withRel = cap(relLines.length ? `${text}\n\nRelated:\n${relLines.join("\n")}` : text);
         return { content: [{ type: "text", text: withRel }] };
       }
       case "build_context": {
