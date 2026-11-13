@@ -31,7 +31,7 @@ input.addEventListener("input", () => {
 });
 
 async function search(q) {
-  if (!q) { hits = []; active = -1; list.innerHTML = '<div class="empty">Ketik untuk mencari memori di semua tool AI.</div>'; return; }
+  if (!q) { hits = []; active = -1; list.innerHTML = '<div class="empty">' + t("Type to search memories across all AI tools.") + '</div>'; return; }
   try {
     const r = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=10`);
     const d = await r.json();

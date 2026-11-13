@@ -17,7 +17,7 @@ async function loadProjects() {
 async function save() {
   const text = content.value.trim();
   if (!text) return;
-  status.className = ""; status.textContent = "Menyimpan…";
+  status.className = ""; status.textContent = t("Saving…");
   try {
     const r = await fetch(`${API}/api/remember`, {
       method: "POST",
@@ -32,17 +32,17 @@ async function save() {
     const d = await r.json();
     if (d.ok) {
       status.className = "ok";
-      status.textContent = "Saved ✓";
+      status.textContent = t("Saved ✓");
       content.value = "";
       I18N.apply();
 content.focus();
     } else {
       status.className = "err";
-      status.textContent = d.error || "Gagal menyimpan";
+      status.textContent = d.error || t("Save failed");
     }
   } catch {
     status.className = "err";
-    status.textContent = "Server tidak merespons";
+    status.textContent = t("Server not responding");
   }
 }
 
