@@ -83,6 +83,12 @@ async function main(): Promise<void> {
       console.log(`${tool}: ${r.message}`);
       break;
     }
+    case "sync": {
+      ensureDb();
+      const { runSyncCommand } = await import("./sync/cli");
+      await runSyncCommand(process.argv.slice(3));
+      break;
+    }
     case "server": {
       ensureDb();
       await startHttpServer();
