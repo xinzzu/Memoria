@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose an improvement or new capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What limitation of Memoria (or your workflow) does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should happen, concretely?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, or how other tools (mem0, Zep, Letta, claude-mem…) solve it.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope fit
+      description: Memoria is local-first and free of cloud calls by default. Features that require a hosted service are usually out of scope.
+      options:
+        - label: This works fully offline (or is opt-in with a clear privacy note)
+          required: true
