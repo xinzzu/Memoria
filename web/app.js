@@ -346,13 +346,20 @@ function drawActivityChart() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  const max = Math.max(4, ...week.map((w) => w.count));
+  const max = Math.max(4, ...week.map((w) => Math.max(w.count, w.memories || 0)));
   const padL = 8, padR = 8, padT = 18, padB = 26;
   const iw = W - padL - padR, ih = H - padT - padB;
   const pts = week.map((w, i) => ({
     x: padL + (week.length === 1 ? iw / 2 : (i / (week.length - 1)) * iw),
     y: padT + ih - (w.count / max) * ih * 0.9,
     ...w,
+  }));
+  // PR-L: series kedua — memori dibuat per hari (active + draft heuristik).
+  const mpts = week.map((w, i) => ({
+    x: padL + (week.length === 1 ? iw / 2 : (i / (week.length - 1)) * iw),
+    y: padT + ih - ((w.memories || 0) / max) * ih * 0.9,
+    day: w.day,
+    count: w.memories || 0,
   }));
 
   // grid horizontal halus
@@ -388,7 +395,29 @@ function drawActivityChart() {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // garis utama
+  // garis utama (messages) + series kedua (memories — PR-L)
+  const drawMemoriesLine = () => {
+    ctx.beginPath();
+    if (mpts.length) {
+      ctx.moveTo(mpts[0].x, mpts[0].y);
+      for (let i = 1; i < mpts.length; i++) {
+        const xc = (mpts[i - 1].x + mpts[i].x) / 2;
+        ctx.bezierCurveTo(xc, mpts[i - 1].y, xc, mpts[i].y, mpts[i].x, mpts[i].y);
+      }
+    }
+    ctx.strokeStyle = "#4cc38a";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    mpts.forEach((p) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.count > 0 ? 3.4 : 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = p.count > 0 ? "#4cc38a" : (isLightTheme() ? "#c8cdd6" : "#3a4152");
+      ctx.fill();
+    });
+  };
+  drawMemoriesLine();
   line(pts);
   ctx.strokeStyle = isLightTheme() ? "#7a5fd0" : "#a684ff";
   ctx.lineWidth = 2.4;
@@ -424,7 +453,7 @@ function drawActivityChart() {
     tip.style.left = best.x + 20 + "px";
     tip.style.top = best.y + 10 + "px";
     tip.style.opacity = 1;
-    tip.textContent = `${best.day}: ${best.count} ${t("messages")}`;
+    tip.textContent = `${best.day}: ${best.count} ${t("messages")} · ${best.memories || 0} ${t("memories")}`;
   };
   canvas.onmouseleave = () => { tip.style.opacity = 0; };
 }
