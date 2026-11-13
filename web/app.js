@@ -1059,12 +1059,23 @@ function buildLabels3D(decorated) {
   if (!__labelRaf) {
     const loop = () => {
       if (__g3d && state.view === "graph") {
+        const el = document.getElementById("graph3d");
+        const w = el ? el.clientWidth : 0;
+        const h = el ? el.clientHeight : 0;
         for (const it of __labels) {
           const n = it.node;
           if (n.x === undefined) continue;
           const c = __g3d.graph2ScreenCoords(n.x, n.y, n.z);
-          if (c.x === null || c.x === undefined) { it.el.style.opacity = 0; continue; }
-          it.el.style.transform = "translate(" + (c.x - 50).toFixed(1) + "px, " + (c.y + 6).toFixed(1) + "px)";
+          // Offscreen / di belakang kamera → sembunyikan (dulu label terpotong
+          // telanjang di tepi canvas & menumpuk di luar batas terlihat).
+          if (c.x == null || c.x < -60 || c.x > w + 60 || c.y < -30 || c.y > h + 30) {
+            it.el.style.opacity = 0;
+            continue;
+          }
+          it.el.style.opacity = 1;
+          const cx = Math.min(Math.max(c.x - 50, 2), Math.max(2, w - 90));
+          const cy = Math.min(Math.max(c.y + 6, 0), Math.max(0, h - 20));
+          it.el.style.transform = "translate(" + cx.toFixed(1) + "px, " + cy.toFixed(1) + "px)";
         }
       }
       __labelRaf = requestAnimationFrame(loop);
