@@ -177,10 +177,21 @@ const MIGRATIONS: Migration[] = [
   { version: 4, name: "sync-lww-metadata", up: m4SyncMetadata },
   { version: 5, name: "sync-applied-bundle", up: m5SyncAppliedBundle },
   { version: 6, name: "temporal-provenance-continuity", up: m6ContextProvenance },
+  { version: 7, name: "audit-indexes", up: m7AuditIndexes },
 ];
 
 /** M6: memori temporal (valid_from/valid_to) + provenance sesi + ledger
  * continuity (limit_hit → resume_ready) untuk metrik limit-hopping. */
+function m7AuditIndexes(d: DatabaseSync): void {
+  // PR-37 optimasi: index komposit untuk jalur panas (list/stats/dedupe/
+  // brief) + histogram 14-hari — dari re-audit v0.10.0.
+  d.exec(`
+    CREATE INDEX IF NOT EXISTS idx_memories_active_created ON memories(archived, status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_transcripts_project_ts ON transcripts(project_id, ts);
+    CREATE INDEX IF NOT EXISTS idx_continuity_kind_ts ON continuity_events(kind, ts);
+  `);
+}
+
 function m6ContextProvenance(d: DatabaseSync): void {
   d.exec(`
     ALTER TABLE memories ADD COLUMN valid_from INTEGER DEFAULT 0;
@@ -195,10 +206,17 @@ function m6ContextProvenance(d: DatabaseSync): void {
       detail TEXT DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_continuity_ts ON continuity_events(ts);
+    CREATE INDEX IF NOT EXISTS idx_continuity_kind_ts ON continuity_events(kind, ts);
   `);
 }
 
 /* ---------- Continuity metrics (F4/B8) ---------- */
+
+export function pruneContinuity(days = 90): number {
+  const cutoff = Date.now() - days * 86400000;
+  const res = getDb().prepare('DELETE FROM continuity_events WHERE ts < ?').run(cutoff);
+  return Number(res.changes);
+}
 
 export function recordContinuity(kind: string, projectId: number | null, detail = ""): void {
   getDb()
@@ -1081,6 +1099,26 @@ export function ensureProject(slug: string, projectPath?: string): number {
   return finish(id);
 }
 
+/* PR-37 C1 fix: seq HARUS unik per (tool, session_id) seumur hidup sesi —
+ * scanner dulu me-restart seq dari 0 tiap scan sehingga INSERT OR IGNORE
+ * diam-diam membuang semua baris baru sesi yang bertumbuh (kehilangan data
+ * paling serius di produk). Allocator ini membaca MAX(seq) per sesi sekali,
+ * lalu menaikkan in-memory selama scan berjalan. */
+export function seqAllocator(tool: string): (sessionId: string) => number {
+  const cache = new Map<string, number>();
+  return (sessionId: string): number => {
+    let n = cache.get(sessionId);
+    if (n === undefined) {
+      const row = getDb()
+        .prepare('SELECT COALESCE(MAX(seq), -1) AS m FROM transcripts WHERE tool = ? AND session_id = ?')
+        .get(tool, sessionId) as { m: number };
+      n = (row.m ?? -1) + 1;
+      cache.set(sessionId, n);
+    }
+    return n++;
+  };
+}
+
 export function insertTranscript(t: Transcript): boolean {
   const d = getDb();
   try {
@@ -1133,7 +1171,7 @@ export function countMemories(): number {
   return row.c;
 }
 
-export function insertMemory(m: Memory): void {
+export function insertMemory(m: Memory): number {
   const d = getDb();
   const uid = m.uid || randomUUID();
   const now = Date.now();
@@ -1168,6 +1206,7 @@ export function insertMemory(m: Memory): void {
     /* non-blokir */
   }
   enqueueMemorySnapshot(id);
+  return id;
 }
 
 export function reindexEntities(memoryId: number, content: string): void {
@@ -1360,9 +1399,9 @@ export const BRIEF_PREFIX = "Project brief:";
 export function getProjectBrief(projectId: number): Memory | null {
   const row = getDb()
     .prepare(
-      `SELECT id FROM memories WHERE project_id = ? AND kind = 'context' AND archived = 0 AND content LIKE ? ORDER BY created_at DESC LIMIT 1`
+      `SELECT id FROM memories WHERE project_id = ? AND kind = 'context' AND archived = 0 AND source_tool = 'brief' ORDER BY created_at DESC LIMIT 1`
     )
-    .get(projectId, `${BRIEF_PREFIX}%`) as { id: number } | undefined;
+    .get(projectId) as { id: number } | undefined;
   return row ? memoryById(row.id) : null;
 }
 
@@ -1371,8 +1410,8 @@ export function getProjectBrief(projectId: number): Memory | null {
 export async function generateProjectBrief(projectId: number): Promise<Memory | null> {
   const now = Date.now();
   const mems = readMemories(
-    `WHERE project_id = ? AND archived = 0 AND status = 'active' AND content NOT LIKE ? ORDER BY importance DESC, created_at DESC LIMIT 60`,
-    [projectId, `${BRIEF_PREFIX}%`]
+    `WHERE project_id = ? AND archived = 0 AND status = 'active' AND source_tool != 'brief' ORDER BY importance DESC, created_at DESC LIMIT 60`,
+    [projectId]
   );
   if (!mems.length) return null;
   const pick = (kinds: string[], n: number): Memory[] =>
@@ -1397,8 +1436,8 @@ export async function generateProjectBrief(projectId: number): Promise<Memory | 
   // Regenerasi: hapus brief lama (tombstone sinkron) lalu insert yang baru.
   const d = getDb();
   const olds = d
-    .prepare(`SELECT id FROM memories WHERE project_id = ? AND kind = 'context' AND content LIKE ?`)
-    .all(projectId, `${BRIEF_PREFIX}%`) as Array<{ id: number }>;
+    .prepare(`SELECT id FROM memories WHERE project_id = ? AND kind = 'context' AND source_tool = 'brief'`)
+    .all(projectId) as Array<{ id: number }>;
   for (const o of olds) deleteMemory(o.id);
 
   const eprov = await getEmbedProviderSafe();

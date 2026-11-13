@@ -3,6 +3,7 @@ import {
   getSourceOffset,
   setSourceOffset,
   insertTranscript,
+  seqAllocator,
   ensureProject,
 } from "../store/db";
 import { withTx } from "../store/tx";
@@ -37,7 +38,7 @@ export async function scanGenericJsonl(
       if (finalOffset > stored) setSourceOffset(tool, file, finalOffset, mtime);
       continue;
     }
-    let seq = 0;
+    const nextSeq = seqAllocator(tool);
     withTx(() => {
       for (const line of lines) {
         const j = safeJson(line);
@@ -50,7 +51,7 @@ export async function scanGenericJsonl(
         const projectId = ensureProject(projectSlugFromCwd(cwd), cwd);
         const sessionId = String(j.sessionId || j.session_id || j.id || "n/a");
         const ts = Date.parse(j.timestamp || j.ts || j.createdAt || "") || Date.now();
-        insertTranscript({ tool, sessionId, projectId, role, content, ts, seq: seq++ });
+        insertTranscript({ tool, sessionId, projectId, role, content, ts, seq: nextSeq(sessionId) });
         totalLines++;
       }
     });

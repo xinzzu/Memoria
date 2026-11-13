@@ -72,7 +72,14 @@ function dailyMaintenance(): void {
     }
     // PR-B: konsolidasi berkala — merge near-duplicate (zero-LLM, guard
     // konservatif: proyek sama + kind sama + cosine >= 0.85). Default ON.
-    if (getBoolSetting("autoConsolidate", true)) {
+    try {
+      const { pruneContinuity } = require('./store/db') as typeof import('./store/db');
+      const pruned = pruneContinuity(90);
+      if (pruned) console.log(`[memoria] Continuity events pruned: ${pruned}`);
+    } catch {
+      /* non-blokir */
+    }
+    if (getBoolSetting('autoConsolidate', true)) {
       void (async () => {
         try {
           const { consolidateMemories } = require("./extract/consolidate") as typeof import("./extract/consolidate");

@@ -547,7 +547,7 @@ export function startHttpServer(): Promise<void> {
         const drafts = listDraft();
         let removed = 0;
         for (const m of drafts) {
-          if (isGenericMemory(m.content)) {
+          if (m.origin !== "user" && isGenericMemory(m.content)) {
             if (deleteMemory(m.id!)) removed++;
           }
         }

@@ -34,81 +34,90 @@ function getDbSafe() {
   }
 }
 
+let scanRunning = false; // PR-37 H4: cegah scan tumpang tindih (watcher + hot-path + /api/scan)
+
 export async function scanAll(log?: (msg: string) => void): Promise<ScanResult[]> {
-  ensureDb();
-  const cfg = getConfig();
-  const results: ScanResult[] = [];  for (const src of cfg.sources) {
-    const enabled = getBoolSetting(`source:${src.tool}:enabled`, src.enabled);
-    if (!enabled) {
-      results.push({ tool: src.tool, ok: false, detail: "disabled", count: 0 });
-      continue;
-    }
-    try {
-      let count = 0;
-      switch (src.kind) {
-        case "jsonl":
-          if (src.tool === "claude") {
-            for (const p of src.paths) {
-              const r = await scanClaude(p, log);
-              count += r.lines;
-            }
-          } else if (src.tool === "codex") {
-            for (const p of src.paths) {
-              const r = await scanCodex(p, log);
-              count += r.lines;
-            }
-          } else {
-            for (const p of src.paths) {
-              const r = await scanGenericJsonl(src.tool, [p], [".jsonl"], log);
-              count += r.lines;
-            }
-          }
-          break;
-        case "sqlite":
-          if (src.tool === "opencode") {
-            const r = scanOpencode(src.paths[0]);
-            count = r.messages;
-          } else if (src.tool === "copilot") {
-            const r = scanCopilot(src.paths[0]);
-            count = r.messages;
-          }
-          break;
-        case "logs":
-          for (const p of src.paths) {
-            const r = scanAntigravity(p);
-            count += r.lines;
-          }
-          break;
-        case "vscdb":
-          if (src.tool === "vscode" || src.tool === "cursor" || src.tool === "windsurf") {
-            const r = scanVscdb(src.tool, src.paths);
-            count += r.messages;
-          }
-          break;
-        default:
-          break;
-      }
-      results.push({ tool: src.tool, ok: true, detail: "ok", count });
-    } catch (e) {
-      results.push({ tool: src.tool, ok: false, detail: String(e), count: 0 });
-    }
-  }
-  // F3: tangkap jumlah memori baru (return extractQueue tadinya dibuang)
-  // agar event scan membawa ringkasan lengkap untuk notifikasi webhook.
-  const newMemories = await extractQueue();
-  lastScanFinishedAt = Date.now();
-  const tools = results.filter((r) => r.ok && r.count > 0).map((r) => `${r.tool}+${r.count}`);
-  const newTranscripts = results.reduce((a, r) => a + (r.ok ? r.count : 0), 0);
-  emitEvent("scan", { tools, newTranscripts, newMemories });
-  // F4: pesan "limit habis" pada transkrip baru → snapshot sesi + ekstraksi
-  // prioritas + inject SEKARANG (lebih cepat dari trigger idle di watcher).
+  if (scanRunning) return []; // PR-37 H4: scan tumpang tindih di-skip
+  scanRunning = true;
   try {
-    const { checkLimitSignals } = await import("../extract/snapshot");
-    void checkLimitSignals();
-  } catch {
-    /* non-blokir */
+    ensureDb();
+    const cfg = getConfig();
+    const results: ScanResult[] = [];
+    for (const src of cfg.sources) {
+      const enabled = getBoolSetting(`source:${src.tool}:enabled`, src.enabled);
+      if (!enabled) {
+        results.push({ tool: src.tool, ok: false, detail: "disabled", count: 0 });
+        continue;
+      }
+      try {
+        let count = 0;
+        switch (src.kind) {
+          case "jsonl":
+            if (src.tool === "claude") {
+              for (const p of src.paths) {
+                const r = await scanClaude(p, log);
+                count += r.lines;
+              }
+            } else if (src.tool === "codex") {
+              for (const p of src.paths) {
+                const r = await scanCodex(p, log);
+                count += r.lines;
+              }
+            } else {
+              for (const p of src.paths) {
+                const r = await scanGenericJsonl(src.tool, [p], [".jsonl"], log);
+                count += r.lines;
+              }
+            }
+            break;
+          case "sqlite":
+            if (src.tool === "opencode") {
+              const r = scanOpencode(src.paths[0]);
+              count = r.messages;
+            } else if (src.tool === "copilot") {
+              const r = scanCopilot(src.paths[0]);
+              count = r.messages;
+            }
+            break;
+          case "logs":
+            for (const p of src.paths) {
+              const r = scanAntigravity(p);
+              count += r.lines;
+            }
+            break;
+          case "vscdb":
+            if (src.tool === "vscode" || src.tool === "cursor" || src.tool === "windsurf") {
+              const r = scanVscdb(src.tool, src.paths);
+              count += r.messages;
+            }
+            break;
+          default:
+            break;
+        }
+        results.push({ tool: src.tool, ok: true, detail: "ok", count });
+      } catch (e) {
+        results.push({ tool: src.tool, ok: false, detail: String(e), count: 0 });
+      }
+    }
+    // F3: tangkap jumlah memori baru (return extractQueue tadinya dibuang)
+    // agar event scan membawa ringkasan lengkap untuk notifikasi webhook.
+    const newMemories = await extractQueue();
+    lastScanFinishedAt = Date.now();
+    const tools = results.filter((r) => r.ok && r.count > 0).map((r) => `${r.tool}+${r.count}`);
+    const newTranscripts = results.reduce((a, r) => a + (r.ok ? r.count : 0), 0);
+    emitEvent("scan", { tools, newTranscripts, newMemories });
+    // F4: pesan "limit habis" pada transkrip baru → snapshot sesi + ekstraksi
+    // prioritas + inject SEKARANG (lebih cepat dari trigger idle di watcher).
+    try {
+      const { checkLimitSignals } = await import("../extract/snapshot");
+      void checkLimitSignals();
+    } catch {
+      /* non-blokir */
+    }
+    return results;
+  } finally {
+    scanRunning = false;
   }
-  return results;
 }
 
 export function stats(): {

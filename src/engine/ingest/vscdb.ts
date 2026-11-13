@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { insertTranscript, ensureProject, getSourceOffset, setSourceOffset } from "../store/db";
+import { insertTranscript, seqAllocator, ensureProject, getSourceOffset, setSourceOffset } from "../store/db";
 import { projectSlugFromCwd, walkFiles } from "./util";
 
 interface Msg {
@@ -145,7 +145,7 @@ function scanFile(tool: string, file: string): number {
       const projectPath = extractProject(data);
       const projectId = ensureProject(projectSlugFromCwd(projectPath || undefined), projectPath || undefined);
       const sessionId = tool + ":" + row.key;
-      let seq = 0;
+      const nextSeq = seqAllocator(tool);
       for (const m of msgs) {
         if (m.ts <= offset) continue;
         maxTs = Math.max(maxTs, m.ts);
@@ -158,7 +158,7 @@ function scanFile(tool: string, file: string): number {
               role: m.role as TranscriptRole,
               content: m.text.slice(i, i + 5000),
               ts: m.ts + i,
-              seq: seq++,
+              seq: nextSeq(sessionId),
             });
             total++;
           }
@@ -170,7 +170,7 @@ function scanFile(tool: string, file: string): number {
             role: m.role as TranscriptRole,
             content: m.text,
             ts: m.ts,
-            seq: seq++,
+            seq: nextSeq(sessionId),
           });
           total++;
         }
