@@ -800,7 +800,10 @@ function renderSettings() {
     });
   }).catch(() => {});
   const cmd = [
-    "# Claude Code",
+    "# PR-K bridge: MCP over HTTP — tool AI manapun, tanpa config per-tool:",
+    "#   url: http://127.0.0.1:48210/mcp   (streamable, JSON)",
+    "",
+    "# Claude Code (stdio, jalur lama):",
     `claude mcp add --scope user memoria -- node "D:\\…\\dist\\engine\\index.js" mcp`,
     "",
     "# opencode / Gemini / Antigravity — MCP stdio:",

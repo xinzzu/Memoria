@@ -14,6 +14,16 @@ every ranking change must now beat the eval numbers first — the RRF
 experiment lost and was recorded, not shipped blindly.
 
 ### Added
+- **MCP over HTTP — the AI-to-AI bridge (PR-K)** — the engine now also serves
+  MCP at `http://127.0.0.1:48210/mcp` (streamable transport, stateless,
+  JSON responses) on the same port as the dashboard, behind the same
+  host/origin/token guards as the rest of the API. Any AI tool — Claude Code,
+  Codex, Gemini, opencode, or an agent on the LAN (with the optional
+  `apiToken`) — can now point at one URL instead of wiring per-tool stdio
+  configs. Verified: initialize handshake, tools/list (7 tools incl.
+  build_context/update_memory/forget), and a live `recall` call over HTTP;
+  the stdio transport stays fully compatible. All 7 tools + repo structure
+  docs updated in README.
 - **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
   Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
   whenever you're ready" (opt-in toggle in Settings → Notifications, event
