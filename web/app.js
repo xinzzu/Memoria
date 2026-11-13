@@ -1506,6 +1506,7 @@ async function renderProjectDetail(slug) {
           <button class="btn" id="pdTimeline">${t("Timeline")}</button>
           <button class="btn" id="pdTasks">${t("Tasks")}</button>
           <button class="btn" id="pdHandoff">${t("Handoff")}</button>
+          <button class="btn danger-ghost" id="pdPurge" title="${t("Delete ALL memories of this project")}">${t("Purge")}</button>
         </div>
       </div>
       <div class="pd-stats">
@@ -1549,6 +1550,22 @@ async function renderProjectDetail(slug) {
     $("#pdTimeline")?.addEventListener("click", goTimeline);
     $("#pdTasks")?.addEventListener("click", goTasks);
     $("#pdHandoff")?.addEventListener("click", goHandoff);
+    // PR-M: purge massal — dua konfirmasi (jumlah memori + konfirmasi akhir).
+    $("#pdPurge")?.addEventListener("click", async () => {
+      const first = await api("/api/memories/purge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
+      const n = first.memories ?? 0;
+      if (!n) { toast(t("No memories to purge")); return; }
+      if (!confirm(t("Delete ALL {0} active memories of this project? This cannot be undone.", n))) return;
+      if (!confirm(t("Last confirmation — purge {0} memories now?", n))) return;
+      try {
+        const r = await api("/api/memories/purge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, confirm: true }) });
+        toast(t("Purged {0} memories", r.removed));
+        loadStats();
+        renderProjectDetail(slug);
+      } catch (e) {
+        toast(t("Failed: ") + e.message, "err");
+      }
+    });
     $("#pdGoTimeline")?.addEventListener("click", goTimeline);
     $("#pdGoTasks")?.addEventListener("click", goTasks);
     $("#pdGoHandoff")?.addEventListener("click", goHandoff);

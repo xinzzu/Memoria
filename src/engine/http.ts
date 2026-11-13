@@ -556,6 +556,26 @@ export function startHttpServer(): Promise<void> {
         const { consolidateMemories } = await import("./extract/consolidate");
         const r = await consolidateMemories();
         sendJson(res, 200, { ok: true, ...r });
+      } else if (url.pathname === "/api/memories/purge" && req.method === "POST") {
+        // PR-M: purge massal satu proyek — BUTUH confirm:true (destruktif).
+        const body = await readBody(req);
+        const proj = resolveProject(String(body.slug || ""));
+        if (!proj) {
+          sendJson(res, 404, { error: "project not found" });
+          return;
+        }
+        if (body.confirm !== true) {
+          const n = (getDb().prepare("SELECT COUNT(*) AS c FROM memories WHERE project_id = ? AND archived = 0").get(proj.id) as { c: number }).c;
+          sendJson(res, 200, { ok: false, needsConfirm: true, project: proj.slug, memories: n });
+          return;
+        }
+        const rows = getDb().prepare("SELECT id FROM memories WHERE project_id = ? AND archived = 0").all(proj.id) as Array<{ id: number }>;
+        let removed = 0;
+        for (const r of rows) {
+          if (deleteMemory(r.id)) removed++;
+        }
+        emitEvent("memory", { kind: "purge" });
+        sendJson(res, 200, { ok: true, removed, project: proj.slug });
       } else if (url.pathname === "/api/import/markdown" && req.method === "POST") {
         // PR-G: Obsidian dua arah — sisi import folder .md → memori.
         const body = await readBody(req);
