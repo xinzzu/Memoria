@@ -1029,21 +1029,25 @@ function initGraph3D() {
   __g3d.graphData({ nodes, links });
   __g3d.d3Force("charge")?.strength(-90);
   __g3d.cameraPosition({ x: 0, y: 40, z: 620 });
-  buildLabels3D();
+  buildLabels3D(nodes);
 }
 
-/* Label DOM mengikuti koordinat 3D (graph2ScreenCoords) — teks tajam & sadar tema */
-function buildLabels3D() {
+/* Label DOM mengikuti koordinat 3D (graph2ScreenCoords) — teks tajam & sadar tema.
+ * PENTING: baca koordinat dari objek `decorated` yang sama yang diberikan ke
+ * ForceGraph3D — simulasi menulis x/y/z di objek itu, BUKAN di graph.nodes
+ * mentah (dulu label diambil dari graph.nodes sehingga n.x selalu undefined →
+ * semua label tidak pernah diposisikan dan menumpuk di pojok kiri atas). */
+function buildLabels3D(decorated) {
   document.querySelectorAll(".label3d-layer").forEach((e) => e.remove());
   const el = document.getElementById("graph3d");
-  if (!el) return;
+  if (!el || !__g3d || !decorated || !decorated.length) return;
   const layer = document.createElement("div");
   layer.className = "label3d-layer";
   el.appendChild(layer);
-  __labels = graph.nodes
+  __labels = decorated
     .slice()
     .sort((p, q) => (graph.degree.get(q.id) || 0) - (graph.degree.get(p.id) || 0))
-    .slice(0, Math.min(90, Math.ceil(graph.nodes.length * 0.55)))
+    .slice(0, Math.min(90, Math.ceil(decorated.length * 0.55)))
     .map((n) => {
       const d = document.createElement("div");
       d.className = "label3d";
@@ -1298,7 +1302,7 @@ document.querySelectorAll(".nav-item").forEach((n) => {
     if (n.dataset.view === "graph") renderGraph();
     if (n.dataset.view === "tasks") renderTasks();
     if (n.dataset.view === "integrations") renderIntegrations();
-    if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
+    if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); loadSyncStatus(); }
   });
 });
 // Optional chaining WAJIB: selector yang hilang tak boleh mematikan seluruh script
@@ -1804,6 +1808,106 @@ function wireNotifySettings() {
 }
 wireNotifySettings();
 
+function fmtSyncTime(ms) {
+  const n = Number(ms);
+  if (!n) return t("never");
+  return new Date(n).toLocaleString();
+}
+
+async function loadSyncStatus() {
+  const box = document.getElementById("syncStatusBox");
+  try {
+    const d = await api("/api/sync/status");
+    const st = d.status || {};
+    const folder = d.folder || {};
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    if (box) {
+      if (!st.configured) box.textContent = t("Not configured") + ". " + "CLI: memoria sync setup";
+      else if (st.locked) box.textContent = t("Configured (locked — unlock via CLI)");
+      else box.textContent = t("Configured") + (st.storage ? " (" + st.storage + ")" : "");
+    }
+    set("syncKvStatus", !st.configured ? t("Not configured") : st.locked ? t("Locked") : t("Configured"));
+    set("syncKvGroup", st.groupId || (st.locked ? t("Locked") : "—"));
+    set("syncKvDevice", st.deviceName ? st.deviceName + " (" + (st.deviceId || "").slice(0, 8) + ")" : "—");
+    const pendingN = st.pendingSinceExport ?? st.pendingOutbox ?? 0;
+    set("syncKvPending", st.configured ? String(pendingN) : (pendingN ? `${pendingN} (${t("not configured")})` : "—"));
+    set("syncKvExport", fmtSyncTime(st.lastExportAt));
+    set("syncKvImport", fmtSyncTime(st.lastImportAt));
+    set("syncKvConflicts", st.configured ? String(st.conflicts ?? 0) : "—");
+    set("syncKvEmbed", st.configured ? String(st.embeddingsQueued ?? 0) : "—");
+    const f = folder || {};
+    const pathInput = document.getElementById("setSyncFolder");
+    if (pathInput && document.activeElement !== pathInput) pathInput.value = f.path || "";
+    set("syncKvFolder", f.path || t("Not set"));
+    let fstate = t("Not set");
+    if (f.path) {
+      const parts = [];
+      parts.push(f.available ? t("Available") : t("Unavailable"));
+      if (f.writable) parts.push(t("writable"));
+      parts.push(f.watching ? t("Watching") : t("Not watching"));
+      fstate = parts.join(", ");
+    }
+    set("syncKvFolderState", fstate);
+    set("syncKvError", f.lastError || "—");
+  } catch (e) {
+    if (box) box.textContent = t("Failed to load sync status");
+  }
+}
+
+async function loadSyncConflicts() {
+  const box = document.getElementById("syncConflictsBox");
+  if (!box) return;
+  try {
+    const d = await api("/api/sync/conflicts?limit=30");
+    const rows = d.conflicts || [];
+    if (!rows.length) { box.innerHTML = `<div class="card-desc">${t("No sync conflicts.")}</div>`; return; }
+    box.innerHTML = `<div class="list">${rows.map(r => `
+      <div class="mem" style="padding:8px 0">
+        <div class="mem-meta"><span class="mem-kind kind-context">${esc(r.entity)}</span> <span class="sep">·</span> ${esc(new Date(r.createdAt).toLocaleString())}</div>
+        <div class="mem-content" style="font-family:var(--mono); font-size:11px">${esc(r.entityUid)}</div>
+        <div class="card-desc">winner ${esc(String(r.winnerHlc).slice(-18))} · loser ${esc(String(r.loserHlc).slice(-18))}</div>
+      </div>`).join("")}</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="card-desc">${t("Failed to load conflicts")}</div>`;
+  }
+}
+
+function wireSyncSettings() {
+  const setBtn = document.getElementById("btnSyncFolderSet");
+  const clearBtn = document.getElementById("btnSyncFolderClear");
+  const refBtn = document.getElementById("btnSyncRefresh");
+  if (setBtn && !setBtn.dataset.wired) {
+    setBtn.dataset.wired = "1";
+    setBtn.addEventListener("click", async () => {
+      const path = (document.getElementById("setSyncFolder")?.value || "").trim();
+      if (!path) return;
+      setBtn.disabled = true;
+      try {
+        const r = await api("/api/sync/folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path }) });
+        if (r.ok) toast(t("Folder saved")); else toast(t("Failed to save folder: ") + (r.error || ""), "err");
+      } catch (e) { toast(t("Failed to save folder: ") + e.message, "err"); }
+      setBtn.disabled = false;
+      loadSyncStatus();
+    });
+  }
+  if (clearBtn && !clearBtn.dataset.wired) {
+    clearBtn.dataset.wired = "1";
+    clearBtn.addEventListener("click", async () => {
+      clearBtn.disabled = true;
+      try {
+        await api("/api/sync/folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clear: true }) });
+        toast(t("Folder sync disabled."));
+      } catch (e) { toast(t("Failed to save folder: ") + e.message, "err"); }
+      clearBtn.disabled = false;
+      loadSyncStatus();
+    });
+  }
+  if (refBtn && !refBtn.dataset.wired) {
+    refBtn.dataset.wired = "1";
+    refBtn.addEventListener("click", () => { loadSyncStatus(); loadSyncConflicts(); });
+  }
+}
+
 function wireSettingsTabs() {
   const nav = document.querySelector("#settingsTabs");
   if (!nav) return;
@@ -1813,6 +1917,7 @@ function wireSettingsTabs() {
       localStorage.setItem("memoria_settab", tab);
       nav.querySelectorAll(".stab").forEach((x) => x.classList.toggle("active", x === btn));
       document.querySelectorAll(".settings-group").forEach((g) => g.classList.toggle("active", g.dataset.stab === tab));
+      if (tab === "sync") { wireSyncSettings(); loadSyncStatus(); loadSyncConflicts(); }
     });
   });
   const saved = localStorage.getItem("memoria_settab") || "sources";
@@ -1904,7 +2009,7 @@ document.addEventListener("memoria:lang", () => {
   if (state.view === "timeline") renderTimeline();
   if (state.view === "graph") renderGraph();
   if (state.view === "integrations") renderIntegrations();
-  if (state.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); }
+  if (state.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); loadSyncStatus(); }
   loadStats();
 });
 

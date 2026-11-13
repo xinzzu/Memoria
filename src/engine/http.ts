@@ -613,6 +613,40 @@ export function startHttpServer(): Promise<void> {
             linkWeight: r.weight,
           })),
         });
+      } else if (url.pathname === "/api/sync/status" && req.method === "GET") {
+        const { syncStatus } = await import("./sync/keys");
+        const { getFolderStatus } = await import("./sync/folder");
+        let status: any;
+        try {
+          status = syncStatus({});
+        } catch (e) {
+          status = { configured: false, error: String(e) };
+        }
+        let folder: any = null;
+        try {
+          folder = getFolderStatus();
+        } catch {
+          folder = null;
+        }
+        sendJson(res, 200, { status, folder });
+      } else if (url.pathname === "/api/sync/conflicts" && req.method === "GET") {
+        const { listRecentConflicts } = await import("./sync/folder");
+        const limit = Math.min(200, Math.max(1, Number(url.searchParams.get("limit") || 50) || 50));
+        sendJson(res, 200, { conflicts: listRecentConflicts(limit) });
+      } else if (url.pathname === "/api/sync/folder" && req.method === "POST") {
+        const body = await readBody(req);
+        const { setSharedFolder, scanAndApplyFolder, startFolderWatcher } = await import("./sync/folder");
+        const target = body.clear ? "" : String(body.path || "").trim();
+        try {
+          const st = setSharedFolder(target || null);
+          if (st.path) {
+            await scanAndApplyFolder({});
+            startFolderWatcher();
+          }
+          sendJson(res, 200, { ok: true, folder: st });
+        } catch (e) {
+          sendJson(res, 400, { ok: false, error: String((e as Error).message || e) });
+        }
       } else if (url.pathname === "/api/events" && req.method === "GET") {
         // SSE: sinyal live (memory/scan/tasks) — client yang memutuskan refresh-nya.
         res.writeHead(200, {

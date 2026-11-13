@@ -155,6 +155,15 @@ node dist/engine/index.js scan      # scan all tools now
 node dist/engine/index.js recall "docker issue"
 node dist/engine/index.js status
 node dist/engine/index.js mcp       # MCP stdio mode
+
+# encrypted sync (same user, multiple machines)
+node dist/engine/index.js sync setup                         # create group + recovery code
+node dist/engine/index.js sync status
+node dist/engine/index.js sync export --out ./bundle.memsync
+node dist/engine/index.js sync import --in ./bundle.memsync --embed
+node dist/engine/index.js sync folder set /path/to/shared    # auto-sync via shared folder
+node dist/engine/index.js sync folder status
+node dist/engine/index.js sync conflicts
 ```
 
 ## The resume engine — limit-hopping
@@ -271,7 +280,13 @@ TypeScript · Node 24 (`node:sqlite`) · Electron 37 · chokidar · MCP SDK · v
 
 **Does my data leave my computer?**
 No. Capture, extraction and search all run locally in `~/.memoria`. The cloud tier exists but
-only activates if you explicitly configure it.
+only activates if you explicitly configure it. Encrypted sync bundles are end-to-end encrypted
+and never include embeddings, secrets, settings, transcripts, or local paths.
+
+**Can I sync between machines?**
+Yes. Create/join a sync group (`memoria sync setup`), then export/import `.memsync` bundles
+manually or point Memoria at a shared folder (Dropbox/iCloud/Syncthing/network share) via CLI
+or Settings → Sync for automatic encrypted sync.
 
 **Do I need Ollama?**
 No. Heuristics work with zero models — the review-queue inbox guides you from there. Ollama is

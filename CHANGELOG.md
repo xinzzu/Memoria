@@ -7,6 +7,16 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Encrypted sync UX (M4)** — Settings now includes a **Sync** tab showing
+  group/device status, pending outbox, last export/import, embed queue, shared
+  folder path/state/error, and recent conflict log (last-writer-wins). Folder
+  sync can be configured or disabled from the dashboard (CLI required for group
+  setup/passphrase-locked keys and manual bundle export/import). New localhost
+  endpoints `GET /api/sync/status`, `GET /api/sync/conflicts`, and
+  `POST /api/sync/folder` expose sync status, bounded conflict history, and
+  folder configuration. README documents encrypted sync CLI and privacy scope
+  (EN/ID). Full EN/ID i18n for sync UI strings.
+
 - **Encrypted sync shared-folder transport (M3)** — database migration v5 adds
   the `sync_applied_bundle` ledger (with backfill from legacy `sync_applied`)
   to track applied bundle IDs across manual and folder imports. New folder sync

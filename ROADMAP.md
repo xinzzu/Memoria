@@ -18,7 +18,7 @@ Acceptance F1C: 5.000 memori sintetis → search median 5,4–58,0 ms, semua < 1
 embedding, setup checklist, settings two-pane, graph obsidian + 3D, i18n penuh, light
 theme, SSE live, test suite, project detail view.
 
-**Sync M1 ✅ (PR #8) + M2 ✅ + M3 ✅:** migrasi v3/v4/v5
+**Sync M1 ✅ (PR #8) + M2 ✅ + M3 ✅ + M4 ✅:** migrasi v3/v4/v5
 (UID stabil + `updated_by`, outbox/HLC, entity clock, tombstone, conflict/seen-op
 ledger, embed queue, project alias, applied-bundle ledger), CLI `memoria sync
 setup|status|export|import|folder set|folder status|conflicts`
@@ -27,13 +27,14 @@ setup|status|export|import|folder set|folder status|conflicts`
 dengan header AAD, apply idempoten + LWW/tombstone + relay full export + project
 alias (slug/path lokal tidak disinkronkan), embedding backfill lokal, guard
 `sync.groupKey` di `/api/settings`, shared-folder watcher + atomic/debounced
-export + scan/apply idempoten + cleanup bundle sendiri. Test suite kini **41
-kasus**. Berikutnya **M4**: sync UX/status/conflict UI, README/i18n.
+export + scan/apply idempoten + cleanup bundle sendiri, dan Settings **Sync**
+(status/folder/conflict UI + API lokal) + README/i18n. Test suite kini **41
+kasus**. Berikutnya **M5**: hardening (rotasi/revokasi kunci, proteksi, performa).
 
 **Backlog eksekusi berikutnya (urut):**
 1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
    Discord/Telegram/generic + 4 event + Send test + secret terenkripsi)
-2. **Sync M1 ✅ → M2 ✅ → M3 ✅ → M4 UX →
+2. **Sync M1 ✅ → M2 ✅ → M3 ✅ → M4 ✅ →
    M5 hardening** (desain: `docs/sync-design.md`). Code signing/notarization masih
    menunggu keputusan biaya (Apple Developer + cert Windows).
 3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat

@@ -670,9 +670,9 @@
     .chart-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
     .lg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grad); display: inline-block; }
     #activityChart { width: 100%; display: block; }
-    #chart-tip { position: absolute; pointer-events: none; background: #1c2029; border: 1px solid var(--border);
+    #chart-tip { position: absolute; pointer-events: none; background: var(--bg-elev, #1c2029); border: 1px solid var(--border);
       color: var(--text); font-size: 11.5px; padding: 5px 9px; border-radius: 8px; transform: translate(-50%, -130%);
-      white-space: nowrap; opacity: 0; transition: opacity .12s; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+      white-space: nowrap; opacity: 0; transition: opacity .12s; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
 
     /* Feed proyek kanan */
     .feed-card { padding: 16px 14px; }
@@ -996,7 +996,7 @@
       <div class="sidebar-footer">
         <div class="status-pill"><span class="dot" id="ollamaDot"></span><span id="ollamaText" data-i18n="Ollama: checking…">Ollama: checking…</span></div>
         <div class="status-pill"><span class="dot on" id="engineDot"></span><span id="engineText" data-i18n="Engine: active">Engine: active</span></div>
-        <div class="version">v0.5.0 · local · private</div>
+        <div class="version">v0.7.1 · local · private</div>
       </div>
     </aside>
 
@@ -1233,6 +1233,11 @@
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2a4 4 0 0 0-4 4c0 3-1.5 4-1.5 4h11S12 9 12 6a4 4 0 0 0-4-4z"/><path d="M6.8 13a1.3 1.3 0 0 0 2.4 0"/></svg>
               <span data-i18n="Notifications">Notifications</span>
             </div>
+
+            <div class="stab" data-stab-btn="sync">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a5 5 0 0 1 8.7-3.4"/><path d="M13 2.5v3h-3"/><path d="M13 8a5 5 0 0 1-8.7 3.4"/><path d="M3 13.5v-3h3"/></svg>
+              <span data-i18n="Sync">Sync</span>
+            </div>
             <div class="stab-lang">
               <span class="t-label" data-i18n="Language / Bahasa">Language / Bahasa</span>
               <select id="setLang" class="sel">
@@ -1430,6 +1435,46 @@
               <div class="code" id="mcpCode" data-i18n="loading…">loading…</div>
             </div>
           </div>
+          <div class="settings-group" data-stab="sync">
+            <div class="card">
+              <h4 data-i18n="Encrypted sync">Encrypted sync</h4>
+              <div class="card-desc" data-i18n="Sync memories across your devices with end-to-end encrypted bundles. No server, no embeddings, no secrets, no transcripts.">Sync memories across your devices with end-to-end encrypted bundles. No server, no embeddings, no secrets, no transcripts.</div>
+              <div id="syncStatusBox" class="card-desc" style="margin-top:10px">Loading…</div>
+              <div class="kv"><span class="k" data-i18n="Status">Status</span><span class="v" id="syncKvStatus">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Group">Group</span><span class="v" id="syncKvGroup">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Device">Device</span><span class="v" id="syncKvDevice">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Pending outbox">Pending outbox</span><span class="v" id="syncKvPending">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Last export">Last export</span><span class="v" id="syncKvExport">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Last import">Last import</span><span class="v" id="syncKvImport">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Conflicts">Conflicts</span><span class="v" id="syncKvConflicts">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Embed queue">Embed queue</span><span class="v" id="syncKvEmbed">—</span></div>
+              <div class="card-desc" style="margin-top:10px" data-i18n-html="Setup and manual export/import use the CLI: <code>memoria sync setup|export|import</code>. If the key is locked (passphrase), folder actions may require CLI.">Setup and manual export/import use the CLI: <code>memoria sync setup|export|import</code>. If the key is locked (passphrase), folder actions may require CLI.</div>
+            </div>
+            <div class="card">
+              <h4 data-i18n="Shared folder sync">Shared folder sync</h4>
+              <div class="card-desc" data-i18n="Use a folder synced by Dropbox, iCloud Drive, Syncthing, or a network share. Memoria watches it and exchanges encrypted bundles automatically.">Use a folder synced by Dropbox, iCloud Drive, Syncthing, or a network share. Memoria watches it and exchanges encrypted bundles automatically.</div>
+              <div style="margin-top:10px">
+                <label class="t-label" for="setSyncFolder" data-i18n="Shared folder path">Shared folder path</label>
+                <input type="text" id="setSyncFolder" autocomplete="off" placeholder="/path/to/shared/memoria-sync" style="width:100%; margin-top:4px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:11.5px; outline:none" />
+                <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap">
+                  <button class="btn primary" id="btnSyncFolderSet" data-i18n="Save folder">Save folder</button>
+                  <button class="btn" id="btnSyncFolderClear" data-i18n="Disable">Disable</button>
+                  <button class="btn" id="btnSyncRefresh" data-i18n="Refresh">Refresh</button>
+                  <div class="spacer"></div>
+                  <span class="card-desc" id="syncFolderHint"></span>
+                </div>
+              </div>
+              <div class="kv" style="margin-top:10px"><span class="k" data-i18n="Folder">Folder</span><span class="v" id="syncKvFolder">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Folder state">Folder state</span><span class="v" id="syncKvFolderState">—</span></div>
+              <div class="kv"><span class="k" data-i18n="Last error">Last error</span><span class="v" id="syncKvError">—</span></div>
+            </div>
+            <div class="card">
+              <h4 data-i18n="Recent conflicts">Recent conflicts</h4>
+              <div class="card-desc" data-i18n="Last-writer-wins conflicts recorded during sync apply. Most recent first.">Last-writer-wins conflicts recorded during sync apply. Most recent first.</div>
+              <div id="syncConflictsBox" style="margin-top:10px"></div>
+            </div>
+          </div>
+
           <div class="settings-group" data-stab="notify">
 <div class="card">
               <h4 data-i18n="Notification events">Notification events</h4>

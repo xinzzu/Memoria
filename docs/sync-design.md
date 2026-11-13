@@ -1,6 +1,6 @@
 # Memoria Encrypted Sync — Design
 
-Status: M1 implemented on `main` (PR #8; schema, UID, HLC, outbox, tests). M2 implemented (migration v4, group key/recovery code, encrypted manual `.memsync` bundles, CLI export/import, idempotent apply, embedding backfill queue). M3 implemented (migration v5 applied-bundle ledger, shared-folder config/status, atomic debounced export, watcher-driven scan/apply with per-file error tolerance, `sync folder`/`sync conflicts` CLI, cleanup of own old bundles, two-device integration tests). M4+ not implemented. Scope: F3 sync between Memoria instances (same user, multiple machines).
+Status: M1 implemented on `main` (PR #8; schema, UID, HLC, outbox, tests). M2 implemented (migration v4, group key/recovery code, encrypted manual `.memsync` bundles, CLI export/import, idempotent apply, embedding backfill queue). M3 implemented (migration v5 applied-bundle ledger, shared-folder config/status, atomic debounced export, watcher-driven scan/apply with per-file error tolerance, `sync folder`/`sync conflicts` CLI, cleanup of own old bundles, two-device integration tests). M4 implemented (Settings Sync tab status/folder/conflicts UI, localhost sync status/conflicts/folder API, README/i18n). M5 hardening not implemented. Scope: F3 sync between Memoria instances (same user, multiple machines).
 
 ## 1. Goals and non-goals
 
