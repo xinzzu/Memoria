@@ -22,6 +22,13 @@ terbuka (hit@5 92.8–100% pada eval reproducible).
   nobody re-proposes it without beating both scales.
 
 ### Added
+- **Obsidian two-way — import side (PR-G)** — `POST /api/import/markdown
+  {folder, project?}` + UI (Backup & data → Import Markdown): a folder of
+  .md notes (Obsidian vault, Cline memory bank, plain notes) is imported as
+  memories — first heading becomes the title line, 2 levels deep, ≤500 files,
+  tiny files skipped, embeddings computed locally. Idempotent by design:
+  re-importing the same folder merges via dedupe instead of duplicating.
+  Completes the two-way story with the existing Obsidian export.
 - **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
   Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
   whenever you're ready" (opt-in toggle in Settings → Notifications, event

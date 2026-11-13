@@ -1683,6 +1683,26 @@ $("#btnImport").addEventListener("click", async () => {
 
 wireSettingsToggles();
 
+// PR-G: Import Markdown folder (Obsidian dua arah — sisi import).
+$("#btnImportMd").addEventListener("click", async () => {
+  const folder = $("#mdFolder").value.trim();
+  if (!folder) { toast(t("Folder path is empty"), "err"); return; }
+  const btn = $("#btnImportMd");
+  btn.disabled = true;
+  try {
+    const r = await api("/api/import/markdown", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) });
+    if (r.ok) {
+      toast(t("Imported {0} notes ({1} merged)", r.imported, r.merged));
+      $("#mdFolder").value = "";
+      loadStats();
+    } else toast(t("Import failed: ") + (r.error || ""), "err");
+  } catch (e) {
+    toast(t("Import failed: ") + e.message, "err");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 function wireShortcutInputs() {
   for (const [sel, key] of [["#setShortcutQuick", "shortcutQuick"], ["#setShortcutPalette", "shortcutPalette"]]) {
     const el = document.querySelector(sel);
