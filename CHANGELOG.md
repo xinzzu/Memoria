@@ -9,32 +9,33 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [0.7.1] — 2026-11-13
 
 ### Added
-- **Batch embedding provider OpenAI-compatible (F1B sisa)** — `openaiEmbedMany`
-  mengirim hingga 64 teks per request `/embeddings`, memetakan hasil lewat
-  `index` (urutan respons server tidak diasumsikan), memecah batch besar
-  otomatis, dan mengembalikan `null` per item yang gagal tanpa memblokir batch
-  lain. `embedManyVia` kini memakai jalur batch ini (sebelumnya loop satu
-  request per teks). Test baru: batch tunggal + urutan index, chunk >64,
-  respons parsial, wiring provider, dan no-op tanpa base URL.
+- **Batch embeddings for OpenAI-compatible providers (F1B leftover)** —
+  `openaiEmbedMany` sends up to 64 texts per `/embeddings` request, maps results
+  via `index` (server response order is not assumed), automatically chunks
+  larger batches, and returns `null` per failed item without blocking other
+  batches. `embedManyVia` now uses this batch path (previously one request per
+  text). New tests: single batch + index order, chunks over 64, partial
+  response, provider wiring, and no-op without a base URL.
 
 ### Changed
-- **CI release**: workflow kini menjalankan verifikasi (`npm test` + `check:ui`)
-  sebelum build installer; tag `v*` harus sama dengan versi `package.json`;
-  body GitHub Release diambil dari seksi CHANGELOG versi tersebut (fallback:
-  git log antar-tag). Verifikasi juga berjalan di PR dan push ke `main`, matrix
-  build memakai `fail-fast: false` agar satu OS gagal tidak membatalkan lainnya.
-- **Pagination pustaka dipindah ke SQL** — `GET /api/memories` dan
-  `GET /api/memories/list` kini memakai `LIMIT`/`OFFSET` langsung di SQLite
-  (`listMemoriesPage` di `store/db.ts`) alih-alih mematerialisasi seluruh tabel
-  lewat `allMemories()`/`listDraft()`/`listArchived()` lalu `slice()` di JS.
-  Total tetap dihitung via query count; bentuk respons tidak berubah. Test baru
-  memastikan urutan, total, dan batas halaman identik dengan implementasi lama
-  untuk ketiga tab (active/draft/archived).
+- **CI release**: the workflow now runs verification (`npm test` + `check:ui`)
+  before building installers; `v*` tags must match the `package.json` version;
+  the GitHub Release body is taken from the matching CHANGELOG section
+  (fallback: git log between tags). Verification also runs on PRs and pushes to
+  `main`, and the build matrix uses `fail-fast: false` so one OS failure does
+  not cancel the others.
+- **Library pagination moved to SQL** — `GET /api/memories` and
+  `GET /api/memories/list` now use SQLite `LIMIT`/`OFFSET` directly
+  (`listMemoriesPage` in `store/db.ts`) instead of materializing the entire
+  table through `allMemories()`/`listDraft()`/`listArchived()` and slicing in
+  JS. Totals are still computed with count queries and the response shape is
+  unchanged. New tests assert page order, totals, and limits match the old
+  implementation for all three tabs (active/draft/archived).
 
 ### Fixed
-- **Test `canonicalPath` gagal di Linux**: ekspektasi hardcode `/private/tmp`
-  (perilaku symlink macOS). Kini dibandingkan dengan `fs.realpathSync("/tmp")`
-  sehingga hijau di macOS, Linux, dan Windows.
+- **`canonicalPath` test failed on Linux**: it hardcoded `/private/tmp` (macOS
+  symlink behavior). It now compares against `fs.realpathSync("/tmp")`, so it
+  passes on macOS, Linux, and Windows.
 
 ## [0.7.0] — 2026-11-11 — Fase 3: Webhook & Notifikasi
 
