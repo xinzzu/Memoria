@@ -20,13 +20,28 @@ const GENERIC_PATTERNS = [
   /gather information about the project/i,
   /the next step is to/i,
   /proceed with the (task|request)/i,
+  // PR-N2: noise tool & markdown — biang 4.8k draft (status tool, badge
+  // shields.io, debris formatting) yang dulu lolos jadi "fakta".
+  /has been updated successfully/i,
+  /modified \d+ files? (you|you've|you have) previously read/i,
+  /\[!\[[^\]]*\]\(https?:\/\/img\.shields\.io/i,
+  /\]\(https?:\/\/img\.shields\.io/i,
+  /img\.shields\.io\/badge\//i,
+  /^\[!\w+\]\(/,
+  /^\s*(--|\*)\s*\*\*[^*]+\*\*/,
+  /^\s*```/,
 ];
 
 export function isGenericMemory(content: string): boolean {
   const c = content.toLowerCase();
   if (c.length < 15) return true;
-  for (const p of GENERIC_PATTERNS) {
-    if (p.test(c)) return true;
+  // Per-baris + keseluruhan: noise badge/status biasanya SATU BARIS di tengah
+  // konten multi-baris, bukan seluruh string.
+  const lines = c.split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const line of [c, ...lines]) {
+    for (const p of GENERIC_PATTERNS) {
+      if (p.test(line)) return true;
+    }
   }
   return false;
 }

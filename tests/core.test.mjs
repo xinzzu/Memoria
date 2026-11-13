@@ -258,3 +258,22 @@ test("PR-H: recentProjects — proyek tanpa transkrip tidak muncul", () => {
   assert.ok(!slugs.includes("users-mac-emptyproj"), "proyek 0-aktivitas harus disembunyikan");
   assert.ok(slugs.includes("users-mac-fullproj"), "proyek aktif harus muncul");
 });
+
+test("PR-N2: isGenericMemory — noise tool/badge/markdown tersaring", async () => {
+  const { isGenericMemory } = require("../dist/engine/extract/extractor.js");
+  const noise = [
+    "The file /Users/mac/Documents/Work/November/8/hypeflow/web/components/sections/Bottom.tsx has been updated successfully.",
+    "[This command modified 1 file you've previously read: app/page.tsx.",
+    "[!Tests](https://img.shields.io/badge/Foundry%20Tests-26%20passed-brightgreen.svg)](#contracts)",
+    "[!Solidity](https://img.shields.io/badge/Solidity-0.8.24-blue.svg)](packages/contracts)\n\nkonten lain",
+    "-- **Invariant (8,192 call ack):** 'claimed <= total' untuk setup posisi",
+    "```\nsome code fragment\n```",
+  ];
+  for (const n of noise) assert.ok(isGenericMemory(n), `harus dianggap noise: ${n.slice(0, 60)}`);
+  const keep = [
+    "Keputusan arsitektur: pakai pnpm workspace untuk monorepo ini dan hindari npm biasa.",
+    "User memilih bun sebagai runtime karena startup lebih cepat 3x dibanding node.",
+    "Invariant escrow: claimed <= total harus dijaga di kontrak posisi (dites via fuzzing).",
+  ];
+  for (const k of keep) assert.ok(!isGenericMemory(k), `konten nyata tidak boleh tersaring: ${k.slice(0, 60)}`);
+});
