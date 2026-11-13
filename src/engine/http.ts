@@ -391,6 +391,7 @@ export function startHttpServer(): Promise<void> {
             autoBackup: getSetting("autoBackup", "1"),
             autoArchive: getSetting("autoArchive", "1"),
             autoTopics: getSetting("autoTopics", "1"),
+            autoConsolidate: getSetting("autoConsolidate", "1"),
             globalPalette: getSetting("globalPalette", "1"),
             reviewMode: getSetting("reviewMode", "0"),
             weeklyDigest: getSetting("weeklyDigest", "1"),
@@ -509,6 +510,11 @@ export function startHttpServer(): Promise<void> {
           ...s,
           reExplanationsSaved: s.resumesReady30d,
         });
+      } else if (url.pathname === "/api/consolidate" && req.method === "POST") {
+        // PR-B: konsolidasi manual (dashboard/CLI) — jalankan sekali sekarang.
+        const { consolidateMemories } = await import("./extract/consolidate");
+        const r = await consolidateMemories();
+        sendJson(res, 200, { ok: true, ...r });
       } else if (url.pathname === "/api/projects/brief" && req.method === "POST") {
         // A4: regenerate project brief on-demand (dipakai juga untuk test UI).
         const body = await readBody(req);
