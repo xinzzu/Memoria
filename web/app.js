@@ -156,6 +156,8 @@ async function loadStats() {
     $("#sTranscripts").textContent = state.stats.transcripts.toLocaleString("id-ID");
     $("#sMemories").textContent = state.stats.memories.toLocaleString("id-ID");
     $("#sPending").textContent = state.stats.pending.toLocaleString("id-ID");
+    // Chip versi dinamis (dulu hardcoded "v0.7.1 · …" — selalu basi tiap rilis).
+    $("#chipVersion") && ($("#chipVersion").textContent = (state.stats.version ? "v" + state.stats.version : "") + " · local · private");
     $("#navMemCount").textContent = state.stats.memories > 0 ? state.stats.memories.toLocaleString("id-ID") : "";
     const ollama = state.stats.ollamaOnline;
     const engine = state.stats.engine;
@@ -1492,6 +1494,25 @@ async function renderProjectDetail(slug) {
     }
     // memori terbaru
     const mm = $("#pdMemories");
+    // PR-I: hasil heuristik parkir di draft — proyek "0 memori aktif" tidak
+    // boleh terlihat kosong; tunjukkan jumlah draft + pintasan ke tinjauan.
+    if (d.draftCount > 0) {
+      const banner = document.createElement("div");
+      banner.style.cssText = "margin:0 0 12px";
+      banner.innerHTML = `<div class="card-desc" style="margin:0 0 8px">${t("Heuristic results are parked as drafts — {0} waiting for this project", d.draftCount)}</div>`;
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = t("Review drafts");
+      btn.addEventListener("click", () => {
+        state.memTab = "draft";
+        state.filterProject = slug;
+        const sel = $("#filterProject");
+        if (sel) sel.value = slug;
+        setView("memories");
+      });
+      banner.appendChild(btn);
+      mm.parentElement.insertBefore(banner, mm);
+    }
     if (d.recentMemories.length) {
       mm.innerHTML = d.recentMemories.map((m) => `
         <div class="mem"><div class="mem-rail"><span class="kind-dot kind-${m.kind}"></span></div>
