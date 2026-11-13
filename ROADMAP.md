@@ -18,7 +18,7 @@ Acceptance F1C: 5.000 memori sintetis → search median 5,4–58,0 ms, semua < 1
 embedding, setup checklist, settings two-pane, graph obsidian + 3D, i18n penuh, light
 theme, SSE live, test suite, project detail view.
 
-**Aktif — Sync M1 (branch `feat/sync-m1`, belum merge):** migrasi `user_version` v3
+**Sync M1 ✅ (merge PR #8, `b1fc23b`):** migrasi `user_version` v3
 (UID stabil + `updated_by`, tabel `sync_devices`/`sync_outbox`/`sync_applied`/`sync_state`),
 backfill snapshot project/memory/link, HLC `wall.counter.device`, outbox upsert/delete
 non-blokir, tombstone hapus memori + link, hook suppression untuk replay peer, dan test
@@ -29,7 +29,7 @@ bundle `.memsync` manual, apply idempoten, lalu embedding backfill queue.
 **Backlog eksekusi berikutnya (urut):**
 1. ~~F1C sisa~~ ✅ (2026-11-11) · ~~F2~~ ✅ (v0.5.0) · ~~webhook notifikasi~~ ✅ (F3, 2026-11-11:
    Discord/Telegram/generic + 4 event + Send test + secret terenkripsi)
-2. **Sync M1 ✅ di branch → M2 crypto/manual bundle → M3 shared folder → M4 UX →
+2. **Sync M1 ✅ (PR #8) → M2 crypto/manual bundle → M3 shared folder → M4 UX →
    M5 hardening** (desain: `docs/sync-design.md`). Code signing/notarization masih
    menunggu keputusan biaya (Apple Developer + cert Windows).
 3. ~~Sisa kecil F1B/F1C~~ ✅ (2026-11-12): `embedMany` provider OpenAI-compat

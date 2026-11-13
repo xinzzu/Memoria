@@ -22,7 +22,7 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
   → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
   `POST /api/notify/test`, secret terenkripsi safeStorage) → v0.7.1 (pagination
   pustaka SQL-level, batch embedding OpenAI-compat, CI verify + tag guard).
-- Belum rilis: **sync M1** di `feat/sync-m1` — migrasi `user_version` v3 (UID
+- Belum rilis: **sync M1** sudah di `main` (PR #8) — migrasi `user_version` v3 (UID
   stabil, `updated_by`, tabel `sync_devices`/`sync_outbox`/`sync_applied`/
   `sync_state`), HLC `wall.counter.device`, outbox capture non-blokir, tombstone
   hapus memori+link. Desain lengkap: `docs/sync-design.md`; lanjut M2 crypto.
