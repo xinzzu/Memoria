@@ -18,6 +18,8 @@ export function cosine(a: number[], b: number[]): number {
 export interface DedupeResult {
   inserted: boolean;
   mergedInto?: number;
+  /** id memori yang kontennya DIGANTI (smart remember UPDATE). */
+  updated?: number;
 }
 
 // Ambang kemiripan per dialek: hash-256 lebih kasar → threshold lebih longgar.
@@ -95,12 +97,40 @@ export function addMemoryWithDedupe(m: Memory): DedupeResult {
   }
   // Tanpa embedding pakai threshold lebih ketat (teks lebih mudah false-positive).
   const mergeAt = hasEmb ? threshold : 0.85;
+  // Smart remember (mem0-style ADD/UPDATE/NOOP, versi zero-LLM): konten baru
+  // yang LEBIH PANJANG dan masih overlap token kuat (subjek sama, informasi
+  // bertambah) MENGGANTIKAN konten lama — memori berkembang, bukan menumpuk.
+  // Vektor baru ikut ditulis bila ada (updateMemory menulis embedding +
+  // embed_model bersamaan). Selain itu: NOOP + importance bump (perilaku lama).
+  const tryUpdate = (existing: (typeof candidates)[number]): DedupeResult | null => {
+    // Jaccard 0.55: 6/10 token sama jatuh di 0.6 float (0.5999...) — pakai
+    // ambang yang aman untuk kasus "perpanjangan kalimat".
+    const overlap = textSimilarity(m.content, existing.content);
+    if (m.content.length > existing.content.length && overlap >= 0.55) {
+      updateMemory(best, {
+        content: m.content,
+        importance: Math.max(existing.importance, m.importance),
+        ...(m.embedding && m.embedding.length ? { embedding: m.embedding, embedModel: m.embedModel } : {}),
+      });
+      return { inserted: false, mergedInto: best, updated: best };
+    }
+    return null;
+  };
+  const updateSim = hasEmb ? 0.6 : 0.75; // jalur teks lebih ketat (rawan false-positive)
   if (best >= 0 && bestSim >= mergeAt) {
     const existing = candidates.find((c) => c.id === best)!;
+    const updated = tryUpdate(existing);
+    if (updated) return updated;
     updateMemory(best, {
       importance: Math.max(existing.importance, m.importance),
     });
     return { inserted: false, mergedInto: best };
+  }
+  if (best >= 0 && bestSim >= updateSim) {
+    // Di bawah ambang merge: UPDATE hanya bila jelas perpanjangan fakta sama.
+    const existing = candidates.find((c) => c.id === best)!;
+    const updated = tryUpdate(existing);
+    if (updated) return updated;
   }
   insertMemory(m);
   const newId = lastInsertId();

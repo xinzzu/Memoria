@@ -7,6 +7,17 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Smart remember (PR-C, mem0-style ADD/UPDATE/NOOP — zero-LLM)** —
+  `addMemoryWithDedupe` now grows memories instead of only stacking them: new
+  content that is LONGER and overlaps ≥55% tokens with a near-duplicate
+  replaces the old content (with its fresh embedding + dialect, sync metadata
+  and FTS5 following via `updateMemory`). Two-tier thresholds keep it safe:
+  full merge at 0.85 (hash) / 0.92 (model) / 0.85 (text), selective UPDATE
+  down to 0.6 (embedding) / 0.75 (text) only when the new text is clearly an
+  extension of the same fact; otherwise the old NOOP + importance-bump and
+  plain insert paths are unchanged. The MCP `remember` tool now reports what
+  actually happened ("Memory updated (replaced content of #N)" / "Memory
+  saved" / "Merged into existing memory #N").
 - **Consolidation (PR-B)** — `extract/consolidate.ts`: a daily, model-free pass
   that clusters near-duplicate memories (same project, same kind, cosine
   ≥ 0.85 on locally computed hash embeddings — briefs excluded, newest 400
