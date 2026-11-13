@@ -6,11 +6,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { ensureDb } from "../ingest/manager";
 import { searchMemories, projectContext } from "../retrieve/search";
-import { ensureProject, memoryById, effectiveStatus, getDb, resolveProject } from "../store/db";
+import { ensureProject, memoryById, effectiveStatus, getDb, resolveProject, updateMemory, deleteMemory } from "../store/db";
 import { looksLikePath, projectSlugFromCwd } from "../ingest/util";
 import { getEmbedProvider } from "../extract/provider";
 import { relatedMemories } from "../graph";
 import { addMemoryWithDedupe } from "../extract/dedupe";
+import { emitEvent } from "../events";
 
 const TOOL_DESC = `
 You have access to persistent memory (a second brain) from every AI coding tool the user has used (Claude, Codex, opencode, Gemini, Copilot, Antigravity).
@@ -20,6 +21,7 @@ How to use:
 1. At session start, call recall with keywords relevant to the user's task.
 2. Before changing code, recall project context: decisions, pending tasks, fixed errors, preferences.
 3. After finishing a task, call remember to store new memories.
+4. If a stored memory is wrong or outdated, correct it with update_memory (auto re-embeds) or remove it with forget.
 `;
 
 export function createMcpServer(): Server {
@@ -82,6 +84,36 @@ export function createMcpServer(): Server {
           properties: {
             id: { type: "number", description: "ID memori hasil recall" },
             query: { type: "string", description: "Atau kata kunci untuk menemukan memori terdekat lalu ambil yang terhubung" },
+          },
+        },
+      },
+      {
+        name: "update_memory",
+        description:
+          "Correct an existing memory: replace its content (auto re-embedded so semantic search stays accurate), change its kind, or adjust importance. Pass the memory id from recall.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "number", description: "Memory id from recall" },
+            content: { type: "string", description: "Replacement content, short and dense" },
+            kind: {
+              type: "string",
+              enum: ["fact", "decision", "task_done", "task_pending", "error_fixed", "preference", "context"],
+            },
+            importance: { type: "number" },
+          },
+          required: ["id"],
+        },
+      },
+      {
+        name: "forget",
+        description:
+          "Delete a stale or wrong memory. Pass the memory id for a direct delete, or a query: a confident match is deleted immediately, otherwise candidates are listed for you to pick an explicit id.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "number", description: "Memory id (direct delete)" },
+            query: { type: "string", description: "Keywords to find the memory to forget" },
           },
         },
       },
@@ -178,6 +210,109 @@ export function createMcpServer(): Server {
           embedModel: eprov.embedModel,
         });
         return { content: [{ type: "text", text: `Memory saved: [${kind}] ${content}` }] };
+      }
+      case "update_memory": {
+        const id = Number(a.id || 0);
+        if (!id) {
+          return { content: [{ type: "text", text: "Provide the memory id (from recall)." }] };
+        }
+        const existing = memoryById(id);
+        if (!existing) {
+          return { content: [{ type: "text", text: `No memory with id ${id}.` }] };
+        }
+        const kinds = ["fact", "decision", "task_done", "task_pending", "error_fixed", "preference", "context"];
+        const patch: { content?: string; kind?: string; importance?: number; embedding?: number[]; embedModel?: string } = {};
+        if (a.content !== undefined) {
+          const content = String(a.content || "").trim();
+          if (!content) {
+            return { content: [{ type: "text", text: "Replacement content would be empty." }] };
+          }
+          patch.content = content;
+        }
+        if (a.kind !== undefined) {
+          if (!kinds.includes(String(a.kind))) {
+            return { content: [{ type: "text", text: `Unknown kind "${a.kind}".` }] };
+          }
+          patch.kind = String(a.kind);
+        }
+        if (a.importance !== undefined) {
+          patch.importance = Math.min(1, Math.max(0, Number(a.importance) || 0));
+        }
+        if (patch.content) {
+          // Konten berubah → vektor lama basi; re-embed agar recall semantik tetap benar.
+          const eprov = await getEmbedProvider();
+          const emb = await eprov.embed(patch.content);
+          if (emb && emb.length) {
+            patch.embedding = emb;
+            patch.embedModel = eprov.embedModel;
+          }
+        }
+        if (!Object.keys(patch).length) {
+          return { content: [{ type: "text", text: "Nothing to update — pass content, kind, or importance." }] };
+        }
+        const ok = updateMemory(id, patch);
+        if (ok) emitEvent("memory", { kind: patch.kind ?? existing.kind });
+        return {
+          content: [{
+            type: "text",
+            text: ok
+              ? `Memory ${id} updated: [${patch.kind ?? existing.kind}] ${patch.content ?? existing.content}`
+              : "Update failed.",
+          }],
+        };
+      }
+      case "forget": {
+        const id = Number(a.id || 0);
+        if (id) {
+          const existing = memoryById(id);
+          if (!existing) {
+            return { content: [{ type: "text", text: `No memory with id ${id}.` }] };
+          }
+          const ok = deleteMemory(id);
+          if (ok) emitEvent("memory", { kind: "forget" });
+          return {
+            content: [{
+              type: "text",
+              text: ok
+                ? `Memory ${id} deleted: "${existing.content.replace(/\s+/g, " ").slice(0, 120)}"`
+                : "Delete failed.",
+            }],
+          };
+        }
+        const query = String(a.query || "").trim();
+        if (!query) {
+          return { content: [{ type: "text", text: "Provide a memory id, or a query to find the memory to forget." }] };
+        }
+        const eprov = await getEmbedProvider();
+        const qEmb = await eprov.embed(query);
+        const hits = searchMemories(query, { limit: 3, embedModel: eprov.embedModel }, qEmb);
+        if (!hits.length) {
+          return { content: [{ type: "text", text: "No matching memory to forget." }] };
+        }
+        const top = hits[0];
+        // Hapus langsung hanya bila cocoknya yakin; kalau ragu, minta id eksplisit
+        // agar agent tidak menghapus memori yang salah.
+        if (top.score >= 0.45) {
+          const ok = deleteMemory(top.id);
+          if (ok) emitEvent("memory", { kind: "forget" });
+          return {
+            content: [{
+              type: "text",
+              text: ok
+                ? `Deleted (id ${top.id}, score ${top.score.toFixed(2)}): "${top.content.replace(/\s+/g, " ").slice(0, 120)}"`
+                : "Delete failed.",
+            }],
+          };
+        }
+        const list = hits
+          .map((h) => `- id ${h.id} (score ${h.score.toFixed(2)}) [${h.kind}] ${h.content.replace(/\s+/g, " ").slice(0, 100)}`)
+          .join("\n");
+        return {
+          content: [{
+            type: "text",
+            text: `No confident match (best score ${top.score.toFixed(2)}). Candidates:\n${list}\nCall forget again with the exact id to delete.`,
+          }],
+        };
       }
       default:
         return { content: [{ type: "text", text: `Tool tidak dikenal: ${name}` }] };

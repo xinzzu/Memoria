@@ -1231,20 +1231,25 @@ export function countArchived(): number {
 
 export function updateMemory(
   id: number,
-  patch: { content?: string; kind?: string; importance?: number; projectId?: number | null }
+  patch: { content?: string; kind?: string; importance?: number; projectId?: number | null; embedding?: number[]; embedModel?: string }
 ): boolean {
   const d = getDb();
   const current = d.prepare("SELECT * FROM memories WHERE id = ?").get(id) as
-    | { content: string; kind: string; importance: number; project_id: number | null; embedding: string | null }
+    | { content: string; kind: string; importance: number; project_id: number | null; embedding: Buffer | string | null; embed_model: string | null }
     | undefined;
   if (!current) return false;
   const content = patch.content ?? current.content;
   const kind = patch.kind ?? current.kind;
   const importance = patch.importance ?? current.importance;
   const projectId = patch.projectId !== undefined ? patch.projectId : current.project_id;
+  // Vektor hanya ditimpa bila patch menyediakannya — edit konten harus
+  // menyertakan embedding baru agar pencarian semantik tetap benar (dialek
+  // ikut disetel melalui embed_model).
+  const embedding = patch.embedding !== undefined ? f32ToBlob(patch.embedding) : current.embedding ?? null;
+  const embedModel = patch.embedModel !== undefined ? patch.embedModel : (current.embed_model ?? "");
   d.prepare(
-    `UPDATE memories SET content = ?, kind = ?, importance = ?, project_id = ?, updated_at = ?, updated_by = ? WHERE id = ?`
-  ).run(content, kind, importance, projectId, Date.now(), getDeviceId(), id);
+    `UPDATE memories SET content = ?, kind = ?, importance = ?, project_id = ?, updated_at = ?, updated_by = ?, embedding = ?, embed_model = ? WHERE id = ?`
+  ).run(content, kind, importance, projectId, Date.now(), getDeviceId(), embedding, embedModel, id);
   try {
     reindexEntities(id, content);
   } catch {
