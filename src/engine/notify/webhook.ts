@@ -3,12 +3,12 @@
  * sehingga kegagalan kirim tidak pernah mengganggu jalur pemanggil. Gaya
  * outbound HTTP mengikuti ollama.ts: global fetch + AbortSignal.timeout +
  * try/catch swallow. Isi pesan English (prinsip engine EN). */
-import { getBoolSetting, getSetting } from "../store/db";
+import { getBoolSetting, getSetting, projectSlugById } from "../store/db";
 import { decryptSecret } from "../store/secure";
 import { addListener } from "../events";
 
 export type NotifyPlatform = "discord" | "telegram" | "generic";
-export type NotifyEvent = "digest" | "scan" | "memory_approved" | "drafts_pending";
+export type NotifyEvent = "digest" | "scan" | "memory_approved" | "drafts_pending" | "limit_hit";
 
 export interface NotifyPayload {
   event: NotifyEvent;
@@ -24,6 +24,7 @@ const EVENT_TOGGLE: Record<string, string> = {
   digest: "notifyDigest",
   memory_approved: "notifyApprove",
   drafts_pending: "notifyDrafts",
+  limit_hit: "notifyLimit",
 };
 
 function plural(n: number, word: string): string {
@@ -36,6 +37,18 @@ function plural(n: number, word: string): string {
 export function payloadFromEvent(type: string, data: unknown): NotifyPayload | null {
   const d = (data || {}) as Record<string, any>;
   switch (type) {
+    case "limit_hit": {
+      // F4 pre-limit: brain sudah disiapkan — ping ke HP/channel agar user
+      // tahu BOLEH pindah tool kapan pun (ini inti limit-hopping).
+      const pid = Number(d.projectId || 0);
+      const slug = pid ? (projectSlugById(pid) || "this project") : "this project";
+      return {
+        event: "limit_hit",
+        title: "Memoria — AI limit hit, resume brain is ready",
+        body: `Context captured for ${slug}${d.snapshotted ? " (session snapshot saved)" : ""}. Switch tools whenever you're ready.`,
+        details: d,
+      };
+    }
     case "scan": {
       const tools = Array.isArray(d.tools) ? d.tools : [];
       const parts: string[] = [];

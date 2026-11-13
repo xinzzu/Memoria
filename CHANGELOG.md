@@ -14,6 +14,10 @@ yang tiba *sebelum* limit habis, dan kualitas retrieval yang kini terukur
 terbuka (hit@5 92.8–100% pada eval reproducible).
 
 ### Added
+- **notifyLimit webhook toggle** — the F4 pre-limit moment can now ping
+  Discord/Telegram/generic: "AI limit hit, resume brain is ready — switch tools
+  whenever you're ready" (opt-in toggle in Settings → Notifications, event
+  payload carries project slug + snapshot status).
 - **Eval harness lite (PR-D)** — `scripts/eval-search.mjs`: a reproducible
   LongEval-lite benchmark (deterministic PRNG seed 42, N topics × paraphrase +
   typo queries, generic noise memories as distractors) that scores

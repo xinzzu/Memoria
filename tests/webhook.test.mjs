@@ -69,6 +69,23 @@ test("webhook: HTTP error dilaporkan sebagai { ok:false }, tidak melempar", asyn
   assert.match(r[0].error, /HTTP 500/);
 });
 
+test("webhook: limit_hit — payload pre-limit saat toggle notifyLimit aktif", async () => {
+  const { srv, port, received } = await startReceiver();
+  dbmod.setSetting("notifyGenericUrl", `http://127.0.0.1:${port}/hook`);
+  dbmod.setSetting("notifyLimit", "1");
+  const pid = dbmod.ensureProject("users-mac-limitping", undefined);
+  webhook.registerWebhooks();
+  const { emitEvent } = require("../dist/engine/events.js");
+  emitEvent("limit_hit", { projectId: pid, snapshotted: true });
+  await new Promise((r) => setTimeout(r, 100));
+  srv.close();
+  assert.equal(received.length, 1, "limit_hit harus terkirim saat toggle aktif");
+  const sent = JSON.parse(received[0].body);
+  assert.equal(sent.event, "limit_hit");
+  assert.match(sent.body, /Context captured/);
+  assert.match(sent.body, /switch tools/i, "pesan inti limit-hopping harus ada");
+});
+
 test("webhook: event toggle — listener hanya kirim event yang diaktifkan", async () => {
   const { srv, port, received } = await startReceiver();
   dbmod.setSetting("notifyGenericUrl", `http://127.0.0.1:${port}/hook`);

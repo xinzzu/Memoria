@@ -412,6 +412,7 @@ export function startHttpServer(): Promise<void> {
             notifyScan: getSetting("notifyScan", "0"),
             notifyApprove: getSetting("notifyApprove", "0"),
             notifyDrafts: getSetting("notifyDrafts", "0"),
+            notifyLimit: getSetting("notifyLimit", "0"),
             notifyDraftMin: getSetting("notifyDraftMin", "3"),
             notifyTelegramChat: getSetting("notifyTelegramChat", ""),
             notifyDiscordHas: getSetting("notifyDiscordUrl", "") ? "1" : "0",
