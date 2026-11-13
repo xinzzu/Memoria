@@ -7,6 +7,22 @@ versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ## [Unreleased]
 
 ### Added
+- **Encrypted sync manual bundles (M2)** — database migration v4 adds
+  per-entity LWW clocks, tombstones, conflict log, seen-op ledger, embedding
+  backfill queue, and project slug aliases. New `memoria sync setup|status|export|import`
+  CLI creates/joins a sync group (generated recovery code or join), stores the
+  256-bit group key encrypted via OS keychain (`safeStorage`) or a
+  passphrase-protected scrypt wrapper, and writes/reads encrypted `.memsync`
+  bundles (AES-256-GCM, per-file HKDF key, gzip JSONL). Export supports
+  `--full` relay snapshots built from current device state; import is
+  idempotent, validates and canonicalizes operations, applies LWW with
+  tombstones, records bounded conflicts, maps projects by UID/alias/slug without
+  syncing local paths, never syncs embeddings/secrets/settings/transcripts, and
+  queues local embedding backfill for imported memories. Test suite now covers
+  crypto recovery/passphrase, bundle tamper/wrong-key/duplicate-op rejection,
+  roundtrip, relay, delta/idempotency, LWW conflict, tombstone resurrection
+  prevention, project slug aliasing, and CLI (38 tests total).
+
 - **Encrypted sync foundation (M1)** — database migration v3 adds stable UUID
   `uid` columns plus `updated_by` to `projects` and `memories`, backfills every
   existing row, and creates `sync_devices`, `sync_outbox`, `sync_applied`, and

@@ -24,7 +24,7 @@ function outbox(d, entity) {
   return rows.map((r) => ({ ...r, payload: JSON.parse(r.payload) }));
 }
 
-test("migrasi v2 -> v3: uid backfill + snapshot project/memory/link", () => {
+test("migrasi v2 -> v4: uid backfill + snapshot project/memory/link", () => {
   dbmod.closeDb();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "memoria-sync-old-"));
   const old = new DatabaseSync(path.join(dir, "memory.db"));
@@ -83,7 +83,7 @@ test("migrasi v2 -> v3: uid backfill + snapshot project/memory/link", () => {
   old.close();
 
   const d = dbmod.initDb(dir);
-  assert.equal(Number(d.prepare("PRAGMA user_version").get().user_version), 3);
+  assert.equal(Number(d.prepare("PRAGMA user_version").get().user_version), 4);
 
   const projects = d.prepare("SELECT id, uid FROM projects").all();
   assert.equal(projects.length, 1);
@@ -105,14 +105,22 @@ test("migrasi v2 -> v3: uid backfill + snapshot project/memory/link", () => {
   assert.equal(memoryOps[0].payload.projectUid, projectOps[0].entity_uid);
   assert.ok(memoryOps[0].payload.updatedBy, "snapshot memori harus membawa updated_by");
   assert.deepEqual(memoryOps[0].payload.tags, ["legacy"]);
-  assert.equal(linkOps[0].payload.fromUid, memories[0].uid);
-  assert.equal(linkOps[0].payload.toUid, memories[1].uid);
+  assert.deepEqual(
+    [linkOps[0].payload.fromUid, linkOps[0].payload.toUid].sort(),
+    [memories[0].uid, memories[1].uid].sort(),
+    "identitas link harus memakai pasangan UID"
+  );
+  assert.equal(linkOps[0].entity_uid, [linkOps[0].payload.fromUid, linkOps[0].payload.toUid].sort().join("|"));
   assert.equal(linkOps[0].payload.kind, "related");
+  const clock = d.prepare("SELECT hlc FROM sync_entity_clock WHERE entity = 'link' AND entity_uid = ?").get(linkOps[0].entity_uid);
+  assert.equal(clock.hlc, linkOps[0].hlc, "m4 harus mem-backfill entity clock dari outbox");
+  const seen = d.prepare("SELECT COUNT(*) AS c FROM sync_seen_ops").get();
+  assert.equal(Number(seen.c), ops.length, "m4 harus mem-backfill seen ops");
 
   const before = Number(d.prepare("SELECT COUNT(*) AS c FROM sync_outbox").get().c);
   dbmod.closeDb();
   const d2 = dbmod.initDb(dir);
-  assert.equal(Number(d2.prepare("PRAGMA user_version").get().user_version), 3);
+  assert.equal(Number(d2.prepare("PRAGMA user_version").get().user_version), 4);
   assert.equal(Number(d2.prepare("SELECT COUNT(*) AS c FROM sync_outbox").get().c), before, "migrasi ulang tidak boleh duplikat");
 });
 
@@ -180,7 +188,8 @@ test("mutasi DB menghasilkan outbox upsert/delete + HLC monotonic", () => {
   const linkOps = outbox(d, "link");
   assert.equal(linkOps.length, 1);
   assert.equal(linkOps[0].op, "upsert");
-  assert.equal(linkOps[0].payload.fromUid, mem.uid);
+  assert.ok([linkOps[0].payload.fromUid, linkOps[0].payload.toUid].includes(mem.uid));
+  assert.equal(linkOps[0].entity_uid, [linkOps[0].payload.fromUid, linkOps[0].payload.toUid].sort().join("|"));
   assert.equal(linkOps[0].payload.kind, "related");
 
   dbmod.clearMemoryLinks();

@@ -1,6 +1,6 @@
 # Memoria Encrypted Sync — Design
 
-Status: M1 implemented on `main` (PR #8; schema, UID, HLC, outbox, tests); M2+ not implemented. Scope: F3 sync between Memoria instances (same user, multiple machines).
+Status: M1 implemented on `main` (PR #8; schema, UID, HLC, outbox, tests). M2 implemented (migration v4, group key/recovery code, encrypted manual `.memsync` bundles, CLI export/import, idempotent apply, embedding backfill queue); M3+ not implemented. Scope: F3 sync between Memoria instances (same user, multiple machines).
 
 ## 1. Goals and non-goals
 

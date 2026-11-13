@@ -425,6 +425,10 @@ export function startHttpServer(): Promise<void> {
         });
       } else if (url.pathname === "/api/settings" && req.method === "POST") {
         const body = await readBody(req);
+        if (body.key === "sync.groupKey") {
+          sendJson(res, 400, { error: "sync.groupKey is managed by `memoria sync setup`" });
+          return;
+        }
         if (body.key && body.value !== undefined) {
           // Secret (API key & webhook) disimpan terenkripsi bila safeStorage
           // tersedia (Keychain/DPAPI); value kosong = hapus.

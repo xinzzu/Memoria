@@ -168,6 +168,7 @@ const MIGRATIONS: Migration[] = [
   { version: 1, name: "fts5-keyword-index", up: m1Fts5 },
   { version: 2, name: "embedding-float32-blob", up: m2EmbeddingBlob },
   { version: 3, name: "sync-uid-outbox", up: m3Sync },
+  { version: 4, name: "sync-lww-metadata", up: m4SyncMetadata },
 ];
 
 function runMigrations(d: DatabaseSync): void {
@@ -307,13 +308,112 @@ function m3Sync(d: DatabaseSync): void {
   for (const row of d.prepare("SELECT id FROM memories ORDER BY id").all() as Array<{ id: number }>) {
     enqueueMemorySnapshot(row.id);
   }
-  for (const row of d.prepare("SELECT from_memory_id, to_memory_id, kind, weight FROM memory_links ORDER BY id").all() as Array<{
+  for (const row of d.prepare("SELECT from_memory_id, to_memory_id FROM memory_links ORDER BY id").all() as Array<{
     from_memory_id: number;
     to_memory_id: number;
-    kind: string;
-    weight: number;
   }>) {
-    enqueueLinkSnapshot(row.from_memory_id, row.to_memory_id, row.kind, row.weight);
+    enqueueLinkSnapshot(row.from_memory_id, row.to_memory_id);
+  }
+}
+
+/** M4: metadata LWW untuk apply bundle, embedding backfill queue, dan alias
+ * proyek lintas mesin. Outbox M1 sendiri tidak cukup: peer perlu tahu jam
+ * terakhir per entitas (termasuk saat full export) dan tombstone agar operasi
+ * lama tidak membangkitkan data yang sudah dihapus. Backfill di sini juga
+ * menormalkan identitas link lama ke pasangan UID terurut. */
+function m4SyncMetadata(d: DatabaseSync): void {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS sync_entity_clock (
+      entity TEXT NOT NULL,
+      entity_uid TEXT NOT NULL,
+      hlc TEXT NOT NULL,
+      op TEXT NOT NULL,
+      PRIMARY KEY (entity, entity_uid)
+    );
+    CREATE TABLE IF NOT EXISTS sync_tombstones (
+      entity TEXT NOT NULL,
+      entity_uid TEXT NOT NULL,
+      hlc TEXT NOT NULL,
+      deleted_at INTEGER NOT NULL,
+      PRIMARY KEY (entity, entity_uid)
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_tombstones_deleted ON sync_tombstones(deleted_at);
+    CREATE TABLE IF NOT EXISTS sync_conflicts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity TEXT NOT NULL,
+      entity_uid TEXT NOT NULL,
+      winner_hlc TEXT NOT NULL,
+      loser_hlc TEXT NOT NULL,
+      loser_payload TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_seen_ops (
+      op_id TEXT PRIMARY KEY,
+      seen_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_embed_queue (
+      memory_id INTEGER PRIMARY KEY,
+      queued_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_project_alias (
+      remote_uid TEXT PRIMARY KEY,
+      project_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  const updLink = d.prepare("UPDATE sync_outbox SET entity_uid = ?, payload = ? WHERE id = ?");
+  const linkRows = d
+    .prepare("SELECT id, entity_uid, payload FROM sync_outbox WHERE entity = 'link'")
+    .all() as Array<{ id: number; entity_uid: string; payload: string }>;
+  for (const row of linkRows) {
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = JSON.parse(row.payload) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    let from = typeof payload.fromUid === "string" ? payload.fromUid : "";
+    let to = typeof payload.toUid === "string" ? payload.toUid : "";
+    if (!from || !to) {
+      const parts = row.entity_uid.split("|");
+      if (parts.length === 2) [from, to] = parts;
+    }
+    if (!from || !to) continue;
+    const [a, b] = sortLinkUids(from, to);
+    if (typeof payload.fromUid === "string") {
+      payload.fromUid = a;
+      payload.toUid = b;
+    }
+    const nextUid = `${a}|${b}`;
+    if (nextUid !== row.entity_uid || JSON.stringify(payload) !== row.payload) {
+      updLink.run(nextUid, JSON.stringify(payload), row.id);
+    }
+  }
+
+  d.prepare("INSERT OR IGNORE INTO sync_seen_ops (op_id, seen_at) SELECT op_id, created_at FROM sync_outbox").run();
+
+  const best = new Map<string, { entity: string; entity_uid: string; hlc: string; op: string }>();
+  const rows = d.prepare("SELECT entity, entity_uid, hlc, op FROM sync_outbox ORDER BY id").all() as Array<{
+    entity: string;
+    entity_uid: string;
+    hlc: string;
+    op: string;
+  }>;
+  for (const row of rows) {
+    const key = `${row.entity}\u0000${row.entity_uid}`;
+    const prev = best.get(key);
+    if (!prev || hlcNewer(row.hlc, prev.hlc)) best.set(key, row);
+  }
+  const insClock = d.prepare(
+    "INSERT INTO sync_entity_clock (entity, entity_uid, hlc, op) VALUES (?, ?, ?, ?) ON CONFLICT(entity, entity_uid) DO UPDATE SET hlc = excluded.hlc, op = excluded.op"
+  );
+  const insTomb = d.prepare(
+    "INSERT INTO sync_tombstones (entity, entity_uid, hlc, deleted_at) VALUES (?, ?, ?, ?) ON CONFLICT(entity, entity_uid) DO UPDATE SET hlc = excluded.hlc, deleted_at = excluded.deleted_at"
+  );
+  for (const row of best.values()) {
+    insClock.run(row.entity, row.entity_uid, row.hlc, row.op);
+    if (row.op === "delete") insTomb.run(row.entity, row.entity_uid, row.hlc, Date.now());
   }
 }
 
@@ -398,14 +498,14 @@ export function setSyncCaptureEnabled(enabled: boolean): void {
   syncCaptureEnabled = enabled;
 }
 
-function syncStateGet(key: string): string {
+export function getSyncState(key: string): string {
   const row = getDb().prepare("SELECT value FROM sync_state WHERE key = ?").get(key) as
     | { value: string }
     | undefined;
   return row?.value ?? "";
 }
 
-function syncStateSet(key: string, value: string): void {
+export function setSyncState(key: string, value: string): void {
   getDb()
     .prepare("INSERT INTO sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
     .run(key, value);
@@ -413,10 +513,10 @@ function syncStateSet(key: string, value: string): void {
 
 export function getDeviceId(): string {
   const d = getDb();
-  const existing = syncStateGet("device_id");
+  const existing = getSyncState("device_id");
   if (existing) return existing;
   const id = randomUUID();
-  syncStateSet("device_id", id);
+  setSyncState("device_id", id);
   d.prepare("INSERT OR IGNORE INTO sync_devices (device_id, name, created_at, last_seen) VALUES (?, ?, ?, ?)").run(
     id,
     "local",
@@ -427,14 +527,14 @@ export function getDeviceId(): string {
 }
 
 function nextSeq(): number {
-  const next = Number(syncStateGet("seq") || 0) + 1;
-  syncStateSet("seq", String(next));
+  const next = Number(getSyncState("seq") || 0) + 1;
+  setSyncState("seq", String(next));
   return next;
 }
 
 /** HLC zero-padded agar perbandingan string konsisten lintas device. */
 export function nextHlc(deviceId = getDeviceId()): string {
-  const prev = syncStateGet("clock");
+  const prev = getSyncState("clock");
   const [prevWallRaw, prevCounterRaw] = prev.split(".");
   const prevWall = Number(prevWallRaw) || 0;
   const prevCounter = Number(prevCounterRaw) || 0;
@@ -442,7 +542,7 @@ export function nextHlc(deviceId = getDeviceId()): string {
   const wall = now > prevWall ? now : prevWall;
   const counter = now > prevWall ? 0 : prevCounter + 1;
   const hlc = `${String(wall).padStart(13, "0")}.${String(counter).padStart(6, "0")}.${deviceId}`;
-  syncStateSet("clock", hlc);
+  setSyncState("clock", hlc);
   return hlc;
 }
 
@@ -468,8 +568,80 @@ export function hlcNewer(a: string, b: string): boolean {
 /** Catat jam peer agar HLC lokal berikutnya selalu menang atas operasi yang baru dilihat. */
 export function observeHlc(remote: string): void {
   if (!remote) return;
-  const local = syncStateGet("clock");
-  if (!local || hlcNewer(remote, local)) syncStateSet("clock", remote);
+  const local = getSyncState("clock");
+  if (!local || hlcNewer(remote, local)) setSyncState("clock", remote);
+}
+
+export interface EntityClock {
+  hlc: string;
+  op: SyncOp;
+}
+
+export function getEntityClock(entity: SyncEntity, entityUid: string): EntityClock | null {
+  const row = getDb()
+    .prepare("SELECT hlc, op FROM sync_entity_clock WHERE entity = ? AND entity_uid = ?")
+    .get(entity, entityUid) as { hlc: string; op: string } | undefined;
+  return row ? { hlc: row.hlc, op: row.op === "delete" ? "delete" : "upsert" } : null;
+}
+
+export function recordEntityClock(entity: SyncEntity, entityUid: string, hlc: string, op: SyncOp): void {
+  const current = getEntityClock(entity, entityUid);
+  if (current && !hlcNewer(hlc, current.hlc)) return;
+  getDb()
+    .prepare(
+      `INSERT INTO sync_entity_clock (entity, entity_uid, hlc, op) VALUES (?, ?, ?, ?)
+       ON CONFLICT(entity, entity_uid) DO UPDATE SET hlc = excluded.hlc, op = excluded.op`
+    )
+    .run(entity, entityUid, hlc, op);
+}
+
+export function getTombstone(entity: SyncEntity, entityUid: string): { hlc: string; deletedAt: number } | null {
+  const row = getDb()
+    .prepare("SELECT hlc, deleted_at FROM sync_tombstones WHERE entity = ? AND entity_uid = ?")
+    .get(entity, entityUid) as { hlc: string; deleted_at: number } | undefined;
+  return row ? { hlc: row.hlc, deletedAt: Number(row.deleted_at) } : null;
+}
+
+export function recordTombstone(entity: SyncEntity, entityUid: string, hlc: string, deletedAt = Date.now()): void {
+  const current = getTombstone(entity, entityUid);
+  if (current && !hlcNewer(hlc, current.hlc)) return;
+  getDb()
+    .prepare(
+      `INSERT INTO sync_tombstones (entity, entity_uid, hlc, deleted_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(entity, entity_uid) DO UPDATE SET hlc = excluded.hlc, deleted_at = excluded.deleted_at`
+    )
+    .run(entity, entityUid, hlc, deletedAt);
+}
+
+export function markSyncOpSeen(opId: string): void {
+  if (!opId) return;
+  getDb().prepare("INSERT OR IGNORE INTO sync_seen_ops (op_id, seen_at) VALUES (?, ?)").run(opId, Date.now());
+}
+
+export function logSyncConflict(
+  entity: SyncEntity,
+  entityUid: string,
+  winnerHlc: string,
+  loserHlc: string,
+  loserPayload: unknown
+): void {
+  const d = getDb();
+  const payload = JSON.stringify(loserPayload ?? {}).slice(0, 10_240);
+  d.prepare(
+    `INSERT INTO sync_conflicts (entity, entity_uid, winner_hlc, loser_hlc, loser_payload, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(entity, entityUid, winnerHlc, loserHlc, payload, Date.now());
+  const row = d.prepare("SELECT COUNT(*) AS c FROM sync_conflicts").get() as { c: number };
+  const extra = Number(row.c) - 50;
+  if (extra > 0) {
+    d.prepare("DELETE FROM sync_conflicts WHERE id IN (SELECT id FROM sync_conflicts ORDER BY id LIMIT ?)").run(extra);
+  }
+}
+
+export function pruneSyncTombstones(maxAgeDays = 180): number {
+  const cutoff = Date.now() - maxAgeDays * 86400_000;
+  const res = getDb().prepare("DELETE FROM sync_tombstones WHERE deleted_at < ?").run(cutoff);
+  return Number(res.changes);
 }
 
 export function queueSyncOp(entity: SyncEntity, entityUid: string, op: SyncOp, payload: unknown): void {
@@ -479,67 +651,89 @@ export function queueSyncOp(entity: SyncEntity, entityUid: string, op: SyncOp, p
     const deviceId = getDeviceId();
     const seq = nextSeq();
     const hlc = nextHlc(deviceId);
+    const opId = `${deviceId}:${seq}`;
     d.prepare(
       `INSERT INTO sync_outbox (op_id, seq, hlc, entity, entity_uid, op, payload, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(`${deviceId}:${seq}`, seq, hlc, entity, entityUid, op, JSON.stringify(payload ?? {}), Date.now());
+    ).run(opId, seq, hlc, entity, entityUid, op, JSON.stringify(payload ?? {}), Date.now());
+    // Metadata LWW. Saat migrasi v3 belum ada tabel v4; m4 mem-backfill dari outbox.
+    try {
+      recordEntityClock(entity, entityUid, hlc, op);
+      if (op === "delete") recordTombstone(entity, entityUid, hlc);
+      markSyncOpSeen(opId);
+    } catch {
+      /* backfill oleh m4 */
+    }
   } catch (err) {
     console.warn("[memoria] sync outbox:", err instanceof Error ? err.message : err);
   }
 }
 
-function enqueueProjectSnapshot(id: number): void {
-  try {
-    const row = getDb()
-      .prepare("SELECT uid, slug, name, last_seen, updated_by FROM projects WHERE id = ?")
-      .get(id) as
-      | {
-          uid: string | null;
-          slug: string;
-          name: string | null;
-          last_seen: number | null;
-          updated_by: string | null;
-        }
-      | undefined;
-    if (!row?.uid) return;
-    queueSyncOp("project", row.uid, "upsert", {
+export function sortLinkUids(a: string, b: string): [string, string] {
+  return a <= b ? [a, b] : [b, a];
+}
+
+export function projectSyncPayload(id: number): { uid: string; payload: Record<string, unknown> } | null {
+  const row = getDb()
+    .prepare("SELECT uid, slug, name, last_seen, updated_by FROM projects WHERE id = ?")
+    .get(id) as
+    | {
+        uid: string | null;
+        slug: string;
+        name: string | null;
+        last_seen: number | null;
+        updated_by: string | null;
+      }
+    | undefined;
+  if (!row?.uid) return null;
+  return {
+    uid: row.uid,
+    payload: {
       slug: row.slug,
       name: row.name || row.slug,
       lastSeen: row.last_seen || 0,
       updatedBy: row.updated_by || "",
-    });
+    },
+  };
+}
+
+function enqueueProjectSnapshot(id: number): void {
+  try {
+    const snap = projectSyncPayload(id);
+    if (snap) queueSyncOp("project", snap.uid, "upsert", snap.payload);
   } catch {
     /* non-blokir */
   }
 }
 
-function enqueueMemorySnapshot(id: number): void {
-  try {
-    const row = getDb()
-      .prepare(
-        `SELECT m.uid, m.kind, m.content, m.importance, m.created_at, m.updated_at, m.updated_by, m.source_tool,
-                m.status, m.resolved_at, m.origin, m.archived, p.uid AS project_uid
-         FROM memories m LEFT JOIN projects p ON p.id = m.project_id WHERE m.id = ?`
-      )
-      .get(id) as
-      | {
-          uid: string | null;
-          kind: string;
-          content: string;
-          importance: number;
-          created_at: number;
-          updated_at: number | null;
-          updated_by: string | null;
-          source_tool: string | null;
-          status: string | null;
-          resolved_at: number | null;
-          origin: string | null;
-          archived: number | null;
-          project_uid: string | null;
-        }
-      | undefined;
-    if (!row?.uid) return;
-    queueSyncOp("memory", row.uid, "upsert", {
+export function memorySyncPayload(id: number): { uid: string; payload: Record<string, unknown> } | null {
+  const row = getDb()
+    .prepare(
+      `SELECT m.uid, m.kind, m.content, m.importance, m.created_at, m.updated_at, m.updated_by, m.source_tool,
+              m.status, m.resolved_at, m.origin, m.archived, p.uid AS project_uid
+       FROM memories m LEFT JOIN projects p ON p.id = m.project_id WHERE m.id = ?`
+    )
+    .get(id) as
+    | {
+        uid: string | null;
+        kind: string;
+        content: string;
+        importance: number;
+        created_at: number;
+        updated_at: number | null;
+        updated_by: string | null;
+        source_tool: string | null;
+        status: string | null;
+        resolved_at: number | null;
+        origin: string | null;
+        archived: number | null;
+        project_uid: string | null;
+      }
+    | undefined;
+  if (!row?.uid) return null;
+  return {
+    uid: row.uid,
+    payload: {
       projectUid: row.project_uid || null,
       kind: row.kind,
       content: row.content,
@@ -553,27 +747,52 @@ function enqueueMemorySnapshot(id: number): void {
       origin: row.origin || "user",
       archived: row.archived ? 1 : 0,
       tags: tagsForMemory(id),
-    });
+    },
+  };
+}
+
+function enqueueMemorySnapshot(id: number): void {
+  try {
+    const snap = memorySyncPayload(id);
+    if (snap) queueSyncOp("memory", snap.uid, "upsert", snap.payload);
   } catch {
     /* non-blokir */
   }
 }
 
-function enqueueLinkSnapshot(fromId: number, toId: number, kind: string, weight: number): void {
+export function linkSyncPayload(
+  fromId: number,
+  toId: number
+): { uid: string; payload: Record<string, unknown> } | null {
+  const row = getDb()
+    .prepare(
+      `SELECT a.uid AS from_uid, b.uid AS to_uid, l.kind, l.weight, l.created_at
+       FROM memory_links l
+       JOIN memories a ON a.id = l.from_memory_id
+       JOIN memories b ON b.id = l.to_memory_id
+       WHERE l.from_memory_id = ? AND l.to_memory_id = ?`
+    )
+    .get(Math.min(fromId, toId), Math.max(fromId, toId)) as
+    | { from_uid: string | null; to_uid: string | null; kind: string; weight: number; created_at: number | null }
+    | undefined;
+  if (!row?.from_uid || !row.to_uid) return null;
+  const [fromUid, toUid] = sortLinkUids(row.from_uid, row.to_uid);
+  return {
+    uid: `${fromUid}|${toUid}`,
+    payload: {
+      fromUid,
+      toUid,
+      kind: row.kind,
+      weight: row.weight,
+      createdAt: row.created_at || 0,
+    },
+  };
+}
+
+function enqueueLinkSnapshot(fromId: number, toId: number): void {
   try {
-    const row = getDb()
-      .prepare(
-        `SELECT a.uid AS from_uid, b.uid AS to_uid
-         FROM memories a JOIN memories b ON b.id = ? WHERE a.id = ?`
-      )
-      .get(toId, fromId) as { from_uid: string | null; to_uid: string | null } | undefined;
-    if (!row?.from_uid || !row.to_uid) return;
-    queueSyncOp("link", `${row.from_uid}|${row.to_uid}`, "upsert", {
-      fromUid: row.from_uid,
-      toUid: row.to_uid,
-      kind,
-      weight,
-    });
+    const snap = linkSyncPayload(fromId, toId);
+    if (snap) queueSyncOp("link", snap.uid, "upsert", snap.payload);
   } catch {
     /* non-blokir */
   }
@@ -1002,6 +1221,14 @@ export function memoryById(id: number): Memory | null {
   return rows[0] ?? null;
 }
 
+/** Update vektor hasil backfill sync — sengaja tidak menyentuh updated_at/outbox
+ * agar apply bundle tidak memicu operasi sync baru. */
+export function setMemoryEmbedding(id: number, embedding: number[] | null, embedModel: string): void {
+  getDb()
+    .prepare("UPDATE memories SET embedding = ?, embed_model = ? WHERE id = ?")
+    .run(embedding ? f32ToBlob(embedding) : null, embedModel || "", id);
+}
+
 export function readMemories(whereClause: string, params: Array<number | string | null>): Memory[] {
   const rows = getDb()
     .prepare(`SELECT * FROM memories ${whereClause}`)
@@ -1100,7 +1327,10 @@ export function deleteMemory(id: number): boolean {
   if (res.changes > 0) {
     d.prepare("DELETE FROM memory_links WHERE from_memory_id = ? OR to_memory_id = ?").run(id, id);
     for (const link of links) {
-      if (link.from_uid && link.to_uid) queueSyncOp("link", `${link.from_uid}|${link.to_uid}`, "delete", {});
+      if (link.from_uid && link.to_uid) {
+        const [a, b] = sortLinkUids(link.from_uid, link.to_uid);
+        queueSyncOp("link", `${a}|${b}`, "delete", {});
+      }
     }
     if (row?.uid) enqueueMemoryDelete(row.uid);
   }
@@ -1122,7 +1352,7 @@ export function insertMemoryLink(fromId: number, toId: number, kind: string, wei
       "INSERT INTO memory_links (from_memory_id, to_memory_id, kind, weight, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(from_memory_id, to_memory_id) DO UPDATE SET weight = MAX(memory_links.weight, excluded.weight)"
     )
     .run(a, b, kind, weight, Date.now());
-  enqueueLinkSnapshot(a, b, kind, weight);
+  enqueueLinkSnapshot(a, b);
 }
 
 export function linksForMemory(id: number, limit = 12): Array<{ memoryId: number; kind: string; weight: number }> {
@@ -1159,6 +1389,9 @@ export function clearMemoryLinks(): void {
     .all() as Array<{ from_id: number; to_id: number; from_uid: string | null; to_uid: string | null }>;
   d.prepare("DELETE FROM memory_links").run();
   for (const row of rows) {
-    if (row.from_uid && row.to_uid) queueSyncOp("link", `${row.from_uid}|${row.to_uid}`, "delete", {});
+    if (row.from_uid && row.to_uid) {
+      const [a, b] = sortLinkUids(row.from_uid, row.to_uid);
+      queueSyncOp("link", `${a}|${b}`, "delete", {});
+    }
   }
 }

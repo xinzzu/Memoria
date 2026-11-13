@@ -15,17 +15,21 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
 - `git log` — konvensi commit: conventional commits; fitur via branch
   `feat/...`/`fix/...` lalu `git merge --no-ff` ke `main`.
 
-## Status (v0.7.1, 2026-11-13)
+## Status (v0.7.1 + sync M1/M2 unreleased, 2026-11-13)
 - Rilis: v0.2.0 (F0+F1A resume engine+F1B tiered intelligence) → v0.5.0 (F2 UX:
   light theme, tasks view, project detail, graph 2D/3D, i18n) → v0.6.0 (**F1C**:
   FTS5 keyword search, embedding Float32 BLOB, dedupe via SQL, list pagination)
   → v0.7.0 (**F3 webhook**: notifikasi Discord/Telegram/generic, 4 event opt-in,
   `POST /api/notify/test`, secret terenkripsi safeStorage) → v0.7.1 (pagination
   pustaka SQL-level, batch embedding OpenAI-compat, CI verify + tag guard).
-- Belum rilis: **sync M1** sudah di `main` (PR #8) — migrasi `user_version` v3 (UID
-  stabil, `updated_by`, tabel `sync_devices`/`sync_outbox`/`sync_applied`/
-  `sync_state`), HLC `wall.counter.device`, outbox capture non-blokir, tombstone
-  hapus memori+link. Desain lengkap: `docs/sync-design.md`; lanjut M2 crypto.
+- Belum rilis: **sync M1 + M2** — migrasi v3/v4 (UID stabil, `updated_by`,
+  outbox/HLC, entity clock, tombstone, conflict log, seen-op ledger, embed queue,
+  project alias), CLI `memoria sync setup|status|export|import` (`--full`,
+  `--join`, `--passphrase`, `--embed`), recovery code + key storage
+  safeStorage/passphrase, bundle `.memsync` terenkripsi (AES-256-GCM, HKDF per
+  file, gzip JSONL, AAD header), apply idempoten/LWW, relay full export, dan
+  embedding backfill lokal. Desain: `docs/sync-design.md`; lanjut M3 shared
+  folder sync.
 - Rilis otomatis: push tag `v*` (wajib cocok dengan versi `package.json`) →
   verify (`npm test` + `check:ui`) → build 3 OS → publish GitHub Release.
   Body release diambil dari seksi CHANGELOG versi itu (fallback: git log
@@ -36,7 +40,8 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
 ## Arsitektur singkat
 - `src/engine/` — inti (tsc, commonjs, output `dist/engine/`): `store/db.ts`
   (node:sqlite `DatabaseSync`, WAL, migrasi `PRAGMA user_version` + ALTER kolom;
-  UID/HLC/outbox sync M1; migrasi v3 atomik),
+  UID/HLC/outbox + entity clock/tombstone sync M1/M2; migrasi v3/v4 atomik),
+  `sync/` (crypto/keys/bundle/export/apply/embed/cli),
   `retrieve/search.ts` (FTS5 external-content trigram `memories_fts` + trigger
   sync; rerank `keywordScore`; fallback scan legacy bila FTS 0 hasil),
   `vecfind.ts`/`vecindex.ts` (LSH per dialek embedding), `extract/` (provider
@@ -52,6 +57,7 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
 ## Perintah penting
 - `npm run build` (tsc) · `npm test` (= build + `node --test`, **test jalan terhadap
   dist/, bukan src**) · `npm run check:ui` (audit selector + struktur HTML web/)
+- Sync CLI: `node dist/engine/index.js sync setup|status|export --out <file>|import --in <file>`
 - Server lokal: `node dist/engine/index.js server` (port 48210).
 - **Server terisolasi (JANGAN sentuh ~/.memoria asli):**
   `HOME=$(mktemp -d) MEMORIA_DATA_DIR=$(mktemp -d) node dist/engine/index.js server`
@@ -71,7 +77,7 @@ memori yang bisa di-recall lintas tool (MCP + dashboard). North star: **limit-ho
 
 ## Next
 - Verifikasi installer di mesin asli (migrasi FTS/BLOB/v3 UID+outbox `~/.memoria`
-  jalan otomatis; backup DB sebelum uji).
-- Lanjut sync **M2**: group key + recovery code, bundle `.memsync` manual,
-  apply idempoten, embedding backfill queue. Detail posisi di `ROADMAP.md`.
+  jalan otomatis termasuk v4 sync metadata; backup DB sebelum uji).
+- Lanjut sync **M3**: shared folder sync/watcher, applied ledger hardening,
+  conflict log UI/CLI, two-device integration. Detail posisi di `ROADMAP.md`.
 <!-- memoria:end -->

@@ -1,6 +1,6 @@
 import { getBoolSetting, getSetting, setSetting, countDraft } from "./store/db";
 import { backupDb, pruneArchivedBackups } from "./store/backup";
-import { archiveStaleEligibles } from "./store/db";
+import { archiveStaleEligibles, pruneSyncTombstones } from "./store/db";
 import { ensureOllamaRunning } from "./extract/ollama-serve";
 import { emitEvent } from "./events";
 
@@ -30,6 +30,13 @@ async function runHousekeepingSoon(): Promise<void> {
     const { extractQueue, runHousekeeping } = await import("./extract/extractor");
     runHousekeeping();
     await extractQueue(false);
+    try {
+      const { processEmbeddingBackfill } = await import("./sync/embed");
+      const embedded = await processEmbeddingBackfill(50);
+      if (embedded) console.log(`[memoria] Sync embeddings: ${embedded} backfilled`);
+    } catch {
+      /* antrean dicoba lagi pada siklus berikutnya */
+    }
     const { autoInjectContext } = await import("./handoff");
     try {
       const done = await autoInjectContext();
@@ -50,6 +57,12 @@ function dailyMaintenance(): void {
     if (getBoolSetting("autoBackup", true)) {
       pruneArchivedBackups();
       backupDb();
+    }
+    try {
+      const pruned = pruneSyncTombstones(180);
+      if (pruned) console.log(`[memoria] Sync tombstones pruned: ${pruned}`);
+    } catch {
+      /* non-blokir */
     }
     if (getBoolSetting("autoTopics", true)) {
       try {
