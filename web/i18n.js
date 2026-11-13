@@ -358,6 +358,8 @@
   "Approved": "Disetujui",
   "Select drafts to approve or delete them in one go": "Pilih draft untuk menyetujui atau menghapusnya sekaligus",
   "Notifications": "Notifikasi",
+  "AI limit hit": "Limit AI terpicu",
+  "When your AI tool hits its limit — resume brain is captured, safe to switch tools": "Saat tool AI-mu kena limit — brain lanjutan sudah disiapkan, aman pindah tool kapan pun",
   "Notification events": "Event notifikasi",
   "Off by default — pick events, then configure at least one platform below. Payloads may contain short memory snippets.": "Mati secara bawaan — pilih event, lalu konfigurasikan minimal satu platform di bawah. Payload bisa memuat potongan memori singkat.",
   "Scan finished": "Scan selesai",
