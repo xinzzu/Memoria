@@ -18,6 +18,7 @@ import { graphSnapshot, relatedMemories, rebuildAllLinks } from "./graph";
 import { countOpen } from "./extract/tasklife";
 import { addListener, removeListener, emitEvent } from "./events";
 import { runGitStatus } from "./git";
+import { withTx } from "./store/tx";
 
 // Versi engine dari package.json di root — dipakai chip versi dashboard
 // (dulu hardcoded, jadi selalu basi setiap rilis).
@@ -69,17 +70,47 @@ function enrichMemory(m: any): any {
   }
 }
 
+// M8 (audit): endpoint berat dilindungi in-flight guard per-path (409).
+
+// M8 (audit): endpoint berat dilindungi in-flight guard per-path (409).
+const busyEndpoints = new Set<string>();
+
+// M15 (audit): body dibatasi 10 MB — dulu concatenation tanpa batas, dan
+// request yang di-abort client membuat promise tidak pernah resolve.
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+
 function readBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolve) => {
     let raw = "";
-    req.on("data", (c) => (raw += c));
-    req.on("end", () => {
-      try {
-        resolve(raw ? JSON.parse(raw) : {});
-      } catch {
+    let size = 0;
+    let done = false;
+    const finish = (fn: () => void) => {
+      if (done) return;
+      done = true;
+      fn();
+    };
+    req.on("data", (c) => {
+      if (done) return;
+      size += c.length;
+      if (size > MAX_BODY_BYTES) {
+        done = true;
+        req.destroy();
         resolve({});
+        return;
       }
+      raw += c;
     });
+    req.on("end", () =>
+      finish(() => {
+        try {
+          resolve(raw ? JSON.parse(raw) : {});
+        } catch {
+          resolve({});
+        }
+      })
+    );
+    req.on("error", () => finish(() => resolve({})));
+    req.on("close", () => finish(() => resolve({})));
   });
 }
 
@@ -154,6 +185,28 @@ export function startHttpServer(): Promise<void> {
       if (apiToken && req.headers["x-memoria-token"] !== apiToken) {
         sendJson(res, 401, { error: "token tidak valid (header x-memoria-token)" });
         return;
+      }
+      // M8 (audit): endpoint berat dilindungi in-flight guard per-path —
+      // dua window/curl/double-klik tidak boleh menjalankan scan/purge/
+      // konsolidasi yang sama bersamaan (409 sampai selesai).
+      const HEAVY: Record<string, string> = {
+        "/api/scan:POST": "scan",
+        "/api/consolidate:POST": "consolidate",
+        "/api/drafts/clean-noise:POST": "clean-noise",
+        "/api/graph/rebuild:POST": "graph-rebuild",
+        "/api/tags/rebuild:POST": "tags-rebuild",
+        "/api/digest/generate:POST": "digest",
+        "/api/import/markdown:POST": "import-md",
+        "/api/memories/purge:POST": "purge",
+      };
+      const heavyKey = HEAVY[url.pathname + ":" + req.method];
+      if (heavyKey) {
+        if (busyEndpoints.has(heavyKey)) {
+          sendJson(res, 409, { error: "already running" });
+          return;
+        }
+        busyEndpoints.add(heavyKey);
+        res.on("finish", () => busyEndpoints.delete(heavyKey));
       }
       // PR-K: MCP over HTTP (streamable) — jembatan antar-AI di port yang
       // sama. Hook SETELAH guard host/origin/token: mewarisi keamanan API.
@@ -342,6 +395,16 @@ export function startHttpServer(): Promise<void> {
         sendJson(res, ok ? 200 : 404, { ok });
       } else if (url.pathname === "/api/remember" && req.method === "POST") {
         const body = await readBody(req);
+        // M6 (audit): validasi konten — dulu empty/multi-MB langsung disimpan.
+        const contentRaw = String(body.content || "").trim();
+        if (!contentRaw) {
+          sendJson(res, 400, { error: "content kosong" });
+          return;
+        }
+        if (contentRaw.length > 32768) {
+          sendJson(res, 400, { error: "content terlalu panjang (maks 32768 karakter)" });
+          return;
+        }
         const kind = ["fact", "decision", "task_done", "task_pending", "error_fixed", "preference", "context"].includes(body.kind) ? body.kind : "context";
         // Jangan slugify sebelum ensureProject — path mentah dibutuhkan agar
         // proyek yang sama dari tool berbeda bisa di-merge (identitas kanonik).
@@ -354,7 +417,7 @@ export function startHttpServer(): Promise<void> {
         addMemoryWithDedupe({
           projectId,
           kind,
-          content: String(body.content || ""),
+          content: contentRaw,
           importance: Math.min(1, Math.max(0, Number(body.importance) || 0.5)),
           createdAt: Date.now(),
           lastAccessed: 0,
@@ -554,11 +617,13 @@ export function startHttpServer(): Promise<void> {
         const { listDraft, deleteMemory } = await import('./store/db');
         const drafts = listDraft();
         let removed = 0;
-        for (const m of drafts) {
-          if (m.origin !== "user" && isGenericMemory(m.content)) {
-            if (deleteMemory(m.id!)) removed++;
+        withTx(() => {
+          for (const m of drafts) {
+            if (m.origin !== "user" && isGenericMemory(m.content)) {
+              if (deleteMemory(m.id!)) removed++;
+            }
           }
-        }
+        });
         sendJson(res, 200, { ok: true, removed, scanned: drafts.length });
       } else if (url.pathname === "/api/consolidate" && req.method === "POST") {
         // PR-B: konsolidasi manual (dashboard/CLI) — jalankan sekali sekarang.
@@ -580,9 +645,11 @@ export function startHttpServer(): Promise<void> {
         }
         const rows = getDb().prepare("SELECT id FROM memories WHERE project_id = ? AND archived = 0").all(proj.id) as Array<{ id: number }>;
         let removed = 0;
-        for (const r of rows) {
-          if (deleteMemory(r.id)) removed++;
-        }
+        withTx(() => {
+          for (const r of rows) {
+            if (deleteMemory(r.id)) removed++;
+          }
+        });
         emitEvent("memory", { kind: "purge" });
         sendJson(res, 200, { ok: true, removed, project: proj.slug });
       } else if (url.pathname === "/api/import/markdown" && req.method === "POST") {
@@ -767,10 +834,23 @@ export function startHttpServer(): Promise<void> {
         });
         res.write("event: hello\ndata: {}\n\n");
         const listener = (type: string, data?: unknown) => {
+          // M14 (audit): cek writable — client yang mati mendadak (laptop
+          // sleep) tidak boleh menumpuk buffer / error tak tertangani.
+          if (res.writableEnded || res.destroyed) return;
           res.write(`event: ${type}\ndata: ${JSON.stringify(data ?? {})}\n\n`);
         };
         addListener(listener);
-        const hb = setInterval(() => res.write(": hb\n\n"), 25000);
+        const hb = setInterval(() => {
+          if (res.writableEnded || res.destroyed) {
+            clearInterval(hb);
+            return;
+          }
+          res.write(": hb\n\n");
+        }, 25000);
+        res.on("error", () => {
+          clearInterval(hb);
+          removeListener(listener);
+        });
         req.on("close", () => {
           clearInterval(hb);
           removeListener(listener);

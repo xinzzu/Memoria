@@ -172,8 +172,13 @@ export function searchMemories(
     }
   }
   const ranked = hits.sort((a, b) => b.score - a.score).slice(0, limit);
-  for (const h of ranked) {
-    getDb().prepare("UPDATE memories SET access_count = access_count + 1, last_accessed = ? WHERE id = ?").run(now, h.id);
+  // audit: satu UPDATE batch, bukan per-hit
+  const topIds = ranked.map((h) => h.id);
+  if (topIds.length) {
+    const marks = topIds.map(() => "?").join(",");
+    getDb()
+      .prepare(`UPDATE memories SET access_count = access_count + 1, last_accessed = ? WHERE id IN (${marks})`)
+      .run(now, ...topIds);
   }
   return ranked;
 }
