@@ -49,7 +49,7 @@ Built for the **limit-hopping** workflow: hit your limit at 14:30, open a differ
         Your AI tool sessions
   Claude Code · Codex · Gemini · Copilot · Antigravity · opencode · VS Code · Cursor · Windsurf
         │                              │
-        │ jsonl / sqlite / logs        │ /memory · /recall  (MCP stdio)
+        │ jsonl / sqlite / logs        │ /recall · /mcp  (MCP stdio + HTTP bridge)
         ▼                              ▼
    WATCHER (real-time)           MCP SERVER
         │                              ▲
@@ -82,16 +82,20 @@ Built for the **limit-hopping** workflow: hit your limit at 14:30, open a differ
 |---|---|
 | 🔄 **Capture from 9 tools** | Claude Code, Codex, opencode, Gemini CLI, Copilot, Antigravity, VS Code, Cursor, Windsurf |
 | ⏸️ **Resume engine** | A SESSION RESUME block auto-injected into AGENTS.md / CLAUDE.md / GEMINI.md: open tasks, locked decisions, current branch, dirty files |
+| ⚡ **Pre-limit trigger** | The moment your AI tool reports a usage limit, Memoria captures a work snapshot (files, commands, git state) and injects the resume block **immediately** — before you're kicked out |
+| 🧩 **MCP bridge — one URL, every tool** | MCP over HTTP at `http://127.0.0.1:48210/mcp` + one-click registration into 12 clients (Claude Code/Desktop, Codex, Gemini, opencode, Copilot CLI, Antigravity, Cursor, Windsurf, VS Code, Cline, Zed) |
+| 🤖 **Self-editing memory** | Agents don't just read the brain — they curate it: `recall` (project-scoped, token budget), `remember` (ADD/UPDATE/NOOP decisions), `update_memory`, `forget`, `build_context` |
 | ✅ **Tasks view** | Every task your AI sessions promised, in one checkable board |
 | 🧠 **Tiered intelligence** | Works with **no model at all** (heuristics + review queue), with Ollama, or any OpenAI-compatible endpoint (LM Studio, llama.cpp, vLLM, cloud — opt-in) |
-| 🔍 **Hybrid retrieval** | Keyword (FTS5) + embeddings + graph centrality, fuzzy-tolerant |
-| 🕸️ **Memory graph** | Obsidian-style: node labels, hover focus on neighbors, zoom & pan |
+| 🔍 **Hybrid retrieval** | Keyword (FTS5 trigram) + embeddings + graph centrality, fuzzy-tolerant — measured on a reproducible benchmark: **hit@5 92.8–100%** with zero LLM calls |
+| 🕸️ **Memory graph** | True 3D force graph (2D fallbacks), degree-priority labels with anti-overlap, hover focus on neighbors, zoom & pan |
 | 📋 **Tasks & timeline** | Per-project activity + git history + weekly digest |
 | 🔎 **Global palette** | Search & copy memories from anywhere; quick-note hotkey |
 | 🔐 **Encrypted sync (optional)** | E2E encrypted `.memsync` bundles across your devices — manual or shared folder (Dropbox/iCloud/Syncthing/network), no server, no embeddings/secrets/transcripts |
 | 🔔 **Webhooks & notifications** | Opt-in alerts to Discord, Telegram, or generic JSON webhooks (digest, scan, approvals, pending drafts) |
 | 🌐 **EN / ID interface** | English-first, Bahasa Indonesia one click away |
-| 💾 **Backups & export** | Auto-backup (last 10), restore, export to Markdown / JSON / Obsidian vault |
+| 🧹 **Self-cleaning** | Daily consolidation merges near-duplicates; tool-noise filter keeps the review inbox honest; one-click noise cleanup |
+| 💾 **Backups & export** | Auto-backup (last 10, WAL-safe), restore, export to Markdown / JSON / Obsidian vault — and import a whole notes folder back in |
 
 ## Requirements
 
@@ -141,14 +145,31 @@ Open the **Integrations** tab → one-click registration per tool, or via CLI:
 node dist/engine/index.js integrate claude
 ```
 
-Supported targets: `~/.claude.json`, `~/.codex/config.toml`, `~/.config/opencode/opencode.json`,
-`~/.gemini/settings.json`, `~/.copilot/mcp-config.json`, `~/.gemini/config/mcp_config.json`.
+**12 supported targets** (config paths per the official MCP clients docs):
+Claude Code (`~/.claude.json`), Claude Desktop (`claude_desktop_config.json`),
+Codex CLI (`~/.codex/config.toml`), opencode, Gemini CLI (`~/.gemini/settings.json`),
+Copilot CLI (`~/.copilot/mcp-config.json`), Antigravity, **Cursor** (`~/.cursor/mcp.json`
+via the HTTP bridge), **Windsurf** (`~/.codeium/windsurf/mcp_config.json`),
+**VS Code** (`~/.vscode/mcp.json`, `"type": "http"`), **Cline** (globalStorage
+settings), **Zed** (`settings.json`). All registrations merge into your existing
+configs — nothing is overwritten.
+
+Prefer zero config? Any MCP-capable tool can also point straight at the HTTP bridge:
+
+```
+url: http://127.0.0.1:48210/mcp
+```
 
 Then start a new session and tell your agent:
 
 ```
 Recall the decisions from previous sessions in this project.
 ```
+
+**Seven MCP tools** ship out of the box: `recall` (project-scoped, token budget),
+`remember` (ADD/UPDATE/NOOP smart decisions), `update_memory`, `forget`,
+`related`, `project_context`, and `build_context` (one ready-to-paste context
+block with a character budget).
 
 ### 4 · CLI
 
@@ -178,6 +199,13 @@ know what you were doing.
 When transcript activity goes quiet (~4 minutes = session ended), Memoria runs the hot path:
 **scan → extract the newest session first → inject**. Within ~5 minutes, every context
 convention file in the project contains an idempotent, marked block:
+
+And when your AI tool itself reports a usage limit, the **pre-limit trigger** fires the same
+pipeline **immediately** — a deterministic **work snapshot** (files touched, commands run,
+errors, last message, git branch/dirty files) is saved as a memory, the newest session is
+extracted with priority, and the resume block is injected before you're kicked out. You can
+even get a webhook ping on your phone: *"resume brain is ready — switch tools whenever
+you're ready."*
 
 ```markdown
 ## SESSION RESUME
@@ -232,15 +260,17 @@ Sync the same memory library across your machines (same user) with end-to-end en
 
 Nine views, English or Bahasa Indonesia:
 
-- **Overview** — greeting, pastel stat cards, 7-day activity chart, "Recently worked on",
-  resume-ready projects, setup checklist
-- **Memories** — full library: search, kind/project/topic filters, approval inbox, archive
-- **Projects** — per-project activity, click through to timelines
+- **Overview** — greeting, pastel stat cards, 14-day activity chart (messages **and** memory
+  creations — heuristic work included), "Recently worked on", resume-ready projects, setup
+  checklist
+- **Memories** — full library: search with term highlighting, kind/project/topic/age filters,
+  approval inbox with one-click noise cleanup, archive
+- **Projects** — per-project activity, pending-draft visibility, click through to timelines
 - **Timeline** — session trail + git history
 - **Handoff** — generate, copy, or inject the resume block
 - **Tasks** — the AI-session promise board
-- **Graph** — memory connections, Obsidian-style interactions
-- **Integrations** — official logos, one-click MCP registration
+- **Graph** — memory connections in 3D, Obsidian-style interactions, anti-overlap labels
+- **Integrations** — 12 MCP targets, one-click registration
 - **Settings** — two-pane layout: data sources, engine tiers, behavior, data/backup,
   notifications, and sync
 
@@ -266,7 +296,7 @@ git clone https://github.com/xinzzu/Memoria && cd Memoria
 npm install
 npm run dev          # TypeScript watch mode
 npm run build        # compile once
-npm test             # build + node --test (41 tests)
+npm test             # build + node --test (66 tests)
 npm run start        # Electron dev (engine on port 48210)
 npm run check:ui     # audit UI selectors + structure
 npm run dist         # Windows installer
@@ -287,17 +317,22 @@ src/
 │   ├── ingest/                # watcher + per-tool parsers (claude, codex, vscdb, …)
 │   ├── extract/               # provider tiers, heuristics, ollama, openai-compat,
 │   │                          # entities, topics, task lifecycle, dedupe
-│   ├── retrieve/search.ts     # hybrid retrieval (FTS5 + embeddings + centrality)
+│   ├── retrieve/search.ts     # hybrid retrieval (FTS5 trigram + embeddings + centrality)
+│   ├── retrieve/contextblock.ts # build_context — one ready-to-paste context block
 │   ├── sync/                  # E2E encrypted sync (keys, bundles, export/apply,
 │   │                          # shared-folder transport, CLI, embed backfill)
-│   ├── mcp/server.ts          # MCP server (stdio)
-│   ├── store/                 # SQLite (node:sqlite), migrations, backup, secure storage
+│   ├── mcp/server.ts          # MCP server (stdio + HTTP bridge, 7 tools)
+│   ├── store/                 # SQLite (node:sqlite), migrations v1-v7, backup, secure storage
+│   ├── extract/snapshot.ts    # F4 zero-AI work snapshots + pre-limit trigger
+│   ├── extract/consolidate.ts # daily near-duplicate merging (zero-LLM)
+│   ├── import/markdown.ts     # Obsidian vault / notes folder import
 │   ├── notify/webhook.ts      # opt-in Discord/Telegram/generic notifications
 │   ├── handoff.ts             # resume engine + multi-file injection
 │   └── index.ts               # CLI entry
 ├── electron/main.ts           # tray, dashboard, global hotkeys
 web/                           # dashboard UI (vanilla JS, EN/ID i18n)
-scripts/                       # icon generator, UI selector audit, search bench
+scripts/                       # icon generator, UI selector audit, search bench,
+                               # retrieval eval (hit@1/@5, MRR)
 docs/                          # design docs (e.g. sync-design.md)
 tests/                         # node --test suites (run against dist/)
 ROADMAP.md                     # execution plan & current position
@@ -329,8 +364,20 @@ Claude Code, Codex, opencode, Gemini CLI, Copilot, Antigravity — plus VS Code,
 Windsurf capture, and a generic `/api/import` endpoint for anything else.
 
 **Will memories grow forever?**
-No — stale, low-importance memories are archived automatically (forgetting curve); backups
-keep the last 10 versions.
+No, three ways: stale low-importance memories are archived automatically (forgetting curve),
+a daily consolidation pass merges near-duplicates, and tool-noise (status lines, badges,
+markdown debris) is filtered out of extraction — with a one-click cleanup for the stored
+backlog.
+
+**What happens when I hit my AI tool's usage limit?**
+Memoria detects the limit message in the transcript and immediately captures a work snapshot,
+extracts the session with priority, and injects the resume block into your context files —
+before you're kicked out. Switch tools and the next session already knows what you were
+doing. Optionally, a webhook pings your phone.
+
+**Can I connect an AI tool without editing config files?**
+Yes — any MCP-capable client can point at the HTTP bridge: `http://127.0.0.1:48210/mcp`.
+Or use one-click registration for 12 clients in the Integrations tab.
 
 **Can Memoria notify me outside the dashboard?**
 Yes, opt-in. Configure Discord, Telegram, or a generic JSON webhook in Settings → Notifications

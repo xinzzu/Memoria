@@ -18,7 +18,7 @@ Tanpa cloud. Tanpa akun. Tidak ada data yang keluar dari komputer Anda.
 ![Electron](https://img.shields.io/badge/Electron-37-47848f)
 ![Inference](https://img.shields.io/badge/inference-opsional%20%28Ollama%20%2F%20OpenAI%20compat%29-529fff)
 ![Data](https://img.shields.io/badge/data-100%25%20lokal-4cc38a)
-![Status](https://img.shields.io/badge/status-0.7.1--beta-7f6eff)
+![Status](https://img.shields.io/badge/status-0.11.0--beta-7f6eff)
 [![Release](https://img.shields.io/github/v/release/xinzzu/Memoria?label=Release)](https://github.com/xinzzu/Memoria/releases)
 [![Build](https://github.com/xinzzu/Memoria/actions/workflows/build.yml/badge.svg?label=Build)](https://github.com/xinzzu/Memoria/actions)
 [![License](https://img.shields.io/github/license/xinzzu/Memoria)](LICENSE)
@@ -51,7 +51,9 @@ sudah tahu Anda sedang mengerjakan apa.
 3. Saat sesi diam ±4 menit, **resume engine** mengekstrak sesi terbaru lebih dulu dan menyuntikkan
    blok **SESSION RESUME** (tugas terbuka, keputusan terkunci, branch, file yang berubah) ke
    `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`.
-4. Buka tool lain — langsung nyambung.
+4. Saat tool AI-mu sendiri melaporkan limit, **trigger pre-limit** menjalankan pipeline yang sama
+   SEKARANG — plus snapshot kerja deterministik (file, command, error, git) disimpan sebagai memori.
+5. Buka tool lain — langsung nyambung.
 5. (Opsional) Sinkronkan pustaka memori yang sama ke perangkat lain dengan bundle terenkripsi E2E.
 
 ## Fitur utama
@@ -60,16 +62,20 @@ sudah tahu Anda sedang mengerjakan apa.
 |---|---|
 | 🔄 **Capture 9 tool** | Claude Code, Codex, opencode, Gemini CLI, Copilot, Antigravity, VS Code, Cursor, Windsurf |
 | ⏸️ **Resume engine** | Blok SESSION RESUME otomatis di AGENTS.md / CLAUDE.md / GEMINI.md: tugas terbuka, keputusan terkunci, branch, file kotor |
+| ⚡ **Trigger pre-limit** | Begitu tool AI melaporkan limit, snapshot kerja ditangkap dan blok resume diinjeksi **seketika** — sebelum kamu ditendang |
+| 🧩 **MCP bridge — satu URL, semua tool** | MCP over HTTP di `http://127.0.0.1:48210/mcp` + registrasi satu klik ke 12 klien (Claude Code/Desktop, Codex, Gemini, opencode, Copilot CLI, Antigravity, Cursor, Windsurf, VS Code, Cline, Zed) |
+| 🤖 **Memori yang bisa dikurasi agen** | 7 tool MCP: `recall` (scope proyek + budget token), `remember` (keputusan ADD/UPDATE/NOOP), `update_memory`, `forget`, `build_context` |
 | ✅ **Tab Tasks** | Semua janji/tugas dari sesi AI dalam satu checklist |
 | 🧠 **Tiered intelligence** | Jalan **tanpa model** (heuristik → antrian tinjau), dengan Ollama, atau endpoint OpenAI-compatible (LM Studio, llama.cpp, vLLM, cloud — opt-in) |
-| 🔍 **Retrieval hibrid** | Keyword (FTS5) + embedding + graph centrality, toleran typo |
-| 🕸️ **Graph memori** | Interaksi ala Obsidian: label node, fokus tetangga, zoom & pan |
+| 🔍 **Retrieval hibrid** | Keyword (FTS5 trigram) + embedding + graph centrality, toleran typo — terukur pada benchmark reproducible: **hit@5 92.8–100%** tanpa satu pun panggilan LLM |
+| 🧹 **Membersihkan diri** | Konsolidasi harian menggabungkan near-duplicate; filter noise menjaga inbox tetap jujur; bersih-bersih satu klik |
+| 🕸️ **Graph memori** | True 3D force graph: label prioritas degree dengan anti-overlap, fokus tetangga, zoom & pan |
 | 📋 **Tasks & timeline** | Aktivitas per proyek + riwayat git + digest mingguan |
 | 🔎 **Palette global** | Cari & salin memori dari mana saja; hotkey quick-note |
 | 🔐 **Sync terenkripsi (opsional)** | Bundle `.memsync` E2E antar perangkat — manual atau folder bersama (Dropbox/iCloud/Syncthing/jaringan), tanpa server/embedding/secret/transkrip |
 | 🔔 **Webhook & notifikasi** | Alert opt-in ke Discord, Telegram, atau webhook JSON generik (digest, scan, approval, draft) |
 | 🌐 **UI EN/ID** | English default, Bahasa Indonesia satu klik |
-| 💾 **Backup & ekspor** | Auto-backup (10 terakhir), restore, ekspor Markdown / JSON / Obsidian vault |
+| 💾 **Backup & ekspor/impor** | Auto-backup (10 terakhir, WAL-safe), restore, ekspor Markdown / JSON / Obsidian vault — dan impor seluruh folder catatan kembali |
 
 ## Kebutuhan
 
@@ -119,6 +125,21 @@ node dist/engine/index.js integrate claude
 node dist/engine/index.js scan
 ```
 
+**12 target didukung** (path config per docs resmi MCP clients): Claude Code, Claude Desktop,
+Codex CLI, opencode, Gemini CLI, Copilot CLI, Antigravity, **Cursor** (via HTTP bridge),
+**Windsurf**, **VS Code** (`"type": "http"`), **Cline**, **Zed**. Semua registrasi MERGE ke
+config yang sudah ada — tidak ada yang ditimpa.
+
+Mau tanpa edit config? Semua klien MCP-capable bisa langsung menunjuk HTTP bridge:
+
+```
+url: http://127.0.0.1:48210/mcp
+```
+
+**7 tool MCP** siap pakai: `recall` (scope proyek + budget token), `remember` (keputusan
+ADD/UPDATE/NOOP), `update_memory`, `forget`, `related`, `project_context`, dan
+`build_context` (satu blok konteks siap-tempel dengan budget karakter).
+
 Lalu mulai sesi baru dan minta agen Anda:
 
 ```
@@ -132,6 +153,8 @@ node dist/engine/index.js scan
 node dist/engine/index.js recall "kata kunci"
 node dist/engine/index.js status
 node dist/engine/index.js mcp
+#                                     MCP over HTTP (jembatan antar-AI):
+#                                     url: http://127.0.0.1:48210/mcp
 
 # sync terenkripsi (satu user, banyak perangkat)
 node dist/engine/index.js sync setup                         # buat group + recovery code
@@ -163,14 +186,15 @@ Sinkronkan pustaka memori antar perangkat (user yang sama) dengan bundle end-to-
 
 Sembilan view, English atau Bahasa Indonesia:
 
-- **Overview** — ringkasan, kartu statistik, chart aktivitas 7 hari, proyek terbaru, resume-ready, checklist setup
-- **Memories** — pustaka lengkap: cari, filter kind/proyek/topik, inbox approval, arsip
-- **Projects** — aktivitas per proyek, masuk ke timeline
+- **Overview** — ringkasan, kartu statistik, chart aktivitas 14 hari (pesan **dan** pembuatan memori — kerja heuristik ikut tampil), proyek terbaru, resume-ready, checklist setup
+- **Memories** — pustaka lengkap: cari dengan highlight istilah, filter kind/proyek/topik/umur, inbox approval + bersih-bersih noise satu klik, arsip
+- **Projects** — aktivitas per proyek, visibility draft pending, masuk ke timeline
 - **Timeline** — jejak sesi + riwayat git
 - **Handoff** — buat, salin, atau injeksikan blok resume
 - **Tasks** — papan janji tugas dari sesi AI
-- **Graph** — koneksi memori, interaksi ala Obsidian
-- **Integrations** — registrasi MCP satu klik
+- **Graph** — koneksi memori 3D, interaksi ala Obsidian
+- **Integrations** — 12 target MCP, registrasi satu klik
+- **Settings** — dua panel: sumber data, engine, perilaku, data/backup, notifikasi, dan sync
 - **Settings** — dua panel: sumber data, engine, perilaku, data/backup, notifikasi, dan sync
 
 Global: `Ctrl/⌘ + Shift + M` quick note · `Ctrl/⌘ + Shift + Space` memory palette (bisa diubah di Settings).
@@ -192,7 +216,7 @@ git clone https://github.com/xinzzu/Memoria && cd Memoria
 npm install
 npm run dev          # TypeScript watch mode
 npm run build        # compile sekali
-npm test             # build + node --test (41 tes)
+npm test             # build + node --test (66 tes)
 npm run start        # Electron dev (engine di port 48210)
 npm run check:ui     # audit selector + struktur UI
 npm run dist         # installer Windows
@@ -213,17 +237,22 @@ src/
 │   ├── ingest/                # watcher + parser per tool (claude, codex, vscdb, …)
 │   ├── extract/               # tier provider, heuristik, ollama, openai-compat,
 │   │                          # entitas, topik, task lifecycle, dedupe
-│   ├── retrieve/search.ts     # retrieval hibrid (FTS5 + embedding + centrality)
+│   ├── retrieve/search.ts     # retrieval hibrid (FTS5 trigram + embedding + centrality)
+│   ├── retrieve/contextblock.ts # build_context — blok konteks siap-tempel
 │   ├── sync/                  # sync E2E terenkripsi (kunci, bundle, export/apply,
 │   │                          # transport folder bersama, CLI, embed backfill)
-│   ├── mcp/server.ts          # MCP server (stdio)
-│   ├── store/                 # SQLite (node:sqlite), migrasi, backup, secure storage
+│   ├── mcp/server.ts          # MCP server (stdio + HTTP bridge, 7 tool)
+│   ├── store/                 # SQLite (node:sqlite), migrasi v1-v7, backup, secure storage
+│   ├── extract/snapshot.ts    # F4 snapshot kerja zero-AI + trigger pre-limit
+│   ├── extract/consolidate.ts # konsolidasi near-duplicate harian (zero-LLM)
+│   ├── import/markdown.ts     # impor folder catatan Obsidian / memory bank
 │   ├── notify/webhook.ts      # notifikasi opt-in Discord/Telegram/generic
 │   ├── handoff.ts             # resume engine + injeksi multi-file
 │   └── index.ts               # entri CLI
 ├── electron/main.ts           # tray, dashboard, hotkey global
 web/                           # UI dashboard (vanilla JS, i18n EN/ID)
-scripts/                       # generator ikon, audit UI, benchmark search
+scripts/                       # generator ikon, audit UI, benchmark search,
+                               # eval retrieval (hit@1/@5, MRR)
 docs/                          # dokumen desain (mis. sync-design.md)
 tests/                         # suite node --test (berjalan terhadap dist/)
 ROADMAP.md                     # rencana eksekusi & posisi terkini
@@ -255,7 +284,20 @@ Claude Code, Codex, opencode, Gemini CLI, Copilot, Antigravity — plus capture 
 Windsurf, dan endpoint generik `/api/import`.
 
 **Apakah memori akan tumbuh selamanya?**
-Tidak — memori lama/kurang penting diarsipkan otomatis (forgetting curve); backup menyimpan 10 versi terakhir.
+Tidak, tiga lapis: memori lama/kurang penting diarsipkan otomatis (forgetting curve), konsolidasi
+harian menggabungkan near-duplicate, dan noise tool (status line, badge, puing markdown) disaring
+saat ekstraksi — lengkap dengan tombol bersih-bersih untuk backlog tersimpan.
+
+**Apa yang terjadi saat limit AI tool saya habis?**
+Memoria mendeteksi pesan limit di transkrip dan seketika: menyimpan snapshot kerja, mengekstrak
+sesi dengan prioritas, dan menginjeksikan blok resume ke file konteks — sebelum kamu ditendang.
+Pindah tool, dan sesi berikutnya sudah tahu apa yang sedang dikerjakan. Opsional: webhook
+memberi tahu lewat HP.
+
+**Bisa hubungkan tool AI tanpa mengedit file config?**
+Bisa — semua klien MCP-capable cukup menunjuk HTTP bridge:
+`http://127.0.0.1:48210/mcp`. Atau pakai registrasi satu klik untuk 12 klien
+di tab Integrations.
 
 **Bisa dapat notifikasi di luar dashboard?**
 Bisa, opt-in. Konfigurasikan Discord, Telegram, atau webhook JSON generik di Settings →
