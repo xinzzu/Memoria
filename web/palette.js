@@ -30,16 +30,21 @@ input.addEventListener("input", () => {
   deb = setTimeout(() => search(q), 220);
 });
 
+let searchSeq = 0; // M10 (audit): query cepat — respons lama tidak menimpa
+
 async function search(q) {
+  const mark = ++searchSeq;
   if (!q) { hits = []; active = -1; list.innerHTML = '<div class="empty">' + t("Type to search memories across all AI tools.") + '</div>'; return; }
   try {
     const r = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}&limit=10`);
     const d = await r.json();
+    if (mark !== searchSeq) return; // ketikan lebih baru sudah berjalan
     hits = d.hits || [];
     active = hits.length ? 0 : -1;
     render();
   } catch {
-    list.innerHTML = '<div class="empty">Server tidak merespons.</div>';
+    if (mark !== searchSeq) return;
+    list.innerHTML = '<div class="empty">' + t("Server not responding") + '</div>';
   }
 }
 

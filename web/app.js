@@ -81,12 +81,14 @@ function hlContent(text) {
   if (!q) return escd;
   const terms = q.toLowerCase().split(/[\s,.;:!?()[\]{}"'/\\-]+/).filter((t) => t.length > 2).slice(0, 6);
   if (!terms.length) return escd;
-  let out = escd;
-  for (const t of terms) {
-    const safe = esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(safe, "gi"), (m) => '<mark class="hl">' + m + "</mark>");
-  }
-  return out;
+  // M13 (audit): SATU pass dengan alternasi gabungan — penggantian
+  // berurutan per-istilah bisa mencocokkan markup <mark> yang baru
+  // disisipkan istilah sebelumnya (mis. query "mark").
+  const alt = terms
+    .map((t) => esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .sort((x, y) => y.length - x.length)
+    .join("|");
+  return escd.replace(new RegExp(alt, "gi"), (m) => '<mark class="hl">' + m + "</mark>");
 }
 
 function memoRowRenderer(renderId) {
@@ -171,6 +173,16 @@ function setView(name) {
   $("#pageTitle").textContent = meta[0];
   $("#pageSub").textContent = meta[1];
   if (name !== "graph") graph.running = false;
+  // M11 (audit): loader per-view milik setView — pemanggil manapun
+  // (nav, tombol jump, banner Review drafts) otomatis memuat data;
+  // tidak ada lagi halaman Graph/Integrations kosong dari jalur lain.
+  if (name === "memories") { loadTags(); renderMemories(); }
+  if (name === "projects") renderProjects();
+  if (name === "timeline") renderTimeline();
+  if (name === "graph") renderGraph();
+  if (name === "tasks") renderTasks();
+  if (name === "integrations") renderIntegrations();
+  if (name === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); loadSyncStatus(); }
 }
 
 async function loadStats() {
@@ -929,7 +941,17 @@ function renderSettings() {
 
 let tlMode = "text";
 
+const viewSeqs = {}; // M10 (audit): 'latest wins' untuk semua renderer async
+function viewSeq(name) {
+  viewSeqs[name] = (viewSeqs[name] || 0) + 1;
+  return { name, seq: viewSeqs[name] };
+}
+function viewFresh(mark) {
+  return viewSeqs[mark.name] === mark.seq;
+}
+
 async function renderTimeline() {
+  const mark = viewSeq('timeline');
   const slug = $("#tlProject").value;
   const box = $("#timelineBox");
   if (!slug) { box.innerHTML = emptyState(t("Pick a project"), t("Pick a project above to see its activity trail.")); return; }
@@ -943,6 +965,7 @@ async function renderTimeline() {
       return;
     }
     const d = await api("/api/timeline?slug=" + encodeURIComponent(slug) + "&limit=60");
+    if (!viewFresh(mark)) return;
     const items = d.timeline || [];
     const mems = d.memories || [];
     if (!items.length) { box.innerHTML = emptyState(t("No activity yet"), t("This project has no stored transcripts yet.")); return; }
@@ -976,12 +999,14 @@ async function renderTimeline() {
 let handoffText = "";
 
 async function renderHandoff() {
+  const mark = viewSeq("handoff");
   const slug = $("#hfProject").value;
   const box = $("#handoffBox");
   if (!slug) { box.textContent = "Pick a project lalu klik \"Generate handoff\"."; return; }
   box.textContent = t("Generating handoff…");
   try {
     const d = await api("/api/handoff?slug=" + encodeURIComponent(slug));
+    if (!viewFresh(mark)) return;
     handoffText = d.text || "";
     box.textContent = handoffText;
     toast(t("Handoff ready"));
@@ -1030,6 +1055,7 @@ async function renderIntegrations() {
   const box = $("#integrationsBox");
   try {
     const d = await api("/api/integrations");
+    if (!viewFresh(mark)) return;
     const map = Object.fromEntries((d.integrations || []).map((x) => [x.key, x]));
     box.innerHTML = INTEGRATIONS.map(([key, name, desc]) => {
       const st = map[key];
@@ -1069,6 +1095,7 @@ async function renderIntegrations() {
 }
 
 async function renderGraph() {
+  const mark = viewSeq("graph");
   const project = $("#grProject").value || undefined;
   const params = new URLSearchParams({ limit: "250" });
   if (project) params.set("project", project);
@@ -1433,14 +1460,8 @@ function closeModal() { $("#overlay").classList.remove("show"); }
 
 document.querySelectorAll(".nav-item").forEach((n) => {
   n.addEventListener("click", () => {
+    // M11 (audit): loader per-view pindah ke setView — nav cukup memanggil itu.
     setView(n.dataset.view);
-    if (n.dataset.view === "memories") { loadTags(); renderMemories(); }
-    if (n.dataset.view === "projects") renderProjects();
-    if (n.dataset.view === "timeline") renderTimeline();
-    if (n.dataset.view === "graph") renderGraph();
-    if (n.dataset.view === "tasks") renderTasks();
-    if (n.dataset.view === "integrations") renderIntegrations();
-    if (n.dataset.view === "settings") { renderSettings(); loadSettingsToggles(); loadBackups(); loadSyncStatus(); }
   });
 });
 // Optional chaining WAJIB: selector yang hilang tak boleh mematikan seluruh script
@@ -1537,11 +1558,13 @@ function showProject(slug) {
 }
 
 async function renderProjectDetail(slug) {
+  const mark = viewSeq("project:" + slug);
   const box = $("#projectDetail");
   if (!box) return;
   box.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="height:300px"></div>';
   try {
     const d = await api("/api/project-detail?slug=" + encodeURIComponent(slug));
+    if (!viewFresh(mark)) return;
     const st = d.stats;
     const git = d.git;
     box.innerHTML = `
@@ -1600,12 +1623,14 @@ async function renderProjectDetail(slug) {
     $("#pdHandoff")?.addEventListener("click", goHandoff);
     // PR-M: purge massal — dua konfirmasi (jumlah memori + konfirmasi akhir).
     $("#pdPurge")?.addEventListener("click", async () => {
-      const first = await api("/api/memories/purge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
-      const n = first.memories ?? 0;
-      if (!n) { toast(t("No memories to purge")); return; }
-      if (!confirm(t("Delete ALL {0} active memories of this project? This cannot be undone.", n))) return;
-      if (!confirm(t("Last confirmation — purge {0} memories now?", n))) return;
       try {
+        // M11 (audit): probe count di dalam try — dulu 404/500 di sini
+        // menjadi unhandled rejection tanpa toast.
+        const first = await api("/api/memories/purge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) });
+        const n = first.memories ?? 0;
+        if (!n) { toast(t("No memories to purge")); return; }
+        if (!confirm(t("Delete ALL {0} active memories of this project? This cannot be undone.", n))) return;
+        if (!confirm(t("Last confirmation — purge {0} memories now?", n))) return;
         const r = await api("/api/memories/purge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, confirm: true }) });
         toast(t("Purged {0} memories", r.removed));
         loadStats();
@@ -1728,12 +1753,14 @@ function drawProjectChart(week) {
 
 /* ---------- Tasks ---------- */
 async function renderTasks() {
+  const mark = viewSeq("tasks");
   const slug = $("#tkProject") ? $("#tkProject").value : "";
   const openBox = $("#tasksOpen");
   const doneBox = $("#tasksDone");
   if (!openBox) return;
   try {
     const d = await api("/api/tasks" + (slug ? "?slug=" + encodeURIComponent(slug) : ""));
+    if (!viewFresh(mark)) return;
     const item = (task, done) => `
       <div class="task-item ${done ? "done-row" : ""}" data-id="${task.id}">
         <div class="task-check" data-toggle="${task.id}" title="${done ? t("Reopen") : t("Mark done")}">${done ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>' : ""}</div>
