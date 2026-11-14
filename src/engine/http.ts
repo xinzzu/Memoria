@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { getConfig } from "./config";
 import { scanAll, stats, ensureDb } from "./ingest/manager";
 import { searchMemories, projectContext } from "./retrieve/search";
-import { allMemories, recentProjects, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listMemoriesPage, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject, memoryById } from "./store/db";
+import { allMemories, recentProjects, readMemoriesLite, insertMemory, ensureProject, deleteMemory, projectSlugById, projectRecord, getDb, getSetting, setSetting, listArchived, archiveMemory, updateMemory, archiveStaleEligibles, listMemoriesPage, approveMemory, effectiveStatus, countMemories, countDraft, countArchived, entitiesForMemory, tagsForMemory, allTags, memoriesByTag, resolveProject, memoryById } from "./store/db";
 import { looksLikePath, projectSlugFromCwd } from "./ingest/util";
 import { ollamaAvailable } from "./extract/ollama";
 import { getEmbedProvider, engineStatus } from "./extract/provider";
@@ -75,6 +75,9 @@ function enrichMemory(m: any): any {
 // M8 (audit): endpoint berat dilindungi in-flight guard per-path (409).
 const busyEndpoints = new Set<string>();
 
+// L6 (audit): logo 893KB dibaca sync tiap request — cache sekali baca.
+let logoCache: Buffer | null = null;
+
 // M15 (audit): body dibatasi 10 MB — dulu concatenation tanpa batas, dan
 // request yang di-abort client membuat promise tidak pernah resolve.
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
@@ -133,10 +136,13 @@ function serveStatic(url: URL, res: ServerResponse): boolean {
   // layankan path tetap ini tanpa membuka direktori lain.
   if (url.pathname === "/logo.png") {
     try {
-      const logo = path.resolve(WEB_DIR, "..", "logo.png");
-      const data = fs.readFileSync(logo);
+      // L6 (audit): logo 893KB dibaca sync tiap request — cache sekali baca.
+      if (!logoCache) {
+        const logo = path.resolve(WEB_DIR, "..", "logo.png");
+        logoCache = fs.readFileSync(logo);
+      }
       res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "max-age=3600" });
-      res.end(data);
+      res.end(logoCache);
       return true;
     } catch {
       sendJson(res, 404, { error: "not found" });
@@ -232,8 +238,8 @@ export function startHttpServer(): Promise<void> {
         const ollama = await ollamaAvailable();
         const engine = await engineStatus();
         const cfg = getConfig();
-        const recent = allMemories()
-          .slice(0, 8)
+        const recent = readMemoriesLite("WHERE archived = 0 AND status = 'active' ORDER BY created_at DESC LIMIT 8")
+          
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool, projectSlug: projectSlugById(m.projectId) }))
           .map(enrichMemory);
         sendJson(res, 200, {
@@ -364,7 +370,7 @@ export function startHttpServer(): Promise<void> {
         const tasks = listTasks(rec.id, 60);
         const slim = (m: any) => ({ id: m.id, content: m.content, importance: m.importance, createdAt: m.createdAt, resolvedAt: m.resolvedAt, sourceTool: m.sourceTool });
         const git = rec.path && fs.existsSync(rec.path) ? await runGitStatus(rec.path) : null;
-        const recentMemories = allMemories().filter((m) => m.projectId === rec.id).slice(0, 8)
+        const recentMemories = readMemoriesLite("WHERE project_id = " + rec.id + " AND archived = 0 AND status = 'active' ORDER BY created_at DESC LIMIT 8")
           .map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool }));
         // Heuristic mode parks results in the review queue — surface them so a
         // project with only drafts doesn't read as "empty".
@@ -698,7 +704,7 @@ export function startHttpServer(): Promise<void> {
               .prepare("SELECT role, content, ts, tool FROM transcripts WHERE project_id = ? ORDER BY ts DESC LIMIT ?")
               .all(proj.id, limit) as Array<{ role: string; content: string; ts: number; tool: string }>)
           : [];
-        const mems = proj ? allMemories().filter((m) => m.projectId === proj.id).slice(0, 60) : [];
+        const mems = proj ? readMemoriesLite("WHERE project_id = " + proj.id + " AND archived = 0 AND status = 'active'").slice(0, 60) : [];
         sendJson(res, 200, {
           timeline: rows.map((r) => ({ ...r, text: r.content.slice(0, 500) })),
           memories: mems.map((m) => ({ id: m.id, kind: m.kind, content: m.content, importance: m.importance, createdAt: m.createdAt, sourceTool: m.sourceTool })),
@@ -715,7 +721,7 @@ export function startHttpServer(): Promise<void> {
         const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
         const ids = memoriesByTag(tag);
         const total = ids.length;
-        const byId = new Map(allMemories().map((m) => [m.id as number, m]));
+        const byId = new Map(readMemoriesLite("WHERE archived = 0 AND status = 'active'").map((m) => [m.id as number, m]));
         const mems = ids
           .slice(offset, offset + limit)
           .map((id) => byId.get(id))
@@ -743,7 +749,7 @@ export function startHttpServer(): Promise<void> {
         const fmt = url.searchParams.get("format") || "md";
         const slug = url.searchParams.get("slug") || "";
         const proj = (await import("./store/db")).projectRecord(slug);
-        const mems = proj ? allMemories().filter((m) => m.projectId === proj.id) : allMemories();
+        const mems = proj ? readMemoriesLite("WHERE project_id = " + proj.id + " AND archived = 0") : readMemoriesLite("WHERE archived = 0");
         if (fmt === "json") {
           sendJson(res, 200, { memories: mems.map((m) => ({ ...m, embedding: undefined, project: projectSlugById(m.projectId) })) });
         } else {
