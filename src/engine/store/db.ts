@@ -1547,6 +1547,57 @@ export function listMemoriesPage(status: string, limit: number, offset: number, 
   };
 }
 
+/** M9 (audit): proyeksi TANPA decode embedding — untuk jalur list/status
+ * yang tidak menyentuh vektor (stats poll, tag map, recent). Dulu setiap
+ * panggilan decode seluruh blob vektor = puluhan MB per menit sia-sia. */
+export function readMemoriesLite(whereClause: string, params: Array<number | string | null> = []): Memory[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT id, project_id, kind, content, importance, created_at, last_accessed, access_count, source_tool, status, resolved_at, origin, embed_model, source_session, valid_from, valid_to, updated_at, updated_by
+       FROM memories ${whereClause}`
+    )
+    .all(...params) as unknown as Array<{
+    id: number;
+    project_id: number | null;
+    kind: string;
+    content: string;
+    importance: number;
+    created_at: number;
+    last_accessed: number;
+    access_count: number;
+    source_tool: string | null;
+    status: string | null;
+    resolved_at: number | null;
+    origin: string | null;
+    embed_model: string | null;
+    source_session: string | null;
+    valid_from: number | null;
+    valid_to: number | null;
+    updated_at: number | null;
+    updated_by: string | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    projectId: r.project_id,
+    kind: r.kind,
+    content: r.content,
+    importance: r.importance,
+    createdAt: r.created_at,
+    lastAccessed: r.last_accessed,
+    accessCount: r.access_count,
+    sourceTool: r.source_tool || "",
+    status: r.status || "active",
+    resolvedAt: r.resolved_at || 0,
+    origin: r.origin || "user",
+    embedModel: r.embed_model || "",
+    sourceSession: r.source_session || "",
+    validFrom: r.valid_from || r.created_at || 0,
+    validTo: r.valid_to || 0,
+    updatedAt: r.updated_at || 0,
+    updatedBy: r.updated_by || "",
+  }));
+}
+
 export function memoryById(id: number): Memory | null {
   const rows = readMemories("WHERE id = ?", [id]);
   return rows[0] ?? null;

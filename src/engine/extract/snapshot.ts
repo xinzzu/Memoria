@@ -103,7 +103,6 @@ export async function captureSessionSnapshot(projectId: number, fallbackTool = "
   const cooldownKey = `f4snap:${projectId}`;
   const last = Number(getSetting(cooldownKey, "0")) || 0;
   if (Date.now() - last < SNAPSHOT_COOLDOWN_MS) return null;
-  setSetting(cooldownKey, String(Date.now()));
 
   const d = getDb();
   const proj = d.prepare("SELECT path, name FROM projects WHERE id = ?").get(projectId) as
@@ -145,6 +144,7 @@ export async function captureSessionSnapshot(projectId: number, fallbackTool = "
 
   const eprov = await getEmbedProvider();
   const embedding = await eprov.embed(content);
+  setSetting(cooldownKey, String(Date.now())); // cooldown hanya di-consume saat berhasil
   const result = addMemoryWithDedupe({
     projectId,
     kind: "context",
