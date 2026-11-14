@@ -253,11 +253,15 @@ export function continuityStats(): ContinuityStats {
     .all() as Array<{ ts: number }>;
   let gapSum = 0;
   let gapN = 0;
+  // audit H6: pairing satu-ke-satu (pointer maju) — dulu satu resume dipasangkan
+  // berulang dengan SEMUA limit lebih awal, menggelembungkan avgResumeGapMs.
+  let ri = 0;
   for (const l of limits) {
-    const next = resumes.find((r) => r.ts >= l.ts);
-    if (next) {
-      gapSum += next.ts - l.ts;
+    while (ri < resumes.length && resumes[ri].ts < l.ts) ri++;
+    if (ri < resumes.length) {
+      gapSum += resumes[ri].ts - l.ts;
       gapN++;
+      ri++;
     }
   }
   return {
@@ -1173,6 +1177,16 @@ export function countMemories(since = 0): number {
   return row.c;
 }
 
+// M2 (audit): penanda versi data untuk cache LSH (vecfind) — setiap mutasi
+// memori menaikkannya; vecfind membandingkan versi, bukan sekadar COUNT.
+let dataVersion = 0;
+export function bumpDataVersion(): void {
+  dataVersion++;
+}
+export function getDataVersion(): number {
+  return dataVersion;
+}
+
 export function insertMemory(m: Memory): number {
   const d = getDb();
   const uid = m.uid || randomUUID();
@@ -1208,6 +1222,7 @@ export function insertMemory(m: Memory): number {
     /* non-blokir */
   }
   enqueueMemorySnapshot(id);
+  bumpDataVersion();
   return id;
 }
 
@@ -1302,6 +1317,7 @@ export function listDraft(): Memory[] {
 }
 
 export function approveMemory(id: number): boolean {
+  bumpDataVersion();
   const res = getDb()
     .prepare("UPDATE memories SET status = 'active', updated_at = ?, updated_by = ? WHERE id = ?")
     .run(Date.now(), getDeviceId(), id);
@@ -1376,6 +1392,7 @@ export function updateMemory(
   d.prepare(
     `UPDATE memories SET content = ?, kind = ?, importance = ?, project_id = ?, updated_at = ?, updated_by = ?, embedding = ?, embed_model = ? WHERE id = ?`
   ).run(content, kind, importance, projectId, Date.now(), getDeviceId(), embedding, embedModel, id);
+  bumpDataVersion();
   try {
     reindexEntities(id, content);
   } catch {
@@ -1386,6 +1403,7 @@ export function updateMemory(
 }
 
 export function archiveMemory(id: number, archived = true): boolean {
+  bumpDataVersion();
   // Temporal: arsip menutup window keberlakuan fakta (valid_to); unarchive
   // membukanya kembali — "apa yang kami percaya di tanggal X" jadi mungkin.
   const res = getDb()
@@ -1633,6 +1651,7 @@ export function pendingExtractionCount(): number {
 }
 
 export function deleteMemory(id: number): boolean {
+  bumpDataVersion();
   const d = getDb();
   const row = d.prepare("SELECT uid FROM memories WHERE id = ?").get(id) as { uid: string | null } | undefined;
   const links = d
@@ -1668,6 +1687,13 @@ export function countProjectTranscripts(projectId: number): number {
 export function insertMemoryLink(fromId: number, toId: number, kind: string, weight: number): void {
   const a = Math.min(fromId, toId);
   const b = Math.max(fromId, toId);
+  // C3 (audit): upsert link yang TIDAK mengubah weight tidak boleh enqueue
+  // snapshot baru — dulu tiap memori baru memicu ratusan link-op duplikat
+  // (outbox tumbuh ~kuadratik di proyek besar).
+  const existing = getDb()
+    .prepare('SELECT weight FROM memory_links WHERE from_memory_id = ? AND to_memory_id = ?')
+    .get(a, b) as { weight: number } | undefined;
+  if (existing && existing.weight >= weight) return;
   getDb()
     .prepare(
       "INSERT INTO memory_links (from_memory_id, to_memory_id, kind, weight, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(from_memory_id, to_memory_id) DO UPDATE SET weight = MAX(memory_links.weight, excluded.weight)"

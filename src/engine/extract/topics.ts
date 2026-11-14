@@ -1,4 +1,4 @@
-import { allMemories, setMemoryTag, clearMemoryTags, reindexEntities } from "../store/db";
+import { allMemories, setMemoryTag, clearMemoryTags, replaceMemoryTags, tagsForMemory, getDb, reindexEntities } from "../store/db";
 
 const STOPWORDS = new Set(
   "yang dan di ke dari untuk dengan pada ini itu adalah akan tidak sudah juga kami kita mereka saya anda sebagai atau karena agar dapat membuat menggunakan sebuah suatu namun tetapi jika ketika saat harus bisa telah lebih sangat baru lagi kita aplikasi proyek project file folder code kode user request task pekerjaan masalah issue error fix perbaikan sistem the and for with from into this that these those have has had was were been being your our their them him her its not only but or if as at by in on of to what which who whom where when why how all any both each more most other some such no nor than too very can will just also about over after before between under while through during without against among within across along beyond above below upon down up off out let try make use used using another because could did does doing done dont get got good he im into know like never new now old please put saw say says see seen thing things think way well went would okay ok yeah thing use work used actually already always anyway available best better bit bring came cause change coming dont really really".split(
@@ -37,7 +37,8 @@ function topTokens(texts: string[]): string[] {
 export function rebuildTopics(): { memories: number; topics: number } {
   const mems = allMemories().filter((m) => m.embedding && m.embedding.length);
   if (mems.length < 4) {
-    clearMemoryTags();
+    // terlalu sedikit bahan: tag topik lama tetap dipertahankan (prinsip
+    // diff — jangan menghapus semua tiap siklus).
     return { memories: mems.length, topics: 0 };
   }
 
@@ -49,9 +50,12 @@ export function rebuildTopics(): { memories: number; topics: number } {
     }
   }
 
-  const k = Math.min(15, Math.max(3, Math.round(mems.length / 12)));
-  const dim = mems[0].embedding!.length;
-  const vecs = mems.map((m) => {
+  // Downsample (audit H2): k-means++ × 14 iterasi sinkron memblokir main
+  // thread pada 10k+ memori — cukup 2000 vektor terbaru untuk topik.
+  const kmeansMems = mems.slice(0, 2000);
+  const k = Math.min(15, Math.max(3, Math.round(kmeansMems.length / 12)));
+  const dim = kmeansMems[0].embedding!.length;
+  const vecs = kmeansMems.map((m) => {
     const v = m.embedding!;
     const l = norm(v);
     return v.map((x) => x / l);
@@ -108,7 +112,7 @@ export function rebuildTopics(): { memories: number; topics: number } {
 
   const labels: string[] = [];
   const byCluster: string[][] = Array.from({ length: k }, () => []);
-  for (let i = 0; i < vecs.length; i++) byCluster[assign[i]].push(mems[i].content);
+  for (let i = 0; i < vecs.length; i++) byCluster[assign[i]].push(kmeansMems[i].content);
 
   let topics = 0;
   for (let c = 0; c < k; c++) {
@@ -118,9 +122,27 @@ export function rebuildTopics(): { memories: number; topics: number } {
     topics++;
   }
 
-  clearMemoryTags();
+  // PR-39b (audit H2): DIFF sebelum tulis — dulu clearMemoryTags() global +
+  // setMemoryTag semua memori memica UPDATE + outbox op untuk SETIAP baris
+  // SETIAP siklus (churn LWW permanen ke peer). Kini hanya memori yang
+  // labelnya benar-benar berubah yang ditulis.
+  let changed = 0;
+  const covered = new Set<number>();
   for (let i = 0; i < vecs.length; i++) {
-    setMemoryTag(mems[i].id!, labels[assign[i]]);
+    const newTag = labels[assign[i]];
+    const cur = tagsForMemory(kmeansMems[i].id!);
+    covered.add(kmeansMems[i].id!);
+    if (cur.length === 1 && cur[0] === newTag) continue;
+    replaceMemoryTags(kmeansMems[i].id!, [newTag]);
+    changed++;
   }
-  return { memories: vecs.length, topics };
+  // memori di luar cakupan k-means (di bawah ambang vektor) → hapus tag topik
+  const placeholders = mems.map(() => "?").join(",");
+  const outside = getDb()
+    .prepare(
+      `SELECT DISTINCT memory_id AS id FROM memory_tags WHERE memory_id NOT IN (${placeholders})`
+    )
+    .all(...mems.map((m) => m.id!)) as Array<{ id: number }>;
+  for (const o of outside) replaceMemoryTags(o.id, []);
+  return { memories: changed, topics };
 }

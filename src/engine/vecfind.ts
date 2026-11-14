@@ -1,5 +1,5 @@
 import { VecIndex } from "./vecindex";
-import { getDb, decodeEmbedding } from "./store/db";
+import { getDb, decodeEmbedding, getDataVersion } from "./store/db";
 
 /* Index vektor per-DIALEK: vektor dari model berbeda (nomic vs hash-256 vs
  * embedding LM Studio) tidak boleh dicampur dalam satu ruang pencarian. */
@@ -7,6 +7,7 @@ import { getDb, decodeEmbedding } from "./store/db";
 interface DialectIndex {
   index: VecIndex | null;
   count: number;
+  version: number;
 }
 
 const indexes = new Map<string, DialectIndex>();
@@ -24,10 +25,13 @@ function dialectCount(model: string): number {
 
 export function ensureVecIndex(model: string): VecIndex | null {
   const target = dialectCount(model);
+  const version = getDataVersion();
   const cached = indexes.get(model);
-  if (cached && cached.count === target) return cached.index;
+  // M2 (audit): count-equality saja tidak mendeteksi update/archive seimbang —
+  // versi data ikut dibandingkan.
+  if (cached && cached.count === target && cached.version === version) return cached.index;
 
-  indexes.set(model, { index: null, count: target });
+  indexes.set(model, { index: null, count: target, version });
   if (target === 0) return null;
 
   const rows = getDb()
@@ -50,7 +54,7 @@ export function ensureVecIndex(model: string): VecIndex | null {
       continue;
     }
   }
-  indexes.set(model, { index, count: target });
+  indexes.set(model, { index, count: target, version });
   return index;
 }
 
