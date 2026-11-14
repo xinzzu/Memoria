@@ -88,9 +88,9 @@ sudah tahu Anda sedang mengerjakan apa.
 
 | OS | Paket |
 |---|---|
-| Windows | `Memoria Setup 0.10.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
-| Linux | `memoria_0.10.0_amd64.deb` (`sudo dpkg -i`) atau `Memoria-0.10.0.AppImage` |
-| macOS | `Memoria-0.10.0.dmg` (seret ke Applications; klik kanan → Open jika digate) |
+| Windows | `Memoria Setup 0.11.0.exe` dari [Releases](https://github.com/xinzzu/Memoria/releases) |
+| Linux | `memoria_0.11.0_amd64.deb` (`sudo dpkg -i`) atau `Memoria-0.11.0.AppImage` |
+| macOS | `Memoria-0.11.0.dmg` (seret ke Applications; klik kanan → Open jika digate) |
 
 Memoria berjalan di tray dan langsung mulai menangkap.
 

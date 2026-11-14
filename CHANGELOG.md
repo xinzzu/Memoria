@@ -4,6 +4,50 @@ Semua perubahan penting pada Memoria didokumentasikan di file ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/);
 versioning mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.11.0] — 2026-11-15 — Hardened & Measured
+
+**Re-audit menyeluruh (2 jalur paralel: engine + web/API)** menemukan 3 bug
+kritis — termasuk **kehilangan data sesungguhnya** di jalur capture — dan
+seluruh temuan high/medium penting diperbaiki di rilis ini.
+
+### Fixed
+- **CRITICAL — scanner kehilangan data sesi hidup**: kelima scanner
+  me-restart `seq` dari 0 tiap scan, sementara `transcripts` punya
+  UNIQUE(tool, session_id, seq) + INSERT OR IGNORE — semua pesan baru sesi
+  yang bertumbuh dibuang diam-diam setelah scan pertama. Kini
+  `seqAllocator(tool)` membaca MAX(seq) per sesi dan menaikkan in-memory
+  (5 scanner, 0 `seq++` tersisa).
+- **CRITICAL — auto-link menarget baris salah**: `addMemoryWithDedupe`
+  membaca `last_insert_rowid()` SETELAH `insertMemory` meng-insert entities +
+  sync outbox — id menunjuk outbox, auto-linking membisukan grafik atau
+  membuat relasi palsu. `insertMemory` kini mengembalikan id.
+- **HIGH**: backup harian menyalin DB WAL yang hidup (robek/stale) → kini
+  `VACUUM INTO`; `scanAll` tanpa guard reentrancy (watcher + hot-path +
+  /api/scan bisa tumpang tindih) → latch; `isGenericMemory` menghapus memori
+  nyata (satu fence/bullet di tengah konten multi-baris = seluruh memori
+  dibuang) → dua kelas pola + aturan dominasi ≥50%; `continuity_events`
+  tanpa retensi → prune 90 hari + index (kind, ts); project brief kini
+  diidentifikasi via `source_tool='brief'` (bukan prefix konten); hapus
+  memori kini ikut membersihkan tags/entities (paritas jalur sync).
+- **HIGH (web)**: filter kind/project TANPA query merender list kosong
+  (kini /api/search berjalan tanpa q); pipeline `since` bocor sampai
+  total/hasMore/list/search (infinite Load more + hasil search lama
+  menyembunyikan yang baru); id `pdTasks` duplikat (daftar tugas
+  terinjeksi ke tombol header); CSP mematikan tombol Retry & fallback logo
+  milik app sendiri (kini addEventListener); batch bar bocor ke tab lain.
+- **MEDIUM**: 500 tidak lagi membocorkan stack + path; `numParam()` di
+  semua batas numerik (NaN tidak lagi mencapai node:sqlite); readBody
+  dibatasi 10 MB + close/error listeners; SSE cek writableEnded/destroyed +
+  res error handler; 8 endpoint berat dilindungi guard in-flight (409);
+  purge/clean-noise dalam satu transaksi; vec index kini mengikuti counter
+  versi data (recall semantik tidak lagi basi setelah update); topics
+  diff-before-write (tidak lagi churn outbox harian) + k-means downsample
+  2000; continuity pairing satu-ke-satu; access_count satu UPDATE batch;
+  highlight satu-pass (query 'mark' tidak merusak markup sendiri); seq
+  guard untuk semua renderer async + palette; loader per-view pindah ke
+  setView (tidak ada lagi halaman Graph/Integrations kosong); purge probe
+  di dalam try.
+
 ## [Unreleased]
 
 ## [0.10.0] — 2026-11-14 — The Bridge
