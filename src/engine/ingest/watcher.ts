@@ -7,14 +7,17 @@ import { extractQueue } from "../extract/extractor";
 let watcher: ReturnType<typeof chokidar.watch> | null = null;
 
 /* ---------- Hot-path resume ----------
- * Skenario: user kena limit lalu pindah tool di tengah tugas. Konteks resume
- * harus siap SECEPATNYA — bukan menunggu antrian batch berikutnya.
+ * Scenario: the user hits a limit and switches tools mid-task. The resume
+ * context must be ready AS SOON AS POSSIBLE — not wait for the next batch
+ * queue.
  *
- * Heuristic "sesi selesai": aktivitas transkrip terjadi lalu diam >= idle.
- * Saat terpicu: scan incremental -> ekstraksi dengan PRIORITAS SESI TERBARU
- * (order desc) -> auto-inject konteks ke file target proyek yang aktif.
- * Target latensi: resume siap <= 5 menit setelah pesan terakhir.
- * Threshold bisa diatur via setting "resumeIdleMinutes" (default 4, min 1).
+ * "Session finished" heuristic: transcript activity happens, then silence
+ * for >= idle.
+ * When triggered: incremental scan -> extraction with NEWEST-SESSION
+ * PRIORITY (order desc) -> auto-inject context into the active project's
+ * target file.
+ * Latency target: resume ready <= 5 minutes after the last message.
+ * Threshold is configurable via the "resumeIdleMinutes" setting (default 4, min 1).
  * -------------------------------------- */
 
 const HOT_LOOP_MS = 30_000;
@@ -38,13 +41,13 @@ function hotResumeTick(): void {
     try {
       console.log("[memoria] Session idle detected - hot resume: priority extraction + context injection");
       await scanAll();
-      // Sesi terbaru duluan — konteks pindah-tool tidak boleh mengantri di belakang backlog lama.
+      // Newest session first — tool-switch context must not queue behind the old backlog.
       await extractQueue(true, { order: "desc" });
       const { autoInjectContext } = await import("../handoff");
       const injected = await autoInjectContext();
       if (injected.length) console.log(`[memoria] Resume context ready for: ${injected.join(", ")}`);
     } catch {
-      // biarkan siklus berikutnya mencoba lagi
+      // Let the next cycle try again.
       dirtySinceResume = true;
     } finally {
       hotRunning = false;
