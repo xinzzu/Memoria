@@ -72,9 +72,17 @@ export function letterRatio(s: string): number {
   return letters / compact.length;
 }
 
-/** Jumlah kata "nyata" (≥2 huruf, mengandung huruf). */
+/** Characters of scripts written without spaces (Japanese, Chinese, Thai). In
+ * such scripts each character is counted as one word below — there are no
+ * spaces to split on, and counting every character keeps real sentences above
+ * the "too-few-words" gate instead of archiving all of them. */
+const NO_SPACE_CHAR = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/gu;
+
+/** Jumlah kata "nyata" (≥2 huruf, mengandung huruf); skrip tanpa spasi dihitung per karakter. */
 export function wordCount(s: string): number {
-  return s.split(/\s+/).filter((w) => /\p{L}{2,}/u.test(w)).length;
+  const spaced = s.split(/\s+/).filter((w) => /\p{L}{2,}/u.test(w)).length;
+  const noSpace = (s.match(NO_SPACE_CHAR) || []).length;
+  return spaced + noSpace;
 }
 
 /** Alasan noise (id aturan) atau null bila kandidat layak dinilai. */
