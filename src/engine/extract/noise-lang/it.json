@@ -1,0 +1,42 @@
+{
+  "language": "it",
+  "name": "Italiano",
+  "rules": [
+    {
+      "id": "agent-narration",
+      "at": "start",
+      "phrases": [
+        "fammi controllare",
+        "fammi verificare",
+        "fammi dare un'occhiata",
+        "lascia che controlli",
+        "ora verifico se",
+        "prima controllo il",
+        "sto controllando il",
+        "sto eseguendo i test"
+      ]
+    },
+    {
+      "id": "offer-question",
+      "at": "start",
+      "phrases": [
+        "vuoi che aggiunga",
+        "vuoi che continui",
+        "vuoi che prosegua",
+        "preferisci che lo faccia",
+        "devo rilanciare i test",
+        "se vuoi posso"
+      ]
+    },
+    {
+      "id": "generic-agent",
+      "at": "anywhere",
+      "phrases": [
+        "spero che ti sia utile",
+        "spero che questo ti aiuti",
+        "fammi sapere se hai domande",
+        "resto a disposizione per chiarimenti"
+      ]
+    }
+  ]
+}
