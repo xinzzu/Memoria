@@ -1433,7 +1433,7 @@ async function renderHandoff() {
   const mark = viewSeq("handoff");
   const slug = $("#hfProject").value;
   const box = $("#handoffBox");
-  if (!slug) { box.textContent = "Pick a project lalu klik \"Generate handoff\"."; return; }
+  if (!slug) { box.textContent = t("Pick a project, then click \"Generate handoff\"."); return; }
   box.textContent = t("Generating handoff…");
   try {
     const d = await api("/api/handoff?slug=" + encodeURIComponent(slug));
@@ -2299,7 +2299,7 @@ async function renderTasks() {
         <div class="task-check" data-toggle="${task.id}" title="${done ? t("Reopen") : t("Mark done")}">${done ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>' : ""}</div>
         <div class="task-body">
           <div class="task-text">${esc(task.content)}</div>
-          <div class="task-meta">${esc(prettySlug(task.projectSlug))} · ${esc(TOOL_LABEL[task.sourceTool] || task.sourceTool)} · ${done ? t("done") + " " + fmtRel(task.resolvedAt) : fmtRel(task.createdAt)}</div>
+          <div class="task-meta">${esc(prettySlug(task.projectSlug))} · ${esc(TOOL_LABEL[task.sourceTool] || task.sourceTool)} · ${done ? t("done") + " " + fmtRel(task.resolvedAt || task.createdAt) : fmtRel(task.createdAt)}</div>
         </div>
         <button class="task-del" data-tdel="${task.id}" title="${t("Delete")}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 4h10M6 4V3h4v1M5.5 4l.6 9h3.8l.6-9"/></svg></button>
       </div>`;
