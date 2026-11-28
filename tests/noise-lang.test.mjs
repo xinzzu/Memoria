@@ -103,6 +103,16 @@ test("matching: whole words, apostrophes and commas ignored, all languages", () 
     "Fammi dare un’occhiata al file di configurazione.": "agent-narration",
     "Vuoi che aggiunga un test per il parser?": "offer-question",
     "Ho aggiornato la documentazione. Spero che ti sia utile.": "generic-agent",
+    "설정 파일을 확인합니다, 설정 파일 내용을 먼저 살펴봅니다.": "agent-narration",
+    "코드를 읽고 있습니다, 로그인 과정의 문제를 봅니다.": "agent-narration",
+    "파일을 만들어보겠습니다, 새 테스트 파일을 추가합니다.": "agent-narration",
+    "먼저 확인하겠습니다, 인증 핸들러가 동작하는지 봅니다.": "agent-narration",
+    "확인해 드릴까요, 테스트를 계속할까요.": "offer-question",
+    "계속 진행할까요, 파일을 만들까요.": "offer-question",
+    "이미 수정했습니다, 도와드릴 수 있어 기쁩니다.": "generic-agent",
+    "도움이 되길 바랍니다, 릴리스가 제때 완료됐습니다.": "generic-agent",
+    "도와주세요, 공유 버튼을 결과 페이지에 추가해 주세요.": "user-request",
+    "추가해 주세요, 사용자 테이블에 열을 추가합니다.": "user-request",
   };
   for (const [text, id] of Object.entries(cases)) assert.equal(noiseReason(text), id, text);
   const keep = [
@@ -132,6 +142,10 @@ test("matching: whole words, apostrophes and commas ignored, all languages", () 
     "डिप्लॉय से पहले उपयोगकर्ता तालिका में कॉलम जोड़ें।",
     "Abbiamo deciso di usare PostgreSQL per salvare le sessioni.",
     "Ora il parser accetta anche i file senza intestazione.",
+    "이번 주에 새 프레임워크를 테스트하고 있습니다.",
+    "내일 오전 10시에 팀과 회의가 있습니다.",
+    "배포 전에 사용자 테이블에 열을 추가하세요.",
+    "로그를 확인하는 데 배포 때마다 시간이 걸립니다.",
   ];
   for (const text of keep) assert.equal(noiseReason(text), null, text);
 });

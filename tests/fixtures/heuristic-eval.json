@@ -470,6 +470,16 @@
       "kind": "decision",
       "label": "memory",
       "content": "Abbiamo deciso di usare PostgreSQL per salvare le sessioni."
+    },
+  {
+  "kind": "fact",
+    "label": "noise",
+    "content": "설정 파일을 확인합니다, 설정 파일 내용을 먼저 살펴봅니다."
+  },
+    {
+      "kind": "decision",
+      "label": "memory",
+      "content": "세션 데이터에는 MySQL 대신 PostgreSQL을 사용하기로 했습니다."
     }
   ]
 }
