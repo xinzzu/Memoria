@@ -57,8 +57,14 @@ regular expressions, so you do not need to know the code to add a language.
    - `generic-agent` (`"at": "anywhere"`): closing pleasantries.
    - `user-request` (`"at": "start"`): the user asking the agent to do something.
 
-   Phrases are matched on whole words separated by spaces, so languages
-   written without spaces (Japanese, Chinese, Thai) are not supported yet.
+   Phrases are matched on whole words separated by spaces. Languages written
+   without spaces (Japanese, Chinese, Thai) switch to character-based matching:
+   add `"script": "cjk"` (Japanese, Chinese) or `"script": "thai"` to the file,
+   optionally list polite leading fillers ("yes,", "well then,") under
+   `"fillers"` — they are stripped before `"at": "start"` matching — keep
+   `"at": "start"` phrases as short openers, and make `"at": "anywhere"`
+   phrases at least 6 characters long (substring matching) so they cannot drop
+   real statements.
 3. That's it for registration: every `*.json` in `noise-lang/` is loaded
    automatically, so you don't touch `index.ts`.
 4. Run `npm test` (`tests/noise-lang.test.mjs` checks every file) and

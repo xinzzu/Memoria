@@ -480,6 +480,16 @@
       "kind": "decision",
       "label": "memory",
       "content": "Decidimos usar PostgreSQL em vez de MySQL para os dados de sessão."
+    },
+    {
+      "kind": "fact",
+      "label": "noise",
+      "content": "はい、まず設定ファイルを確認します。"
+    },
+    {
+      "kind": "decision",
+      "label": "memory",
+      "content": "セッションデータにはMySQLの代わりにPostgreSQLを使うことにしました。"
     }
   ]
 }

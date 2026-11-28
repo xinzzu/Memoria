@@ -22,6 +22,8 @@ test("every language file is valid and registered", () => {
     assert.equal(d.language, code, `${f}: "language" must equal the file name`);
     assert.ok(registered.has(code), `${f} was not loaded (is it valid JSON with the right shape?)`);
     assert.ok(typeof d.name === "string" && d.name.length > 1, `${f}: "name" is required`);
+    assert.ok(d.script === undefined || (typeof d.script === "string" && d.script.length >= 2), `${f}: "script" must be a string of 2+ characters when present`);
+    assert.ok(d.fillers === undefined || (Array.isArray(d.fillers) && d.fillers.every((x) => typeof x === "string")), `${f}: "fillers" must be a list of strings when present`);
     assert.ok(Array.isArray(d.rules) && d.rules.length, `${f}: "rules" must be a non-empty list`);
     for (const r of d.rules) {
       assert.ok(KNOWN_IDS.has(r.id), `${f}: unknown rule id "${r.id}" (use one of ${[...KNOWN_IDS].join(", ")})`);
@@ -30,9 +32,10 @@ test("every language file is valid and registered", () => {
       const seen = new Set();
       for (const p of r.phrases) {
         assert.equal(typeof p, "string", `${f}/${r.id}: phrases are strings`);
-        const n = lang.normalizePhrase(p);
+        const n = d.script ? lang.normalizePhrase(p).replace(/\s+/g, "") : lang.normalizePhrase(p);
         assert.ok(n.length >= 2, `${f}/${r.id}: phrase "${p}" is too short`);
         assert.ok(n.split(" ").length <= 6, `${f}/${r.id}: phrase "${p}" is longer than 6 words`);
+        if (d.script && r.at === "anywhere") assert.ok(n.length >= 6, `${f}/${r.id}: character-mode "anywhere" phrase "${p}" needs 6+ characters (after normalization) so it cannot drop short real statements`);
         assert.ok(!/[\\^$*+?()[\]{}|]/.test(p), `${f}/${r.id}: "${p}" looks like a regex; use plain words`);
         assert.ok(!seen.has(n), `${f}/${r.id}: duplicate phrase "${p}"`);
         seen.add(n);
@@ -146,6 +149,31 @@ test("matching: whole words, apostrophes and commas ignored, all languages", () 
     "Adiciona uma coluna à tabela de utilizadores antes da demonstração.",
     "Estou a testar o novo framework esta semana.",
     "A verificação dos registos demora antes de cada implementação.",
+  ];
+  for (const text of keep) assert.equal(noiseReason(text), null, text);
+});
+test("matching: character-based scripts (Japanese) with no artificial delimiters", () => {
+  // Real agent output in Japanese has no spaces; matching is character-based
+  // (script: "cjk"): fillers are stripped before start phrases, "anywhere"
+  // phrases are substrings of 6+ characters.
+  const cases = {
+    "はい、まず設定ファイルを確認します。": "agent-narration",
+    "では、次にログインハンドラーを確認します。": "agent-narration",
+    "それでは、続きましてビルドを実行します。": "agent-narration",
+    "かしこまりました。では、次にテストを実行します。": "agent-narration",
+    "はい、よろしければテストも追加しておきましょうか。": "offer-question",
+    "ご希望でしたら、ハンドラーのテストを追加しましょうか。": "offer-question",
+    "修正は完了しました。よろしくお願いします。": "generic-agent",
+    "問題があれば遠慮なくお申し付けください。お役に立てれば幸いです。": "generic-agent",
+    "共有ボタンを結果ページに追加してください。": "user-request",
+    "ログイン処理のバグを修正してください。": "user-request",
+  };
+  for (const [text, id] of Object.entries(cases)) assert.equal(noiseReason(text), id, text);
+  const keep = [
+    "新しいフレームワークを今週テストします。",
+    "ログの確認には毎回デプロイ前に時間がかかります。",
+    "明日の午前十時にチームとの打ち合わせがあります。",
+    "デモの前にユーザーテーブルへ列を追加します。",
   ];
   for (const text of keep) assert.equal(noiseReason(text), null, text);
 });
