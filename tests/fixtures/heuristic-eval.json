@@ -474,7 +474,17 @@
     {
       "kind": "fact",
       "label": "noise",
+      "content": "確認します、設定ファイルの内容をまず見ます。"
+    },
+    {
+      "kind": "fact",
+      "label": "noise",
       "content": "Deixa-me verificar o ficheiro de configuração antes de continuar."
+    },
+    {
+      "kind": "decision",
+      "label": "memory",
+      "content": "セッションのデータには MySQL ではなく PostgreSQL を使うことにしました。"
     },
     {
       "kind": "decision",
