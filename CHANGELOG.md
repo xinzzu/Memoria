@@ -4,6 +4,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Fixed
+- **Tasks tab: completed tasks were never listed.** Tasks the agent finished in its own todo list, or closed with a commit, are stored as done but the Completed column only showed tasks checked off by hand. They are listed now, and unchecking one reopens it as an open task.
+- **Handoff text was hard to read in the light theme** (light grey on white). It uses the normal text colour now, and the empty hint is translated instead of mixing English and Indonesian.
 - The handoff block's git section was titled in Indonesian ("Aktivitas Git Terbaru"); it now reads "Recent git activity" like the rest of the block.
 ### Changed
 - Language noise files in `noise-lang/` are loaded automatically: a new language is one JSON file, with no registration line, so language PRs no longer conflict with each other. A malformed file is skipped with a warning instead of breaking triage.

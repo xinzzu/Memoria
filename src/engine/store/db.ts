@@ -1812,8 +1812,11 @@ export function listTasks(projectId: number | null, limit = 300): { open: Memory
     `WHERE kind = 'task_pending' AND archived = 0 AND status = 'active' AND COALESCE(resolved_at, 0) = 0 ${cond} ORDER BY created_at DESC LIMIT ?`,
     params
   );
+  // Done = checked off by hand (task_pending + resolved_at) or completed in the
+  // agent's own todo list / a commit (kind task_done, from session events).
   const done = readMemories(
-    `WHERE kind = 'task_pending' AND archived = 0 AND status = 'active' AND COALESCE(resolved_at, 0) > 0 ${cond} ORDER BY resolved_at DESC LIMIT ?`,
+    `WHERE archived = 0 AND status = 'active' AND (kind = 'task_done' OR (kind = 'task_pending' AND COALESCE(resolved_at, 0) > 0)) ${cond}
+     ORDER BY COALESCE(NULLIF(resolved_at, 0), created_at) DESC LIMIT ?`,
     params
   );
   return { open, done };
@@ -1822,8 +1825,9 @@ export function listTasks(projectId: number | null, limit = 300): { open: Memory
 /** Toggle resolved manual dari dashboard Tasks. */
 export function setTaskResolved(id: number, resolved: boolean): boolean {
   const res = getDb()
-    .prepare("UPDATE memories SET resolved_at = ?, updated_at = ?, updated_by = ? WHERE id = ?")
-    .run(resolved ? Date.now() : 0, Date.now(), getDeviceId(), id);
+    // Reopening a task the agent marked done turns it back into an open task.
+    .prepare("UPDATE memories SET resolved_at = ?, kind = CASE WHEN ? = 0 AND kind = 'task_done' THEN 'task_pending' ELSE kind END, updated_at = ?, updated_by = ? WHERE id = ?")
+    .run(resolved ? Date.now() : 0, resolved ? 1 : 0, Date.now(), getDeviceId(), id);
   if (res.changes > 0) enqueueMemorySnapshot(id);
   return res.changes > 0;
 }
