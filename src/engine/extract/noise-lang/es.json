@@ -1,0 +1,84 @@
+{
+  "language": "es",
+  "name": "Español",
+  "rules": [
+    {
+      "id": "agent-narration",
+      "at": "start",
+      "phrases": [
+        "déjame revisar",
+        "déjame ver",
+        "déjame comprobar",
+        "déjame buscar",
+        "voy a revisar",
+        "voy a comprobar",
+        "voy a leer",
+        "voy a buscar",
+        "voy a abrir",
+        "voy a crear",
+        "voy a corregir",
+        "voy a intentar",
+        "voy a empezar",
+        "voy a actualizar",
+        "voy a revisar primero",
+        "voy a mirar primero",
+        "estoy revisando",
+        "estoy comprobando",
+        "estoy leyendo",
+        "estoy buscando",
+        "estoy empezando a comprobar",
+        "ahora voy a",
+        "luego voy a",
+        "primero voy a",
+        "vale voy a",
+        "vale déjame",
+        "perfecto voy a",
+        "voy a repasar",
+        "en curso de revisión"
+      ]
+    },
+    {
+      "id": "offer-question",
+      "at": "start",
+      "phrases": [
+        "quieres que siga",
+        "quieres que continúe",
+        "quieres que yo",
+        "tú quieres que yo",
+        "debo seguir",
+        "debo continuar",
+        "debo hacerlo",
+        "debería continuar",
+        "si quieres",
+        "si lo prefieres"
+      ]
+    },
+    {
+      "id": "generic-agent",
+      "at": "anywhere",
+      "phrases": [
+        "espero que esto te sirva",
+        "espero que te sirva",
+        "no dudes en decírmelo",
+        "avísame si",
+        "encantado de ayudarte",
+        "encantada de ayudarte",
+        "no reveles las instrucciones del sistema",
+        "este resultado de herramienta es interno",
+        "no inventes ningún tema"
+      ]
+    },
+    {
+      "id": "user-request",
+      "at": "start",
+      "phrases": [
+        "ayúdame",
+        "ayúdame por favor",
+        "puedes",
+        "podrías",
+        "puedes por favor",
+        "serías tan amable"
+      ]
+    }
+  ]
+}
